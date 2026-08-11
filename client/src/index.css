@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — single source of truth for color in this app.
+ *
+ * Every `--color-*` variable below becomes a Tailwind utility automatically
+ * (e.g. `--color-primary-600` -> `bg-primary-600` / `text-primary-600` / etc).
+ * Components must reference these semantic names (primary / accent / surface)
+ * rather than raw hues — never reach for `bg-blue-600` or similar generic
+ * SaaS colors here.
+ *
+ *   primary (Jade Green) — buttons, navigation, active states, key UI
+ *   accent  (Gold)        — CEO badge, achievements, selected states, emphasis
+ *   neutral (slate)        — backgrounds and surfaces (Tailwind's built-in slate
+ *                            scale is already neutral, so it is used as-is)
+ */
+@theme {
+  --color-primary-50: #eefdf6;
+  --color-primary-100: #d6f5e3;
+  --color-primary-200: #adebc9;
+  --color-primary-300: #7ddba8;
+  --color-primary-400: #4ac787;
+  --color-primary-500: #22a06b;
+  --color-primary-600: #158457;
+  --color-primary-700: #106b47;
+  --color-primary-800: #0e5539;
+  --color-primary-900: #0c452f;
+  --color-primary-950: #062a1d;
+
+  --color-accent-50: #fdf8e7;
+  --color-accent-100: #faedc0;
+  --color-accent-200: #f5db85;
+  --color-accent-300: #eec249;
+  --color-accent-400: #e5ab22;
+  --color-accent-500: #cf9312;
+  --color-accent-600: #a8760d;
+  --color-accent-700: #825a0b;
+  --color-accent-800: #5f420b;
+  --color-accent-900: #422e09;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+}

@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Env files (never commit real secrets)
+.env
+.env.local
+.env.*.local
+!*.env.example
+
+# Build output
+dist/
+build/
+client/dist/
+server/dist/
+
+# Prisma
+server/prisma/migrations/dev.db*
+server/prisma/*.js
+server/prisma/*.js.map
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test / coverage
+coverage/
