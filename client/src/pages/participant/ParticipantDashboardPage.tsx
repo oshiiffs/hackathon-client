@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
+import { EditableNameField } from '../../components/EditableNameField';
+import { PhaseProgress } from '../../components/PhaseProgress';
 import { LoadingState } from '../../components/StateViews';
 import { useHackathonState } from '../../hooks/useHackathon';
 import { useMyTeam } from '../../hooks/useTeam';
@@ -50,12 +52,14 @@ export function ParticipantDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PhaseProgress currentPhase={phase} />
+
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h2 className="text-lg font-bold text-slate-100 mb-4">My status</h2>
         <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           <div>
             <dt className="text-slate-500 text-xs uppercase font-semibold">Name</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">{user.fullName}</dd>
+            <EditableNameField currentName={user.fullName} />
           </div>
           <div>
             <dt className="text-slate-500 text-xs uppercase font-semibold">Department</dt>

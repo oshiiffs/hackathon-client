@@ -1,6 +1,7 @@
 import { Link, Navigate } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { Badge } from '../../components/Badge';
+import { EditableNameField } from '../../components/EditableNameField';
 import { TeamRosterGrid } from '../../components/TeamRosterGrid';
 import { useMyTeam } from '../../hooks/useTeam';
 import { useHackathonState } from '../../hooks/useHackathon';
@@ -39,7 +40,11 @@ export function CeoDashboardPage() {
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm mb-4">
           <div>
             <dt className="text-slate-500 text-xs uppercase font-semibold">CEO</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">{user?.fullName ?? me?.fullName}</dd>
+            {user?.fullName ? (
+              <EditableNameField currentName={user.fullName} />
+            ) : (
+              <dd className="text-slate-100 font-medium mt-0.5">{me?.fullName}</dd>
+            )}
           </div>
           <div>
             <dt className="text-slate-500 text-xs uppercase font-semibold">Hackathon phase</dt>

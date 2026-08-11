@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { QRBadge } from '../../components/QRBadge';
 import { useMyQr } from '../../hooks/useQr';
@@ -12,6 +13,15 @@ import { getApiErrorMessage } from '../../lib/apiClient';
 export function ParticipantQrPage() {
   const user = useAuthStore((s) => s.user);
   const { data: qr, isLoading, error, refetch } = useMyQr();
+
+  // A CEO scanning this badge flips `user.drafted` on this participant's own
+  // socket (see RealtimeProvider's onMemberRecruited, which refetches /auth/me
+  // for exactly this client) — once that lands, there's nothing left to show
+  // here, so send them back to the dashboard rather than leaving them staring
+  // at a QR code that's no longer useful.
+  if (user?.drafted) {
+    return <Navigate to="/participant" replace />;
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 py-10 text-center" data-testid="participant-qr-page">

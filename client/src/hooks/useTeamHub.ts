@@ -14,6 +14,21 @@ export function useTeamOverview(enabled = true) {
   });
 }
 
+/** CEO-only, and only meaningful once the team is finalized (see renameTeam
+ * on the backend) — finalization is what sets the name in the first place. */
+export function useRenameTeam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data } = await apiClient.patch('/team/name', { name });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-overview'] });
+    },
+  });
+}
+
 /**
  * Collaborative save: any of the five team members can call this (see
  * teamHub.service.ts on the backend) — there is no CEO-only gate on project

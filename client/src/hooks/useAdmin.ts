@@ -22,6 +22,14 @@ type AdminParticipant = {
   createdAt: string;
 };
 
+// The Admin Dashboard mounts all six of these at once. Sockets (see
+// RealtimeProvider) already invalidate every one of these query keys the
+// instant something actually changes, and every admin mutation invalidates
+// them again on success — so this refetchInterval is only a fallback for a
+// silently dropped socket, not the primary sync path. Six queries polling
+// every 4-8s each was overkill for that role and made the whole dashboard
+// re-render every couple of seconds even when nothing changed; widened to
+// stay comfortably ahead of any real staleness without the constant churn.
 export function useAdminOverview() {
   return useQuery({
     queryKey: ['admin-overview'],
@@ -29,7 +37,7 @@ export function useAdminOverview() {
       const { data } = await apiClient.get<AdminOverview>('/admin/overview');
       return data;
     },
-    refetchInterval: 5000,
+    refetchInterval: 20000,
   });
 }
 
@@ -40,7 +48,7 @@ export function useAdminHackathonState() {
       const { data } = await apiClient.get<AdminHackathonStatePayload>('/admin/hackathon/state');
       return data;
     },
-    refetchInterval: 4000,
+    refetchInterval: 10000,
   });
 }
 
@@ -51,7 +59,7 @@ export function useAdminTeams() {
       const { data } = await apiClient.get<Team[]>('/admin/teams');
       return data;
     },
-    refetchInterval: 5000,
+    refetchInterval: 20000,
   });
 }
 
@@ -62,7 +70,7 @@ export function useAdminDeliverables() {
       const { data } = await apiClient.get<TeamDeliverableStatus[]>('/admin/deliverables');
       return data;
     },
-    refetchInterval: 8000,
+    refetchInterval: 30000,
   });
 }
 
@@ -73,7 +81,7 @@ export function useAdminEvaluations() {
       const { data } = await apiClient.get<AdminEvaluationOverview[]>('/admin/evaluations');
       return data;
     },
-    refetchInterval: 8000,
+    refetchInterval: 30000,
   });
 }
 
@@ -84,7 +92,7 @@ export function useAdminParticipants() {
       const { data } = await apiClient.get<AdminParticipant[]>('/admin/participants');
       return data;
     },
-    refetchInterval: 8000,
+    refetchInterval: 20000,
   });
 }
 
@@ -107,6 +115,62 @@ export function useCreateParticipant() {
       return data;
     },
     onSuccess: invalidate,
+  });
+}
+
+// Admin can only reassign department — fullName is participant-owned (see
+// useUpdateMyName in useAuth.ts), so it's not accepted here.
+export function useUpdateParticipant() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: async ({ id, homeDepartment }: { id: string; homeDepartment: Department }) => {
+      const { data } = await apiClient.patch(`/admin/participants/${id}`, { homeDepartment });
+      return data;
+    },
+    onSuccess: () => {
+      invalidate();
+      showSuccessToast('Participant updated.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useDeleteParticipant() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/admin/participants/${id}`);
+    },
+    onSuccess: () => {
+      invalidate();
+      showSuccessToast('Participant removed.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useRegenerateAccessCode() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.post<{ id: string; fullName: string; accessCode: string }>(
+        `/admin/participants/${id}/regenerate-code`,
+      );
+      return data;
+    },
+    onSuccess: invalidate,
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useCreateStaff() {
+  return useMutation({
+    mutationFn: async (input: { fullName: string; email: string; password: string; role: 'ADMIN' | 'JUDGE' }) => {
+      const { data } = await apiClient.post('/admin/staff', input);
+      return data;
+    },
+    onSuccess: (_, input) => showSuccessToast(`${input.role === 'JUDGE' ? 'Judge' : 'Admin'} account created for ${input.email}.`),
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
   });
 }
 

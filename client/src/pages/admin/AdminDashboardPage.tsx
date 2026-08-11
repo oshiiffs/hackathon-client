@@ -10,12 +10,16 @@ import {
   useAdminTeams,
   useCompleteEvent,
   useCreateParticipant,
+  useCreateStaff,
+  useDeleteParticipant,
   useLockParticipants,
   useLockSubmissions,
   useOpenSubmissions,
+  useRegenerateAccessCode,
   useStartCeoChallenge,
   useStopCeoChallenge,
   useUnlockParticipants,
+  useUpdateParticipant,
 } from '../../hooks/useAdmin';
 import { ALL_DEPARTMENTS, type Department, type HackathonPhase } from '../../types/api';
 import { getApiErrorMessage } from '../../lib/apiClient';
@@ -38,13 +42,28 @@ export function AdminDashboardPage() {
   const lockSubmissions = useLockSubmissions();
   const completeEvent = useCompleteEvent();
   const createParticipant = useCreateParticipant();
+  const createStaff = useCreateStaff();
+  const updateParticipant = useUpdateParticipant();
+  const deleteParticipant = useDeleteParticipant();
+  const regenerateCode = useRegenerateAccessCode();
 
   const [duration, setDuration] = useState(30);
   const [ceoSlots, setCeoSlots] = useState(4);
   const [newName, setNewName] = useState('');
   const [newDept, setNewDept] = useState<Department>('COE');
+  const [newAccessCode, setNewAccessCode] = useState('');
   const [lastCreated, setLastCreated] = useState<{ fullName: string; accessCode: string } | null>(null);
+  const [revealedCode, setRevealedCode] = useState<{ id: string; fullName: string; accessCode: string } | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+
+  const [staffName, setStaffName] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffRole, setStaffRole] = useState<'JUDGE' | 'ADMIN'>('JUDGE');
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDept, setEditDept] = useState<Department>('COE');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; fullName: string } | null>(null);
 
   const phase: HackathonPhase | undefined = state?.phase;
   // Mirrors the backend's transition table for UX only — the server is the
@@ -212,80 +231,271 @@ export function AdminDashboardPage() {
       </section>
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">Register a participant</h2>
-        <form
-          className="flex flex-wrap items-end gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            createParticipant.mutate(
-              { fullName: newName, homeDepartment: newDept },
-              {
-                onSuccess: (data) => {
-                  setLastCreated({ fullName: data.fullName, accessCode: data.accessCode });
-                  setNewName('');
-                },
-              },
-            );
-          }}
-        >
-          <label className="text-sm text-slate-300">
-            Full name
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
-            />
-          </label>
-          <label className="text-sm text-slate-300">
-            Department
-            <select
-              value={newDept}
-              onChange={(e) => setNewDept(e.target.value as Department)}
-              className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
-            >
-              {ALL_DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            disabled={createParticipant.isPending || newName.trim().length < 2}
-            className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold px-4 py-2 text-sm"
-          >
-            Add
-          </button>
-        </form>
-        {lastCreated && (
-          <p className="mt-3 text-sm text-primary-400">
-            Created {lastCreated.fullName} — access code: <span className="font-mono font-bold">{lastCreated.accessCode}</span>
-          </p>
-        )}
-        {createParticipant.isError && <p className="text-sm text-red-400 mt-2">{getApiErrorMessage(createParticipant.error)}</p>}
+        <h2 className="text-lg font-bold text-slate-100 mb-4">People</h2>
 
-        <div className="mt-4 max-h-64 overflow-y-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-slate-500 text-xs uppercase">
-              <tr>
-                <th className="py-1">Name</th>
-                <th>Dept</th>
-                <th>Role</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {participants.data?.map((p) => (
-                <tr key={p.id} className="border-t border-slate-800 text-slate-300">
-                  <td className="py-1">{p.fullName}</td>
-                  <td>{p.homeDepartment}</td>
-                  <td>{p.role}</td>
-                  <td>{p.drafted ? `on team (${p.slotDepartment})` : 'undrafted'}</td>
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="lg:border-r lg:border-slate-800 lg:pr-6">
+            <h3 className="text-sm font-bold text-slate-300 mb-3">Register a participant</h3>
+            <form
+              className="flex flex-wrap items-end gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                createParticipant.mutate(
+                  { fullName: newName, homeDepartment: newDept, accessCode: newAccessCode.trim() || undefined },
+                  {
+                    onSuccess: (data) => {
+                      setLastCreated({ fullName: data.fullName, accessCode: data.accessCode });
+                      setNewName('');
+                      setNewAccessCode('');
+                    },
+                  },
+                );
+              }}
+            >
+              <label className="text-sm text-slate-300">
+                Full name
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                />
+              </label>
+              <label className="text-sm text-slate-300">
+                Department
+                <select
+                  value={newDept}
+                  onChange={(e) => setNewDept(e.target.value as Department)}
+                  className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                >
+                  {ALL_DEPARTMENTS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm text-slate-300">
+                Access code (optional)
+                <input
+                  value={newAccessCode}
+                  onChange={(e) => setNewAccessCode(e.target.value)}
+                  placeholder="auto-generated"
+                  className="mt-1 block w-36 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100 font-mono"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={createParticipant.isPending || newName.trim().length < 2}
+                className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold px-4 py-2 text-sm"
+              >
+                Add
+              </button>
+            </form>
+            {lastCreated && (
+              <p className="mt-3 text-sm text-primary-400">
+                Created {lastCreated.fullName} — access code:{' '}
+                <span className="font-mono font-bold">{lastCreated.accessCode}</span>
+              </p>
+            )}
+            {createParticipant.isError && (
+              <p className="text-sm text-red-400 mt-2">{getApiErrorMessage(createParticipant.error)}</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-slate-300 mb-3">Create staff account</h3>
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                createStaff.mutate(
+                  { fullName: staffName, email: staffEmail, password: staffPassword, role: staffRole },
+                  {
+                    onSuccess: () => {
+                      setStaffName('');
+                      setStaffEmail('');
+                      setStaffPassword('');
+                    },
+                  },
+                );
+              }}
+            >
+              <div className="flex flex-wrap gap-3">
+                <label className="text-sm text-slate-300 flex-1 min-w-[10rem]">
+                  Full name
+                  <input
+                    value={staffName}
+                    onChange={(e) => setStaffName(e.target.value)}
+                    className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                  />
+                </label>
+                <label className="text-sm text-slate-300">
+                  Role
+                  <select
+                    value={staffRole}
+                    onChange={(e) => setStaffRole(e.target.value as 'JUDGE' | 'ADMIN')}
+                    className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                  >
+                    <option value="JUDGE">Judge</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <label className="text-sm text-slate-300 flex-1 min-w-[10rem]">
+                  Email
+                  <input
+                    type="email"
+                    value={staffEmail}
+                    onChange={(e) => setStaffEmail(e.target.value)}
+                    className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                  />
+                </label>
+                <label className="text-sm text-slate-300 flex-1 min-w-[10rem]">
+                  Temporary password
+                  <input
+                    type="text"
+                    value={staffPassword}
+                    onChange={(e) => setStaffPassword(e.target.value)}
+                    className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                disabled={
+                  createStaff.isPending ||
+                  staffName.trim().length < 2 ||
+                  !staffEmail.includes('@') ||
+                  staffPassword.length < 8
+                }
+                className="self-start rounded-lg bg-accent-500 hover:bg-accent-400 disabled:opacity-50 text-slate-950 font-black px-4 py-2 text-sm transition"
+              >
+                {createStaff.isPending ? 'Creating…' : `Create ${staffRole === 'JUDGE' ? 'judge' : 'admin'} account`}
+              </button>
+              {createStaff.isError && <p className="text-sm text-red-400">{getApiErrorMessage(createStaff.error)}</p>}
+            </form>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-slate-800">
+          <h3 className="text-sm font-bold text-slate-300 mb-3">All participants</h3>
+          <div className="max-h-72 overflow-y-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-slate-500 text-xs uppercase">
+                <tr>
+                  <th className="py-1">Name</th>
+                  <th>Dept</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th className="text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {participants.data?.map((p) => {
+                  const isEditing = editingId === p.id;
+                  return (
+                    <tr key={p.id} className="border-t border-slate-800 text-slate-300">
+                      {isEditing ? (
+                        <>
+                          <td className="py-1.5">{p.fullName}</td>
+                          <td className="pr-2">
+                            <select
+                              autoFocus
+                              value={editDept}
+                              onChange={(e) => setEditDept(e.target.value as Department)}
+                              className="rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
+                            >
+                              {ALL_DEPARTMENTS.map((d) => (
+                                <option key={d} value={d}>
+                                  {d}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>{p.role}</td>
+                          <td>undrafted</td>
+                          <td className="text-right whitespace-nowrap">
+                            <button
+                              disabled={updateParticipant.isPending}
+                              onClick={() =>
+                                updateParticipant.mutate(
+                                  { id: p.id, homeDepartment: editDept },
+                                  { onSuccess: () => setEditingId(null) },
+                                )
+                              }
+                              className="text-primary-400 hover:text-primary-300 disabled:opacity-40 font-semibold text-xs mr-3"
+                            >
+                              Save
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-slate-200 text-xs">
+                              Cancel
+                            </button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-1.5">{p.fullName}</td>
+                          <td>{p.homeDepartment}</td>
+                          <td>{p.role}</td>
+                          <td>{p.drafted ? `on team (${p.slotDepartment})` : 'undrafted'}</td>
+                          <td className="text-right whitespace-nowrap">
+                            <button
+                              disabled={regenerateCode.isPending}
+                              onClick={() =>
+                                regenerateCode.mutate(p.id, {
+                                  onSuccess: (data) => setRevealedCode(data),
+                                })
+                              }
+                              className="text-accent-400 hover:text-accent-300 disabled:opacity-40 font-semibold text-xs mr-3"
+                            >
+                              Get code
+                            </button>
+                            {p.drafted ? (
+                              <span className="text-slate-600 text-xs">locked</span>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingId(p.id);
+                                    setEditDept(p.homeDepartment);
+                                  }}
+                                  className="text-primary-400 hover:text-primary-300 font-semibold text-xs mr-3"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => setDeleteTarget({ id: p.id, fullName: p.fullName })}
+                                  className="text-red-400 hover:text-red-300 font-semibold text-xs"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {updateParticipant.isError && (
+            <p className="text-sm text-red-400 mt-2">{getApiErrorMessage(updateParticipant.error)}</p>
+          )}
+          {revealedCode && (
+            <p className="mt-3 text-sm text-accent-400 flex items-center gap-2">
+              {revealedCode.fullName}&apos;s login code:{' '}
+              <span className="font-mono font-bold">{revealedCode.accessCode}</span>
+              <button
+                onClick={() => setRevealedCode(null)}
+                className="text-slate-500 hover:text-slate-300 text-xs font-semibold"
+              >
+                dismiss
+              </button>
+            </p>
+          )}
         </div>
       </section>
 
@@ -338,6 +548,20 @@ export function AdminDashboardPage() {
         onConfirm={() => {
           pendingAction?.run();
           setPendingAction(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Remove this participant?"
+        description={deleteTarget ? `${deleteTarget.fullName} will be permanently removed. This cannot be undone.` : undefined}
+        confirmLabel="Remove"
+        tone="danger"
+        pending={deleteParticipant.isPending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteParticipant.mutate(deleteTarget.id);
+          setDeleteTarget(null);
         }}
       />
     </div>

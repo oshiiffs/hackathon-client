@@ -1,14 +1,88 @@
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { Badge } from '../../components/Badge';
+import { PhaseProgress } from '../../components/PhaseProgress';
 import { TeamRosterGrid } from '../../components/TeamRosterGrid';
 import { ProjectSection } from './ProjectSection';
 import { DeliverablesSection } from './DeliverablesSection';
 import { AiMentorPanel } from './AiMentorPanel';
-import { useTeamOverview } from '../../hooks/useTeamHub';
+import { useTeamOverview, useRenameTeam } from '../../hooks/useTeamHub';
+import { useHackathonState } from '../../hooks/useHackathon';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
 import type { Team, TeamOverview } from '../../types/api';
+
+/** CEO-only inline rename control — team.name is set once at finalization but
+ * the CEO can still fix a typo or reconsider it afterward via PATCH /team/name. */
+function TeamNameField({ name, canRename }: { name: string | null; canRename: boolean }) {
+  const renameTeam = useRenameTeam();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name ?? '');
+
+  if (!canRename) {
+    return <dd className="text-slate-100 font-medium mt-0.5">{name}</dd>;
+  }
+
+  if (!editing) {
+    return (
+      <dd className="flex items-center gap-2 mt-0.5">
+        <span className="text-slate-100 font-medium">{name}</span>
+        <button
+          type="button"
+          onClick={() => {
+            setValue(name ?? '');
+            setEditing(true);
+          }}
+          className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition"
+        >
+          Rename
+        </button>
+      </dd>
+    );
+  }
+
+  return (
+    <dd className="mt-0.5">
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const trimmed = value.trim();
+          if (!trimmed || trimmed === name) {
+            setEditing(false);
+            return;
+          }
+          renameTeam.mutate(trimmed, { onSuccess: () => setEditing(false) });
+        }}
+      >
+        <input
+          autoFocus
+          value={value}
+          maxLength={80}
+          onChange={(e) => setValue(e.target.value)}
+          className="rounded-lg bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-slate-100"
+        />
+        <button
+          type="submit"
+          disabled={renameTeam.isPending || value.trim().length === 0}
+          className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 transition"
+        >
+          {renameTeam.isPending ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          disabled={renameTeam.isPending}
+          onClick={() => setEditing(false)}
+          className="rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 transition"
+        >
+          Cancel
+        </button>
+      </form>
+      {renameTeam.isError && <p className="text-red-400 text-xs mt-1">{getApiErrorMessage(renameTeam.error)}</p>}
+    </dd>
+  );
+}
 
 /** Adapts the Team Hub overview shape into the existing TeamRosterGrid's
  * `Team` prop contract (id/ceoId/members[].slotDepartment|fullName|id) so
@@ -38,6 +112,7 @@ function toRosterTeam(overview: TeamOverview): Team {
 export function TeamHubPage() {
   const user = useAuthStore((s) => s.user);
   const { data: overview, isLoading, error, refetch } = useTeamOverview();
+  const { data: hackathonState } = useHackathonState();
 
   if (isLoading) return <LoadingState label="Loading your team…" />;
 
@@ -90,6 +165,8 @@ export function TeamHubPage() {
 
   return (
     <div className="flex flex-col gap-6" data-testid="team-hub">
+      <PhaseProgress currentPhase={hackathonState?.phase} />
+
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <p className="text-primary-400 font-black text-xs tracking-wide">TEAM FINALIZED</p>
         <div className="flex items-center justify-between flex-wrap gap-2 mt-1">
@@ -111,7 +188,7 @@ export function TeamHubPage() {
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
             <dt className="text-slate-500 text-xs uppercase font-semibold">Team Name</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">{overview.team.name}</dd>
+            <TeamNameField name={overview.team.name} canRename={user?.role === 'CEO'} />
           </div>
           <div>
             <dt className="text-slate-500 text-xs uppercase font-semibold">HEAT Category</dt>

@@ -46,3 +46,15 @@ export function useCurrentUserQuery(enabled: boolean) {
     retry: false,
   });
 }
+
+/** Self-service display-name change (participants/CEOs only — see auth.service.ts). */
+export function useUpdateMyName() {
+  const setUser = useAuthStore((s) => s.setUser);
+  return useMutation({
+    mutationFn: async (fullName: string) => {
+      const { data } = await apiClient.patch<PublicUser>('/auth/me', { fullName });
+      return data;
+    },
+    onSuccess: (data) => setUser(data),
+  });
+}
