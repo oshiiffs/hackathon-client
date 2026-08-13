@@ -71,6 +71,7 @@ export function ParticipantChallengePage() {
   const answersRef = useRef<Record<string, string>>({});
   const lastTopicIndexRef = useRef<number | null>(null);
   const hasFiredSubmitRef = useRef(false);
+  const revealTimerStartedRef = useRef(false);
   const [inputValue, setInputValue] = useState('');
 
   const [revealing, setRevealing] = useState(false);
@@ -114,9 +115,18 @@ export function ParticipantChallengePage() {
   // Loading-then-reveal: once the round genuinely ends, hold on a brief
   // "calculating" beat before telling this participant the outcome — the
   // backend, not this page, already decided it (see RealtimeProvider).
+  //
+  // `revealing` is deliberately NOT a dependency here: this effect re-renders
+  // constantly (useSyncedTopic ticks every 200ms for the whole component's
+  // life), so putting the state it itself sets into the dependency array
+  // caused React to run this effect's cleanup — clearTimeout(timer) — the
+  // instant setRevealing(true) triggered a re-render, cancelling the reveal
+  // before it could ever fire. A ref-guarded start with no such dependency
+  // avoids that self-cancellation.
   useEffect(() => {
-    if (result || revealing || !phase) return;
+    if (result || revealTimerStartedRef.current || !phase) return;
     if (phase !== 'CEO_CHALLENGE_ACTIVE') {
+      revealTimerStartedRef.current = true;
       setRevealing(true);
       const timer = setTimeout(() => {
         setResult(user?.role === 'CEO' ? 'success' : 'ended');
@@ -124,7 +134,8 @@ export function ParticipantChallengePage() {
       }, 2200);
       return () => clearTimeout(timer);
     }
-  }, [phase, result, revealing, user?.role]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, result, user?.role]);
 
   if (!user || !state) return <LoadingState label="Loading challenge…" />;
 
