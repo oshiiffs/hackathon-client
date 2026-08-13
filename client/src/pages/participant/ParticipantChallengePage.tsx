@@ -3,9 +3,9 @@ import { Link, Navigate } from 'react-router-dom';
 import { CountdownTimer } from '../../components/CountdownTimer';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { useHackathonState } from '../../hooks/useHackathon';
-import { useMyCeoChallenge, useSubmitCeoAnswers } from '../../hooks/useCeoChallenge';
+import { useMyCeoChallenge, useSubmitCeoAnswer } from '../../hooks/useCeoChallenge';
 import { useAuthStore } from '../../store/authStore';
-import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
+import { getApiErrorMessage } from '../../lib/apiClient';
 import type { MyCeoChallengeResult } from '../../types/api';
 
 type Result = 'success' | 'ended' | null;
@@ -54,10 +54,17 @@ function useSyncedTopic(data: MyCeoChallengeResult | undefined) {
 /**
  * The CEO Selection Competition — identification format (req. 41-53).
  * Topics play in a synchronized sequence for every participant at once; each
- * topic gets a text box for one typed word, locked in the instant the shared
- * clock advances to the next topic. Submitting never reveals whether you
- * became CEO — that's ranked across everyone's attempt only once the round
- * ends (server-side, see hackathon.service.ts's promoteTopScorers).
+ * topic gets a text box for one typed word, SAVED TO THE SERVER THE INSTANT
+ * the shared clock advances past it — not batched to the end of the round.
+ * That matters: the admin's "stop challenge" ranks whoever is already saved
+ * in Postgres at that exact moment, with no wait for stragglers, so a
+ * participant's progress has to already be durable well before the round
+ * can end (see participant.service.ts#submitCeoAnswer's doc comment for the
+ * bug this fixes — a sole participant testing solo who got skipped because
+ * their answers were still sitting in local state when the round was
+ * stopped). Submitting never reveals whether you became CEO — that's ranked
+ * across everyone's saved answers only once the round ends (server-side, see
+ * hackathon.service.ts's promoteTopScorers).
  */
 export function ParticipantChallengePage() {
   const user = useAuthStore((s) => s.user);
@@ -65,25 +72,37 @@ export function ParticipantChallengePage() {
   const phase = state?.phase;
 
   const challengeQuery = useMyCeoChallenge(phase === 'CEO_CHALLENGE_ACTIVE');
-  const submit = useSubmitCeoAnswers();
+  const submitAnswer = useSubmitCeoAnswer();
   const { topicIndex, topicEndsAtMs, roundOver } = useSyncedTopic(challengeQuery.data);
 
-  const answersRef = useRef<Record<string, string>>({});
   const lastTopicIndexRef = useRef<number | null>(null);
-  const hasFiredSubmitRef = useRef(false);
+  const hasFlushedFinalRef = useRef(false);
   const revealTimerStartedRef = useRef(false);
   const [inputValue, setInputValue] = useState('');
+  const [score, setScore] = useState(0);
 
   const [revealing, setRevealing] = useState(false);
   const [result, setResult] = useState<Result>(null);
-  const [submittedScore, setSubmittedScore] = useState<number | null>(null);
 
   const questions = challengeQuery.data?.questions ?? [];
   const currentQuestion = questions[topicIndex];
-  const alreadySubmitted = challengeQuery.data?.alreadySubmitted ?? false;
+  const roundActive = phase === 'CEO_CHALLENGE_ACTIVE' && !roundOver;
 
-  // The synchronized clock, not a click, decides when a topic ends — capture
-  // whatever was typed for the outgoing topic, then clear the box for the new one.
+  // Seed the running score once the initial fetch lands (covers a reload
+  // mid-round: earlier topics are already saved server-side regardless).
+  useEffect(() => {
+    if (challengeQuery.data) setScore(challengeQuery.data.myScore);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challengeQuery.data?.round]);
+
+  function saveAnswer(questionId: string, answer: string) {
+    if (answer.trim().length === 0) return;
+    submitAnswer.mutate({ questionId, answer }, { onSuccess: (data) => setScore(data.score) });
+  }
+
+  // The synchronized clock, not a click, decides when a topic ends — save
+  // whatever was typed for the outgoing topic immediately, then clear the
+  // box for the new one.
   useEffect(() => {
     if (lastTopicIndexRef.current === null) {
       lastTopicIndexRef.current = topicIndex;
@@ -91,7 +110,7 @@ export function ParticipantChallengePage() {
     }
     if (lastTopicIndexRef.current !== topicIndex) {
       const prevQuestion = questions[lastTopicIndexRef.current];
-      if (prevQuestion) answersRef.current[prevQuestion.id] = inputValue;
+      if (prevQuestion) saveAnswer(prevQuestion.id, inputValue);
       lastTopicIndexRef.current = topicIndex;
       setInputValue('');
     }
@@ -99,18 +118,17 @@ export function ParticipantChallengePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicIndex]);
 
-  // Auto-fires the one batch submission the instant the shared clock says the
-  // last topic's window has closed — there is no manual "submit" action.
+  // Final flush: whatever's typed for the CURRENT (still in-progress) topic
+  // when the round ends — naturally, or via an early admin stop — gets saved
+  // once. Every earlier topic was already saved as it happened above, so
+  // this only ever covers the one topic that hadn't finished yet.
   useEffect(() => {
-    if (!roundOver || alreadySubmitted || hasFiredSubmitRef.current) return;
-    hasFiredSubmitRef.current = true;
-    if (currentQuestion) answersRef.current[currentQuestion.id] = inputValue;
-    const payload = Object.entries(answersRef.current)
-      .filter(([, answer]) => answer.trim().length > 0)
-      .map(([questionId, answer]) => ({ questionId, answer }));
-    submit.mutate(payload, { onSuccess: (data) => setSubmittedScore(data.score) });
+    const roundEnding = roundOver || (phase !== undefined && phase !== 'CEO_CHALLENGE_ACTIVE');
+    if (!roundEnding || hasFlushedFinalRef.current) return;
+    hasFlushedFinalRef.current = true;
+    if (currentQuestion) saveAnswer(currentQuestion.id, inputValue);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundOver, alreadySubmitted]);
+  }, [roundOver, phase]);
 
   // Loading-then-reveal: once the round genuinely ends, hold on a brief
   // "calculating" beat before telling this participant the outcome — the
@@ -171,7 +189,7 @@ export function ParticipantChallengePage() {
         <div className="text-center flex flex-col items-center gap-3" data-testid="result-ended">
           <h2 className="text-2xl font-black text-slate-100">CHALLENGE ENDED</h2>
           <p className="text-slate-300">CEOs have been selected for this round.</p>
-          {submittedScore !== null && <p className="text-slate-500 text-sm">Your score: {submittedScore}</p>}
+          <p className="text-slate-500 text-sm">Your score: {score}</p>
           <p className="text-slate-500 text-sm">Please wait for team formation.</p>
         </div>
       )}
@@ -185,15 +203,14 @@ export function ParticipantChallengePage() {
             <ErrorState message={getApiErrorMessage(challengeQuery.error)} onRetry={() => challengeQuery.refetch()} />
           )}
 
-          {(alreadySubmitted || submittedScore !== null) && (
-            <div className="text-center" data-testid="submitted">
-              <p className="text-slate-300 font-bold">Answers submitted.</p>
-              <p className="text-slate-500 text-sm mt-1">Your score: {submittedScore ?? challengeQuery.data?.myScore}</p>
-              <p className="text-slate-500 text-sm mt-3">Waiting for the round to end…</p>
+          {!roundActive && challengeQuery.data && (
+            <div className="text-center" data-testid="locking-in">
+              <p className="text-slate-300 font-bold">Locking in your last answer…</p>
+              <p className="text-slate-500 text-sm mt-1">Your score: {score}</p>
             </div>
           )}
 
-          {!alreadySubmitted && submittedScore === null && currentQuestion && topicEndsAtMs > 0 && (
+          {roundActive && currentQuestion && topicEndsAtMs > 0 && (
             <div className="w-full flex flex-col items-center gap-5" data-testid="quiz">
               <p
                 className="text-sm font-bold uppercase tracking-wide text-accent-400 text-center"
@@ -222,9 +239,7 @@ export function ParticipantChallengePage() {
               />
               <p className="text-xs text-slate-500 -mt-2">Your answer locks in automatically when time runs out.</p>
 
-              {submit.isError && getApiErrorCode(submit.error) !== 'CEO_ANSWERS_ALREADY_SUBMITTED' && (
-                <p className="text-red-400 text-sm text-center">{getApiErrorMessage(submit.error)}</p>
-              )}
+              {submitAnswer.isError && <p className="text-red-400 text-sm text-center">{getApiErrorMessage(submitAnswer.error)}</p>}
             </div>
           )}
         </div>

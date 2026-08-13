@@ -58,15 +58,18 @@ export type MyCeoChallengeResult = {
   challengeEndsAt: string | null;
   serverNow: string;
   questions: CeoQuestionForParticipant[];
-  alreadySubmitted: boolean;
-  myScore: number | null;
+  // Running total from whatever's already been saved this round — 0 if
+  // nothing saved yet, not a distinct "not started" state (answers save
+  // incrementally, one topic at a time, not in one batch at the end).
+  myScore: number;
 };
 
-export type SubmitCeoAnswersResult = {
-  submitted: true;
+// Saved incrementally, one topic at a time — `score` is the running total
+// across every topic answered so far this round, not just this one save.
+export type SubmitCeoAnswerResult = {
+  saved: true;
+  isCorrect: boolean;
   score: number;
-  answeredCount: number;
-  totalQuestions: number;
 };
 
 // Admin-only — includes acceptedAnswers, since question management needs it.
