@@ -5,6 +5,7 @@ import type {
   AdminEvaluationOverview,
   AdminHackathonStatePayload,
   AdminOverview,
+  CeoQuestion,
   Department,
   Team,
   TeamDeliverableStatus,
@@ -281,6 +282,79 @@ export function useResetCompetition() {
       queryClient.invalidateQueries({ queryKey: ['admin-deliverables'] });
       queryClient.invalidateQueries({ queryKey: ['admin-evaluations'] });
       showSuccessToast('New competition started — event reset to the lobby.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+// ---------- CEO Selection Competition question bank (req. 41-53) ----------
+
+export function useCeoQuestions() {
+  return useQuery({
+    queryKey: ['admin-ceo-questions'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<CeoQuestion[]>('/admin/ceo-questions');
+      return data;
+    },
+    refetchInterval: 20000,
+  });
+}
+
+type CeoQuestionInput = {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  points: number;
+  category?: string;
+  order: number;
+  isActive: boolean;
+};
+
+function useInvalidateCeoQuestions() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-ceo-questions'] });
+    // Active count feeds the Main Controller's READY/NOT READY gate.
+    queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+  };
+}
+
+export function useCreateCeoQuestion() {
+  const invalidate = useInvalidateCeoQuestions();
+  return useMutation({
+    mutationFn: async (input: CeoQuestionInput) => {
+      const { data } = await apiClient.post<CeoQuestion>('/admin/ceo-questions', input);
+      return data;
+    },
+    onSuccess: () => {
+      invalidate();
+      showSuccessToast('Question added.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useUpdateCeoQuestion() {
+  const invalidate = useInvalidateCeoQuestions();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: Partial<CeoQuestionInput> & { id: string }) => {
+      const { data } = await apiClient.patch<CeoQuestion>(`/admin/ceo-questions/${id}`, input);
+      return data;
+    },
+    onSuccess: invalidate,
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useDeleteCeoQuestion() {
+  const invalidate = useInvalidateCeoQuestions();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/admin/ceo-questions/${id}`);
+    },
+    onSuccess: () => {
+      invalidate();
+      showSuccessToast('Question deleted.');
     },
     onError: (err) => showErrorToast(getApiErrorMessage(err)),
   });

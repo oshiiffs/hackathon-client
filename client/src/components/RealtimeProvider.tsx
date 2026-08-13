@@ -7,7 +7,6 @@ import { connectSocket, disconnectSocket } from '../lib/socket';
 import type {
   CategoryUpdatedPayload,
   CeoDepartmentAssignedPayload,
-  CeoSelectedPayload,
   ChallengeEndPayload,
   ChallengeStartPayload,
   FileDeletedPayload,
@@ -52,17 +51,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       queryClient.setQueryData(['hackathon-state'], payload);
       queryClient.invalidateQueries({ queryKey: ['admin-hackathon-state'] });
       queryClient.invalidateQueries({ queryKey: ['team-overview'] });
-    };
-    // The winning participant's own role update comes from the REST response
-    // of their own POST /participant/ceo/select (see useSelectCeo) — this
-    // broadcast is for everyone ELSE, so their view of "is there a CEO yet"
-    // (via /me and hackathon:state, both invalidated here) stays current even
-    // if they never called the endpoint themselves.
-    const onCeoSelected = (_payload: CeoSelectedPayload) => {
-      queryClient.invalidateQueries({ queryKey: ['hackathon-state'] });
-      queryClient.invalidateQueries({ queryKey: ['my-team'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-participants'] });
     };
     const onTeamUpdated = (_payload: TeamUpdatedPayload) => {
       queryClient.invalidateQueries({ queryKey: ['my-team'] });
@@ -134,10 +122,27 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['hackathon-state'] });
       queryClient.invalidateQueries({ queryKey: ['admin-hackathon-state'] });
     };
-    const onChallengeEnd = (_payload: ChallengeEndPayload) => {
+    // The CEO Selection Competition ranks every submission and promotes the
+    // top scorers only once the round ends (see hackathon.service.ts's
+    // promoteTopScorers) — unlike the old single-winner tap race, a winner
+    // never learns their own outcome from a REST response, only from this
+    // broadcast. If this client's own user is among the winners, refresh
+    // /auth/me the same way onMemberRecruited does for its analogous
+    // "this specific user's own state changed" case, so `user.role` flips to
+    // CEO without waiting for a manual refresh.
+    const onChallengeEnd = (payload: ChallengeEndPayload) => {
       queryClient.invalidateQueries({ queryKey: ['hackathon-state'] });
       queryClient.invalidateQueries({ queryKey: ['admin-hackathon-state'] });
       queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-participants'] });
+      if (payload.winners.some((w) => w.userId === useAuthStore.getState().user?.id)) {
+        apiClient
+          .get('/auth/me')
+          .then(({ data }) => useAuthStore.getState().setUser(data))
+          .catch(() => {
+            /* best-effort — the next natural refetch/socket event reconciles this */
+          });
+      }
     };
     const onSubmissionLock = (_payload: SubmissionLockPayload) => {
       queryClient.invalidateQueries({ queryKey: ['hackathon-state'] });
@@ -161,7 +166,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     };
 
     socket.on('hackathon:state', onState);
-    socket.on('ceo:selected', onCeoSelected);
     socket.on('team:updated', onTeamUpdated);
     socket.on('ceo:department-assigned', onCeoDepartmentAssigned);
     socket.on('category:updated', onCategoryUpdated);
@@ -180,7 +184,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       socket.off('hackathon:state', onState);
-      socket.off('ceo:selected', onCeoSelected);
       socket.off('team:updated', onTeamUpdated);
       socket.off('ceo:department-assigned', onCeoDepartmentAssigned);
       socket.off('category:updated', onCategoryUpdated);

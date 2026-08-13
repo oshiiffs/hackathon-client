@@ -36,13 +36,6 @@ export type ChallengeEndPayload = {
   winners: { userId: string; teamId: string }[];
 };
 
-export type CeoSelectedPayload = {
-  round: number;
-  userId: string;
-  teamId: string;
-  fullName: string;
-};
-
 export type CeoDepartmentAssignedPayload = {
   teamId: string;
   userId: string;

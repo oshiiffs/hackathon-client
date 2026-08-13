@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Badge } from '../../components/Badge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CeoQuestionsPanel } from './CeoQuestionsPanel';
 import {
   useAdminDeliverables,
   useAdminEvaluations,
@@ -148,7 +149,21 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="mb-5 pb-5 border-b border-slate-800">
-          <p className="text-sm text-slate-400 mb-3">CEO Challenge</p>
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-sm text-slate-400">CEO Challenge</p>
+            <span className="text-xs text-slate-500">
+              · Eligible participants: {overview.data?.eligibleCeoParticipants ?? '—'} · Active questions:{' '}
+              {overview.data?.activeCeoQuestionCount ?? '—'}
+            </span>
+            <Badge tone={overview.data?.ceoQuestionsReady ? 'primary' : 'danger'}>
+              {overview.data?.ceoQuestionsReady ? 'READY' : 'NOT READY'}
+            </Badge>
+          </div>
+          {overview.data && !overview.data.ceoQuestionsReady && (
+            <p className="text-xs text-accent-400 mb-3">
+              At least 10 active CEO challenge questions are required to start — manage the question bank below.
+            </p>
+          )}
           <div className="flex flex-wrap items-end gap-4">
             <label className="text-sm text-slate-300">
               Duration (sec)
@@ -175,11 +190,11 @@ export function AdminDashboardPage() {
               />
             </label>
             <button
-              disabled={!canStartChallenge || startChallenge.isPending}
+              disabled={!canStartChallenge || !overview.data?.ceoQuestionsReady || startChallenge.isPending}
               onClick={() =>
                 setPendingAction({
                   title: 'Start the CEO challenge?',
-                  description: `This unlocks every participant device immediately and starts a ${duration}-second synchronized countdown. The first ${ceoSlots} to tap in become CEOs.`,
+                  description: `This unlocks every participant device immediately and starts a ${duration}-second timed quiz (${overview.data?.activeCeoQuestionCount ?? 0} questions). The top ${ceoSlots} scorers become CEOs once the round ends.`,
                   confirmLabel: 'Start challenge',
                   run: () => startChallenge.mutate({ durationSeconds: duration, ceoSlots }),
                 })
@@ -193,7 +208,7 @@ export function AdminDashboardPage() {
               onClick={() =>
                 setPendingAction({
                   title: 'Stop the CEO challenge?',
-                  description: 'This immediately ends the round and reveals winners based on who has already tapped in.',
+                  description: 'This immediately ends the round and promotes the top scorers among everyone who has submitted so far.',
                   confirmLabel: 'Stop challenge',
                   tone: 'danger',
                   run: () => stopChallenge.mutate(undefined),
@@ -273,6 +288,8 @@ export function AdminDashboardPage() {
           ))}
         </div>
       </section>
+
+      <CeoQuestionsPanel />
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h2 className="text-lg font-bold text-slate-100 mb-4">People</h2>

@@ -37,11 +37,46 @@ export type HackathonStatePayload = {
   serverNow: string;
 };
 
-export type SelectCeoResponse = {
-  becameCeo: true;
-  team: { id: string; ceoId: string };
-  user: PublicUser;
-  state: HackathonStatePayload;
+// ---------- CEO Selection Competition (quiz-based) ----------
+
+// Participant-safe projection — never includes correctAnswer (see the
+// backend's participant.service.ts#getMyCeoQuestions doc comment).
+export type CeoQuestionForParticipant = {
+  id: string;
+  question: string;
+  options: string[];
+  order: number;
+  points: number;
+};
+
+export type MyCeoChallengeResult = {
+  round: number;
+  challengeEndsAt: string | null;
+  serverNow: string;
+  questions: CeoQuestionForParticipant[];
+  alreadySubmitted: boolean;
+  myScore: number | null;
+};
+
+export type SubmitCeoAnswersResult = {
+  submitted: true;
+  score: number;
+  answeredCount: number;
+  totalQuestions: number;
+};
+
+// Admin-only — includes correctAnswer, since question management needs it.
+export type CeoQuestion = {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  points: number;
+  category: string | null;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type AdminHackathonStatePayload = HackathonStatePayload & {
@@ -164,6 +199,9 @@ export type AdminOverview = {
   totalParticipants: number;
   draftedParticipants: number;
   undraftedParticipants: number;
+  eligibleCeoParticipants: number;
+  activeCeoQuestionCount: number;
+  ceoQuestionsReady: boolean;
   totalTeams: number;
   completeTeams: number;
   finalizedTeams: number;
