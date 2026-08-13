@@ -22,6 +22,25 @@ type AdminParticipant = {
   createdAt: string;
 };
 
+type EventExport = {
+  exportedAt: string;
+  participants: AdminParticipant[];
+  teams: Team[];
+  judgeScores: {
+    id: string;
+    innovation: number;
+    feasibility: number;
+    impact: number;
+    presentation: number;
+    comments: string | null;
+    status: string;
+    submittedAt: string | null;
+    createdAt: string;
+    judge: { id: string; fullName: string };
+    team: { id: string; name: string | null; category: string | null };
+  }[];
+};
+
 // The Admin Dashboard mounts all six of these at once. Sockets (see
 // RealtimeProvider) already invalidate every one of these query keys the
 // instant something actually changes, and every admin mutation invalidates
@@ -229,4 +248,40 @@ export function useLockSubmissions() {
 
 export function useCompleteEvent() {
   return useHackathonControlMutation('/admin/hackathon/complete', 'Event marked complete.');
+}
+
+/** Read-only snapshot for the "New Competition" archive-then-wipe flow — a
+ * mutation (not a query) since it's only ever triggered on demand by that
+ * button, never rendered/polled on its own. */
+export function useExportEventData() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.get<EventExport>('/admin/export');
+      return data;
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+/** Terminal-phase-only hard reset — wipes the current event's participants/
+ * teams/submissions/scores and puts HackathonState back to LOBBY. The caller
+ * is expected to have already pulled useExportEventData for an archive. */
+export function useResetCompetition() {
+  const invalidate = useInvalidateAdmin();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<AdminHackathonStatePayload>('/admin/hackathon/reset');
+      return data;
+    },
+    onSuccess: () => {
+      invalidate();
+      // Full wipe empties these too — the shared invalidate() above doesn't
+      // touch them since routine hackathon-control actions never affect them.
+      queryClient.invalidateQueries({ queryKey: ['admin-deliverables'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-evaluations'] });
+      showSuccessToast('New competition started — event reset to the lobby.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
 }

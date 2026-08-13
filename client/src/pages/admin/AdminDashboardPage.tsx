@@ -12,10 +12,12 @@ import {
   useCreateParticipant,
   useCreateStaff,
   useDeleteParticipant,
+  useExportEventData,
   useLockParticipants,
   useLockSubmissions,
   useOpenSubmissions,
   useRegenerateAccessCode,
+  useResetCompetition,
   useStartCeoChallenge,
   useStopCeoChallenge,
   useUnlockParticipants,
@@ -25,6 +27,16 @@ import { ALL_DEPARTMENTS, type Department, type HackathonPhase } from '../../typ
 import { getApiErrorMessage } from '../../lib/apiClient';
 
 type PendingAction = { title: string; description: string; confirmLabel: string; tone?: 'primary' | 'danger'; run: () => void };
+
+function downloadJson(data: unknown, filename: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export function AdminDashboardPage() {
   const { data: state } = useAdminHackathonState();
@@ -46,6 +58,8 @@ export function AdminDashboardPage() {
   const updateParticipant = useUpdateParticipant();
   const deleteParticipant = useDeleteParticipant();
   const regenerateCode = useRegenerateAccessCode();
+  const exportEventData = useExportEventData();
+  const resetCompetition = useResetCompetition();
 
   const [duration, setDuration] = useState(30);
   const [ceoSlots, setCeoSlots] = useState(4);
@@ -73,8 +87,21 @@ export function AdminDashboardPage() {
   const canOpenSubmissions = phase === 'DRAFTING' || phase === 'SUBMISSIONS_LOCKED';
   const canLockSubmissions = phase === 'SUBMISSIONS_OPEN';
   const canComplete = phase === 'SUBMISSIONS_LOCKED';
+  const canStartNewCompetition = phase === 'COMPLETE';
 
   const availableParticipants = overview.data ? overview.data.undraftedParticipants : undefined;
+
+  async function handleStartNewCompetition() {
+    const data = await exportEventData.mutateAsync();
+    downloadJson(data, `hackathon-archive-${new Date().toISOString().slice(0, 10)}.json`);
+    setPendingAction({
+      title: 'Start a new competition?',
+      description: `An archive was just downloaded (${data.participants.length} participants, ${data.teams.length} teams, ${data.judgeScores.length} evaluations). Continuing permanently deletes all of it — participants, teams, submissions, and judge scores — and resets the event back to the lobby. Admin/Judge accounts are kept.`,
+      confirmLabel: 'Delete & start new competition',
+      tone: 'danger',
+      run: () => resetCompetition.mutate(undefined),
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -213,6 +240,23 @@ export function AdminDashboardPage() {
             </button>
           </div>
         </div>
+
+        {canStartNewCompetition && (
+          <div className="mt-5 pt-5 border-t border-slate-800">
+            <p className="text-sm text-slate-400 mb-1">New competition</p>
+            <p className="text-xs text-slate-500 mb-3 max-w-md">
+              Archives the current event (downloaded as JSON) then permanently deletes its participants, teams,
+              submissions, and judge scores, and resets the event back to the lobby.
+            </p>
+            <button
+              disabled={exportEventData.isPending || resetCompetition.isPending}
+              onClick={() => void handleStartNewCompetition()}
+              className="rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white font-semibold px-4 py-2 text-sm transition"
+            >
+              {exportEventData.isPending ? 'Archiving…' : 'Start new competition'}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
