@@ -37,20 +37,24 @@ export type HackathonStatePayload = {
   serverNow: string;
 };
 
-// ---------- CEO Selection Competition (quiz-based) ----------
+// ---------- CEO Selection Competition (identification format) ----------
+// Each topic is a prompt (e.g. "Leadership") a participant answers with one
+// typed word. All participants advance through topics on the same clock —
+// see MyCeoChallengeResult's challengeStartedAt/challengeDurationSeconds.
 
-// Participant-safe projection — never includes correctAnswer (see the
+// Participant-safe projection — never includes acceptedAnswers (see the
 // backend's participant.service.ts#getMyCeoQuestions doc comment).
 export type CeoQuestionForParticipant = {
   id: string;
   question: string;
-  options: string[];
   order: number;
   points: number;
 };
 
 export type MyCeoChallengeResult = {
   round: number;
+  challengeStartedAt: string | null;
+  challengeDurationSeconds: number; // seconds PER topic
   challengeEndsAt: string | null;
   serverNow: string;
   questions: CeoQuestionForParticipant[];
@@ -65,12 +69,11 @@ export type SubmitCeoAnswersResult = {
   totalQuestions: number;
 };
 
-// Admin-only — includes correctAnswer, since question management needs it.
+// Admin-only — includes acceptedAnswers, since question management needs it.
 export type CeoQuestion = {
   id: string;
   question: string;
-  options: string[];
-  correctAnswer: number;
+  acceptedAnswers: string[];
   points: number;
   category: string | null;
   order: number;

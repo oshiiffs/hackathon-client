@@ -302,8 +302,7 @@ export function useCeoQuestions() {
 
 type CeoQuestionInput = {
   question: string;
-  options: string[];
-  correctAnswer: number;
+  acceptedAnswers: string[];
   points: number;
   category?: string;
   order: number;

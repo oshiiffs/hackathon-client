@@ -166,7 +166,7 @@ export function AdminDashboardPage() {
           )}
           <div className="flex flex-wrap items-end gap-4">
             <label className="text-sm text-slate-300">
-              Duration (sec)
+              Seconds per topic
               <input
                 type="number"
                 min={5}
@@ -191,14 +191,15 @@ export function AdminDashboardPage() {
             </label>
             <button
               disabled={!canStartChallenge || !overview.data?.ceoQuestionsReady || startChallenge.isPending}
-              onClick={() =>
+              onClick={() => {
+                const topicCount = overview.data?.activeCeoQuestionCount ?? 0;
                 setPendingAction({
                   title: 'Start the CEO challenge?',
-                  description: `This unlocks every participant device immediately and starts a ${duration}-second timed quiz (${overview.data?.activeCeoQuestionCount ?? 0} questions). The top ${ceoSlots} scorers become CEOs once the round ends.`,
+                  description: `This unlocks every participant device immediately. All ${topicCount} topics play in sync for everyone, ${duration}s each (~${Math.round((duration * topicCount) / 60)} min total). The top ${ceoSlots} scorers become CEOs once the round ends.`,
                   confirmLabel: 'Start challenge',
                   run: () => startChallenge.mutate({ durationSeconds: duration, ceoSlots }),
-                })
-              }
+                });
+              }}
               className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white font-semibold px-4 py-2 text-sm transition"
             >
               Start CEO challenge

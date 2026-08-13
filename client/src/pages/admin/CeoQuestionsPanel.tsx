@@ -12,8 +12,7 @@ import type { CeoQuestion } from '../../types/api';
 
 type QuestionForm = {
   question: string;
-  options: string[];
-  correctAnswer: number;
+  acceptedAnswersText: string; // comma-separated, split into acceptedAnswers on submit
   points: number;
   category: string;
   order: number;
@@ -22,8 +21,7 @@ type QuestionForm = {
 
 const EMPTY_FORM: QuestionForm = {
   question: '',
-  options: ['', '', '', ''],
-  correctAnswer: 0,
+  acceptedAnswersText: '',
   points: 1,
   category: '',
   order: 1,
@@ -33,8 +31,7 @@ const EMPTY_FORM: QuestionForm = {
 function toForm(q: CeoQuestion): QuestionForm {
   return {
     question: q.question,
-    options: [...q.options, '', '', '', ''].slice(0, Math.max(4, q.options.length)),
-    correctAnswer: q.correctAnswer,
+    acceptedAnswersText: q.acceptedAnswers.join(', '),
     points: q.points,
     category: q.category ?? '',
     order: q.order,
@@ -42,9 +39,17 @@ function toForm(q: CeoQuestion): QuestionForm {
   };
 }
 
-/** Question bank management (req. 41-53) — the architecture supports more
- * than the 10-question minimum without a code change specifically because
- * this exists: admin can add/edit/retire questions here, not just via seed. */
+function parseAcceptedAnswers(text: string): string[] {
+  return text
+    .split(',')
+    .map((a) => a.trim())
+    .filter((a) => a.length > 0);
+}
+
+/** Question bank management (req. 41-53), identification format — the
+ * architecture supports more than the 10-topic minimum without a code change
+ * specifically because this exists: admin can add/edit/retire topics here,
+ * not just via seed. */
 export function CeoQuestionsPanel() {
   const questions = useCeoQuestions();
   const createQuestion = useCreateCeoQuestion();
@@ -62,8 +67,7 @@ export function CeoQuestionsPanel() {
   function buildPayload(form: QuestionForm) {
     return {
       question: form.question.trim(),
-      options: form.options.map((o) => o.trim()).filter((o) => o.length > 0),
-      correctAnswer: form.correctAnswer,
+      acceptedAnswers: parseAcceptedAnswers(form.acceptedAnswersText),
       points: form.points,
       category: form.category.trim() || undefined,
       order: form.order,
@@ -72,14 +76,13 @@ export function CeoQuestionsPanel() {
   }
 
   function isFormValid(form: QuestionForm) {
-    const filled = form.options.map((o) => o.trim()).filter((o) => o.length > 0);
-    return form.question.trim().length > 0 && filled.length >= 2 && form.correctAnswer < filled.length;
+    return form.question.trim().length > 0 && parseAcceptedAnswers(form.acceptedAnswersText).length > 0;
   }
 
   return (
     <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="ceo-questions-panel">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-        <h2 className="text-lg font-bold text-slate-100">CEO Questions</h2>
+        <h2 className="text-lg font-bold text-slate-100">CEO Topics</h2>
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">
             {activeCount} active / {questions.data?.length ?? 0} total (10 minimum to start)
@@ -91,7 +94,7 @@ export function CeoQuestionsPanel() {
             }}
             className="rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold px-3 py-1.5 text-xs transition"
           >
-            {showAddForm ? 'Cancel' : 'Add question'}
+            {showAddForm ? 'Cancel' : 'Add topic'}
           </button>
         </div>
       </div>
@@ -110,37 +113,28 @@ export function CeoQuestionsPanel() {
           }}
         >
           <label className="text-xs font-bold uppercase text-slate-400">
-            Question
+            Topic / prompt
             <textarea
               value={addForm.question}
               onChange={(e) => setAddForm((f) => ({ ...f, question: e.target.value }))}
+              placeholder='e.g. "The ability to guide and inspire a team toward a shared goal is called ___."'
               rows={2}
               className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm font-normal text-slate-100"
             />
           </label>
 
-          <div className="grid sm:grid-cols-2 gap-2">
-            {addForm.options.map((option, i) => (
-              <label key={i} className="text-xs font-bold uppercase text-slate-400 flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="add-correct-answer"
-                  checked={addForm.correctAnswer === i}
-                  onChange={() => setAddForm((f) => ({ ...f, correctAnswer: i }))}
-                  title="Correct answer"
-                />
-                <input
-                  value={option}
-                  placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                  onChange={(e) =>
-                    setAddForm((f) => ({ ...f, options: f.options.map((o, oi) => (oi === i ? e.target.value : o)) }))
-                  }
-                  className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm font-normal text-slate-100"
-                />
-              </label>
-            ))}
-          </div>
-          <p className="text-[11px] text-slate-500 -mt-1">Select the radio button next to the correct option.</p>
+          <label className="text-xs font-bold uppercase text-slate-400">
+            Accepted answers (comma-separated)
+            <input
+              value={addForm.acceptedAnswersText}
+              onChange={(e) => setAddForm((f) => ({ ...f, acceptedAnswersText: e.target.value }))}
+              placeholder="leadership, leading"
+              className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm font-normal text-slate-100"
+            />
+          </label>
+          <p className="text-[11px] text-slate-500 -mt-1">
+            A submitted word counts as correct if it matches any of these, ignoring case and extra spaces.
+          </p>
 
           <div className="flex flex-wrap gap-3">
             <label className="text-xs font-bold uppercase text-slate-400">
@@ -180,7 +174,7 @@ export function CeoQuestionsPanel() {
             disabled={createQuestion.isPending || !isFormValid(addForm)}
             className="self-start rounded-lg bg-accent-500 hover:bg-accent-400 disabled:opacity-50 text-slate-950 font-black px-4 py-2 text-sm transition"
           >
-            {createQuestion.isPending ? 'Adding…' : 'Add question'}
+            {createQuestion.isPending ? 'Adding…' : 'Add topic'}
           </button>
           {createQuestion.isError && <p className="text-red-400 text-sm">{getApiErrorMessage(createQuestion.error)}</p>}
         </form>
@@ -191,7 +185,7 @@ export function CeoQuestionsPanel() {
           <thead className="text-slate-500 text-xs uppercase">
             <tr>
               <th className="py-1 w-10">#</th>
-              <th>Question</th>
+              <th>Topic</th>
               <th>Category</th>
               <th className="w-16">Points</th>
               <th className="w-20">Active</th>
@@ -212,29 +206,14 @@ export function CeoQuestionsPanel() {
                           rows={2}
                           className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100"
                         />
-                        <div className="grid sm:grid-cols-2 gap-2">
-                          {editForm.options.map((option, i) => (
-                            <label key={i} className="flex items-center gap-2 text-xs text-slate-400">
-                              <input
-                                type="radio"
-                                name={`edit-correct-answer-${q.id}`}
-                                checked={editForm.correctAnswer === i}
-                                onChange={() => setEditForm((f) => ({ ...f, correctAnswer: i }))}
-                              />
-                              <input
-                                value={option}
-                                placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                                onChange={(e) =>
-                                  setEditForm((f) => ({
-                                    ...f,
-                                    options: f.options.map((o, oi) => (oi === i ? e.target.value : o)),
-                                  }))
-                                }
-                                className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
-                              />
-                            </label>
-                          ))}
-                        </div>
+                        <label className="text-xs text-slate-400">
+                          Accepted answers (comma-separated)
+                          <input
+                            value={editForm.acceptedAnswersText}
+                            onChange={(e) => setEditForm((f) => ({ ...f, acceptedAnswersText: e.target.value }))}
+                            className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+                          />
+                        </label>
                         <div className="flex flex-wrap gap-3">
                           <label className="text-xs text-slate-400">
                             Points
@@ -336,7 +315,7 @@ export function CeoQuestionsPanel() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete this question?"
+        title="Delete this topic?"
         description={deleteTarget ? `"${deleteTarget.question}" will be permanently removed.` : undefined}
         confirmLabel="Delete"
         tone="danger"
