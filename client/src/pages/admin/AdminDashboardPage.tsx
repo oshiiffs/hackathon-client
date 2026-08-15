@@ -28,9 +28,12 @@ import {
   useStopCeoChallenge,
   useUnlockParticipants,
   useUpdateParticipant,
+  useUpdateStaff,
+  useDeleteStaff,
 } from '../../hooks/useAdmin';
 import { ALL_DEPARTMENTS, type Department, type HackathonPhase } from '../../types/api';
 import { getApiErrorMessage } from '../../lib/apiClient';
+import { useAuthStore } from '../../store/authStore';
 
 type PendingAction = { title: string; description: string; confirmLabel: string; tone?: 'primary' | 'danger'; run: () => void };
 
@@ -74,6 +77,10 @@ export function AdminDashboardPage() {
   const deleteTeamFile = useAdminDeleteTeamFile();
   const deletePitchDeckVersion = useAdminDeletePitchDeckVersion();
 
+  const currentUser = useAuthStore((s) => s.user);
+  const updateStaff = useUpdateStaff();
+  const deleteStaff = useDeleteStaff();
+
   const [duration, setDuration] = useState(30);
   const [ceoSlots, setCeoSlots] = useState(4);
   const [newName, setNewName] = useState('');
@@ -91,6 +98,12 @@ export function AdminDashboardPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDept, setEditDept] = useState<Department>('COE');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; fullName: string } | null>(null);
+
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [editStaffName, setEditStaffName] = useState('');
+  const [editStaffEmail, setEditStaffEmail] = useState('');
+  const [editStaffRole, setEditStaffRole] = useState<'ADMIN' | 'JUDGE'>('JUDGE');
+  const [deleteStaffTarget, setDeleteStaffTarget] = useState<{ id: string; fullName: string } | null>(null);
 
   const phase: HackathonPhase | undefined = state?.phase;
   // Mirrors the backend's transition table for UX only — the server is the
@@ -476,28 +489,108 @@ export function AdminDashboardPage() {
 
             <div className="mt-5">
               <h3 className="text-sm font-bold text-slate-300 mb-2">Judges &amp; admins</h3>
-              <div className="max-h-40 overflow-y-auto">
+              <div className="max-h-56 overflow-y-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-slate-500 text-xs uppercase">
                     <tr>
                       <th className="py-1">Name</th>
                       <th>Email</th>
                       <th>Role</th>
+                      <th className="text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {staff.data?.map((s) => (
-                      <tr key={s.id} className="border-t border-slate-800 text-slate-300">
-                        <td className="py-1.5">{s.fullName}</td>
-                        <td className="text-slate-400">{s.email}</td>
-                        <td>
-                          <Badge tone={s.role === 'ADMIN' ? 'gold' : 'primary'}>{s.role}</Badge>
-                        </td>
-                      </tr>
-                    ))}
+                    {staff.data?.map((s) => {
+                      const isEditingStaff = editingStaffId === s.id;
+                      const isSelf = s.id === currentUser?.id;
+                      return (
+                        <tr key={s.id} className="border-t border-slate-800 text-slate-300">
+                          {isEditingStaff ? (
+                            <>
+                              <td className="py-1.5 pr-2">
+                                <input
+                                  autoFocus
+                                  value={editStaffName}
+                                  onChange={(e) => setEditStaffName(e.target.value)}
+                                  className="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
+                                />
+                              </td>
+                              <td className="pr-2">
+                                <input
+                                  type="email"
+                                  value={editStaffEmail}
+                                  onChange={(e) => setEditStaffEmail(e.target.value)}
+                                  className="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
+                                />
+                              </td>
+                              <td className="pr-2">
+                                <select
+                                  value={editStaffRole}
+                                  onChange={(e) => setEditStaffRole(e.target.value as 'ADMIN' | 'JUDGE')}
+                                  className="rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
+                                >
+                                  <option value="JUDGE">JUDGE</option>
+                                  <option value="ADMIN">ADMIN</option>
+                                </select>
+                              </td>
+                              <td className="text-right whitespace-nowrap">
+                                <button
+                                  disabled={updateStaff.isPending || editStaffName.trim().length < 2 || !editStaffEmail.includes('@')}
+                                  onClick={() =>
+                                    updateStaff.mutate(
+                                      { id: s.id, fullName: editStaffName.trim(), email: editStaffEmail.trim(), role: editStaffRole },
+                                      { onSuccess: () => setEditingStaffId(null) },
+                                    )
+                                  }
+                                  className="text-primary-400 hover:text-primary-300 disabled:opacity-40 font-semibold text-xs mr-3"
+                                >
+                                  Save
+                                </button>
+                                <button onClick={() => setEditingStaffId(null)} className="text-slate-400 hover:text-slate-200 text-xs">
+                                  Cancel
+                                </button>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="py-1.5">{s.fullName}</td>
+                              <td className="text-slate-400">{s.email}</td>
+                              <td>
+                                <Badge tone={s.role === 'ADMIN' ? 'gold' : 'primary'}>{s.role}</Badge>
+                              </td>
+                              <td className="text-right whitespace-nowrap">
+                                <button
+                                  onClick={() => {
+                                    setEditingStaffId(s.id);
+                                    setEditStaffName(s.fullName);
+                                    setEditStaffEmail(s.email ?? '');
+                                    setEditStaffRole(s.role);
+                                  }}
+                                  className="text-primary-400 hover:text-primary-300 font-semibold text-xs mr-3"
+                                >
+                                  Edit
+                                </button>
+                                {isSelf ? (
+                                  <span className="text-slate-600 text-xs" title="You can't remove the account you're signed in as.">
+                                    (you)
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteStaffTarget({ id: s.id, fullName: s.fullName })}
+                                    className="text-red-400 hover:text-red-300 font-semibold text-xs"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
                     {staff.data?.length === 0 && (
                       <tr>
-                        <td colSpan={3} className="py-2 text-slate-600 text-center">
+                        <td colSpan={4} className="py-2 text-slate-600 text-center">
                           No staff accounts yet.
                         </td>
                       </tr>
@@ -505,6 +598,7 @@ export function AdminDashboardPage() {
                   </tbody>
                 </table>
               </div>
+              {updateStaff.isError && <p className="text-sm text-red-400 mt-2">{getApiErrorMessage(updateStaff.error)}</p>}
             </div>
           </div>
         </div>
@@ -738,6 +832,24 @@ export function AdminDashboardPage() {
         onConfirm={() => {
           if (deleteTarget) deleteParticipant.mutate(deleteTarget.id);
           setDeleteTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteStaffTarget !== null}
+        title="Remove this staff account?"
+        description={
+          deleteStaffTarget
+            ? `${deleteStaffTarget.fullName} will lose access immediately. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        tone="danger"
+        pending={deleteStaff.isPending}
+        onCancel={() => setDeleteStaffTarget(null)}
+        onConfirm={() => {
+          if (deleteStaffTarget) deleteStaff.mutate(deleteStaffTarget.id);
+          setDeleteStaffTarget(null);
         }}
       />
     </div>

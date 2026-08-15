@@ -270,12 +270,45 @@ export function useRegenerateAccessCode() {
 }
 
 export function useCreateStaff() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { fullName: string; email: string; password: string; role: 'ADMIN' | 'JUDGE' }) => {
       const { data } = await apiClient.post('/admin/staff', input);
       return data;
     },
-    onSuccess: (_, input) => showSuccessToast(`${input.role === 'JUDGE' ? 'Judge' : 'Admin'} account created for ${input.email}.`),
+    onSuccess: (_, input) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
+      showSuccessToast(`${input.role === 'JUDGE' ? 'Judge' : 'Admin'} account created for ${input.email}.`);
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useUpdateStaff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: { id: string; fullName?: string; email?: string; role?: 'ADMIN' | 'JUDGE' }) => {
+      const { data } = await apiClient.patch<StaffAccount>(`/admin/staff/${id}`, input);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
+      showSuccessToast('Staff account updated.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useDeleteStaff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/admin/staff/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
+      showSuccessToast('Staff account removed.');
+    },
     onError: (err) => showErrorToast(getApiErrorMessage(err)),
   });
 }

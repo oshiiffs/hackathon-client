@@ -294,7 +294,7 @@ describe('Atomic QR recruitment (frontend)', () => {
     expect(screen.getByTestId('recruited-screen')).toBeInTheDocument();
     expect(screen.getByText('YOU HAVE BEEN RECRUITED')).toBeInTheDocument();
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
-    expect(screen.getByText('You are now a member of this team.')).toBeInTheDocument();
+    expect(screen.getByTestId('recruited-waiting-indicator')).toBeInTheDocument();
   });
 
   it('10. an already-drafted error displays after confirming recruit', async () => {

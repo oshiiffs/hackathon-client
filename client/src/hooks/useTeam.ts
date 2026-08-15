@@ -40,20 +40,6 @@ export function useQrBadge(enabled: boolean) {
   });
 }
 
-export function useAssignCeoDepartment() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (department: Department) => {
-      const { data } = await apiClient.post<Team>('/participant/ceo/department', { department });
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['my-team'], data);
-      queryClient.invalidateQueries({ queryKey: ['hackathon-state'] });
-    },
-  });
-}
-
 export function useRecruitCandidate() {
   const queryClient = useQueryClient();
   return useMutation({

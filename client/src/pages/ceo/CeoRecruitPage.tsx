@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { QrScanner } from '../../components/QrScanner';
 import { useMyTeam } from '../../hooks/useTeam';
@@ -63,11 +63,6 @@ export function CeoRecruitPage() {
 
   if (isLoading) return <LoadingState label="Loading your team…" />;
   if (error || !team) return <ErrorState message={getApiErrorMessage(error)} onRetry={() => refetch()} />;
-
-  const me = team.members.find((m) => m.id === team.ceoId);
-  if (!me?.slotDepartment) {
-    return <Navigate to="/ceo/department" replace />;
-  }
 
   const teamIsFull = scanState.kind === 'recruited' ? scanState.recruit.team.memberCount >= 5 : team.members.length >= 5;
 

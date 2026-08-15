@@ -201,7 +201,17 @@ export function TeamHubPage() {
           <p className="text-slate-500 text-xs uppercase font-semibold">CEO</p>
           <p className="text-slate-100 font-bold mt-0.5">{overview.ceo.name}</p>
         </div>
-        <p className="text-slate-400 text-sm max-w-sm mt-2">You are now a member of this team.</p>
+
+        <div className="flex items-center gap-2 mt-2 text-primary-400" data-testid="recruited-waiting-indicator">
+          <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
+          <p className="text-sm font-semibold">
+            {overview.team.memberCount} / {overview.team.maxMembers} members recruited so far
+          </p>
+        </div>
+        <p className="text-slate-500 text-xs max-w-sm">
+          Your CEO is still recruiting the rest of the team. This page updates automatically — no need to refresh, and
+          nothing else to do here yet.
+        </p>
       </div>
     );
   }

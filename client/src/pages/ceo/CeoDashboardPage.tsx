@@ -1,4 +1,4 @@
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { Badge } from '../../components/Badge';
 import { EditableNameField } from '../../components/EditableNameField';
@@ -10,10 +10,10 @@ import { useAuthStore } from '../../store/authStore';
 import { getApiErrorMessage } from '../../lib/apiClient';
 
 /**
- * CEO dashboard. Department selection happens on a dedicated one-time page
- * (/ceo/department) — this dashboard redirects there until that's done, then
- * shows the roster and the next recruitment step. QR-based recruitment itself
- * is a later phase; this only shows the "next step" prompt for it.
+ * CEO dashboard. The CEO's own team slot is auto-assigned to their home
+ * department the instant they're promoted (see the backend's
+ * promoteTopScorers) — there's no separate department-selection step, so
+ * this always has a roster to show.
  */
 export function CeoDashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -24,11 +24,6 @@ export function CeoDashboardPage() {
   if (error || !team) return <ErrorState message={getApiErrorMessage(error)} onRetry={() => refetch()} />;
 
   const me = team.members.find((m) => m.id === team.ceoId);
-  const hasChosenDepartment = Boolean(me?.slotDepartment);
-
-  if (!hasChosenDepartment) {
-    return <Navigate to="/ceo/department" replace />;
-  }
 
   return (
     <div className="flex flex-col gap-6">

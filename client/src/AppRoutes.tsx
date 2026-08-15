@@ -15,9 +15,6 @@ import { TeamHubPage } from './pages/team/TeamHubPage';
 // Code-split the heavier/role-specific pages so participants (the largest
 // audience) don't pay for the admin/judge/CEO bundles.
 const CeoDashboardPage = lazy(() => import('./pages/ceo/CeoDashboardPage').then((m) => ({ default: m.CeoDashboardPage })));
-const CeoDepartmentPage = lazy(() =>
-  import('./pages/ceo/CeoDepartmentPage').then((m) => ({ default: m.CeoDepartmentPage })),
-);
 const CeoRecruitPage = lazy(() => import('./pages/ceo/CeoRecruitPage').then((m) => ({ default: m.CeoRecruitPage })));
 const CeoFinalizePage = lazy(() =>
   import('./pages/ceo/CeoFinalizePage').then((m) => ({ default: m.CeoFinalizePage })),
@@ -75,7 +72,6 @@ export function AppRoutes() {
           <Route element={<RequireRole roles={['CEO']} />}>
             <Route path="/ceo" element={<CEOLayout />}>
               <Route index element={<CeoDashboardPage />} />
-              <Route path="department" element={<CeoDepartmentPage />} />
               <Route path="recruit" element={<CeoRecruitPage />} />
               <Route path="team/finalize" element={<CeoFinalizePage />} />
             </Route>
