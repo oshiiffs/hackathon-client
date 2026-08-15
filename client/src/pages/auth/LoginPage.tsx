@@ -20,10 +20,8 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <span className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-black">
-            H
-          </span>
+        <div className="flex flex-col items-center gap-2 mb-1">
+          <img src="/hackverse-icon.png" alt="HackVerse" className="w-16 h-16 rounded-2xl object-cover shadow-lg" />
           <h1 className="text-2xl font-black text-center text-slate-50">HackVerse 2026</h1>
         </div>
         <p className="text-center text-slate-400 text-sm mb-6">Team Building &amp; Pitch</p>

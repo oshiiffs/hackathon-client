@@ -133,9 +133,12 @@ export function PresenterPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <div className="flex items-center justify-between px-6 py-3 border-b border-slate-900">
-        <Link to="/admin/dashboard" className="text-xs font-semibold text-slate-500 hover:text-slate-300 transition">
-          ← Exit presenter view
-        </Link>
+        <div className="flex items-center gap-2">
+          <img src="/hackverse-icon.png" alt="" className="w-6 h-6 rounded-md" />
+          <Link to="/admin/dashboard" className="text-xs font-semibold text-slate-500 hover:text-slate-300 transition">
+            ← Exit presenter view
+          </Link>
+        </div>
         <div className="flex gap-1.5">
           {MANUAL_SCREENS.map((s) => (
             <button
@@ -193,12 +196,19 @@ export function PresenterPage() {
               </div>
             )}
 
-            {!showReveal && !roundActive && (
-              <MessageScreen title="HACKVERSE 2026" subtitle="Waiting for the next phase…" />
-            )}
+            {!showReveal && !roundActive && <IdleScreen />}
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function IdleScreen() {
+  return (
+    <div className="text-center flex flex-col items-center gap-6">
+      <img src="/hackverse-logo-badge.png" alt="HackVerse 2026" className="w-full max-w-xl rounded-3xl shadow-2xl" />
+      <p className="text-xl text-slate-400">Waiting for the next phase…</p>
     </div>
   );
 }

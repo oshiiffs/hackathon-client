@@ -43,7 +43,7 @@ describe('Protected frontend routes', () => {
   it('redirects an unauthenticated visitor away from a protected route, to /login', () => {
     useAuthStore.setState({ user: null, status: 'unauthenticated' });
     renderAt('/admin/dashboard');
-    expect(screen.getByText(/hackathon app/i)).toBeInTheDocument();
+    expect(screen.getByText(/hackverse 2026/i)).toBeInTheDocument();
   });
 
   it('renders the admin dashboard shell for an authenticated ADMIN', async () => {

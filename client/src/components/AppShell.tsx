@@ -12,9 +12,7 @@ export function AppShell({ title, nav, children }: { title: string; nav?: ReactN
       <header className="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <span className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center text-white font-black text-sm">
-              H
-            </span>
+            <img src="/hackverse-icon.png" alt="HackVerse" className="w-8 h-8 rounded-lg object-cover" />
             <h1 className="text-lg font-bold text-slate-100">{title}</h1>
           </div>
           {user && (
