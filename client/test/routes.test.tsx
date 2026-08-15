@@ -43,7 +43,10 @@ describe('Protected frontend routes', () => {
   it('redirects an unauthenticated visitor away from a protected route, to /login', () => {
     useAuthStore.setState({ user: null, status: 'unauthenticated' });
     renderAt('/admin/dashboard');
-    expect(screen.getByText(/hackverse 2026/i)).toBeInTheDocument();
+    // The heading's "Hack"/"Verse"/"2026" segments are separately-colored
+    // spans (see LoginPage.tsx), so match on the h1's aggregate text rather
+    // than a single text node.
+    expect(screen.getByRole('heading', { name: /hack\s*verse\s*2026/i })).toBeInTheDocument();
   });
 
   it('renders the admin dashboard shell for an authenticated ADMIN', async () => {
