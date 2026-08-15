@@ -191,6 +191,12 @@ export function ParticipantChallengePage() {
           <p className="text-slate-300">CEOs have been selected for this round.</p>
           <p className="text-slate-500 text-sm">Your score: {score}</p>
           <p className="text-slate-500 text-sm">Please wait for team formation.</p>
+          <Link
+            to="/participant"
+            className="mt-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold px-4 py-2 text-sm transition"
+          >
+            Go to dashboard
+          </Link>
         </div>
       )}
 
