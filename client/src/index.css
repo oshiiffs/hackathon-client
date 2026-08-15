@@ -37,6 +37,54 @@
   --color-accent-700: #825a0b;
   --color-accent-800: #5f420b;
   --color-accent-900: #422e09;
+
+  /* Ambient motion for the login screen's brand backdrop — slow drifting
+     glow, twinkling stars, and an orbiting spark echoing the logo's own
+     ring-and-globe mark. Kept subtle and slow; see the reduced-motion
+     override below. */
+  --animate-drift-a: drift-a 18s ease-in-out infinite;
+  --animate-drift-b: drift-b 22s ease-in-out infinite;
+  --animate-twinkle: twinkle 3s ease-in-out infinite;
+  --animate-orbit: orbit 9s linear infinite;
+}
+
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(60px, 40px) scale(1.15);
+  }
+}
+
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50px, -30px) scale(1.1);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes orbit {
+  from {
+    transform: rotate(0deg) translateX(var(--orbit-radius, 46px)) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--orbit-radius, 46px)) rotate(-360deg);
+  }
 }
 
 html,
@@ -47,4 +95,13 @@ body,
 
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
