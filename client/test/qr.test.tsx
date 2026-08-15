@@ -118,7 +118,7 @@ describe('QR identity + CEO scanner (frontend)', () => {
     vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { qrToken: 'abc', qrPayload: 'HACKATHON-PARTICIPANT:abc' } as QrIdentity } as never);
     renderQrPage();
 
-    expect(screen.getByText('HACKATHON 2026')).toBeInTheDocument();
+    expect(screen.getByText('HACKVERSE 2026')).toBeInTheDocument();
     expect(screen.getByText('MY TEAM QR')).toBeInTheDocument();
     expect(await screen.findByText('Show this QR code to your CEO.')).toBeInTheDocument();
   });

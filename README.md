@@ -1,4 +1,4 @@
-# Hackathon Team Building & Pitch App
+# HackVerse 2026 — Team Building & Pitch App
 
 A real-time event-orchestration app for a university hackathon: CEO selection via a
 timed challenge, QR-code team recruitment across 5 college departments, HEAT

@@ -81,7 +81,7 @@ describe('Participant dashboard — server-driven states', () => {
   it('shows the WAITING screen with the exact required copy when the event has not started', () => {
     renderParticipant(mockState({ phase: 'LOBBY', phaseLabel: 'WAITING', participantsLocked: true }));
     expect(screen.getByTestId('waiting-screen')).toBeInTheDocument();
-    expect(screen.getByText('HACKATHON 2026')).toBeInTheDocument();
+    expect(screen.getByText('HACKVERSE 2026')).toBeInTheDocument();
     expect(screen.getByText('PLEASE WAIT')).toBeInTheDocument();
     expect(screen.getByText('The challenge has not started.')).toBeInTheDocument();
   });

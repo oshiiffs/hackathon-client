@@ -194,7 +194,7 @@ export function PresenterPage() {
             )}
 
             {!showReveal && !roundActive && (
-              <MessageScreen title="HACKATHON 2026" subtitle="Waiting for the next phase…" />
+              <MessageScreen title="HACKVERSE 2026" subtitle="Waiting for the next phase…" />
             )}
           </>
         )}

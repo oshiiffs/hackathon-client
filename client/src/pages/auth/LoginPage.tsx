@@ -24,7 +24,7 @@ export function LoginPage() {
           <span className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-black">
             H
           </span>
-          <h1 className="text-2xl font-black text-center text-slate-50">Hackathon App</h1>
+          <h1 className="text-2xl font-black text-center text-slate-50">HackVerse 2026</h1>
         </div>
         <p className="text-center text-slate-400 text-sm mb-6">Team Building &amp; Pitch</p>
 

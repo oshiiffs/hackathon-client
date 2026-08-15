@@ -26,7 +26,7 @@ export function ParticipantQrPage() {
   return (
     <div className="flex flex-col items-center gap-6 py-10 text-center" data-testid="participant-qr-page">
       <div>
-        <h2 className="text-2xl font-black text-slate-100 tracking-tight">HACKATHON 2026</h2>
+        <h2 className="text-2xl font-black text-slate-100 tracking-tight">HACKVERSE 2026</h2>
         <p className="text-lg font-bold text-accent-400 mt-1">MY TEAM QR</p>
       </div>
 

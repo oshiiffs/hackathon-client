@@ -100,7 +100,7 @@ export function ParticipantDashboardPage() {
         {state && locked && (
           <div className="text-center" data-testid="waiting-screen">
             <div className="w-3 h-3 rounded-full bg-primary-500 mx-auto mb-4 animate-ping" />
-            <h2 className="text-3xl font-black text-slate-100 tracking-tight">HACKATHON 2026</h2>
+            <h2 className="text-3xl font-black text-slate-100 tracking-tight">HACKVERSE 2026</h2>
             <p className="text-xl font-bold text-slate-300 mt-2">PLEASE WAIT</p>
             <p className="text-slate-500 mt-2 max-w-sm">The challenge has not started.</p>
           </div>
