@@ -28,11 +28,7 @@ export function LoginPage() {
           <div className="flex flex-col items-center gap-3 mb-1">
             <div className="relative">
               <div className="absolute inset-0 rounded-full bg-primary-500/30 blur-2xl" />
-              <img
-                src="/hackverse-icon.png"
-                alt="HackVerse"
-                className="relative w-20 h-20 rounded-2xl object-cover ring-1 ring-white/10 shadow-lg"
-              />
+              <img src="/hackverse-icon.png" alt="HackVerse" className="relative w-20 h-20 drop-shadow-lg" />
             </div>
             <h1 className="text-3xl font-black text-center tracking-tight">
               <span className="text-accent-400">Hack</span>
