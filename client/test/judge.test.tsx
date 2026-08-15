@@ -250,7 +250,7 @@ describe('Judge dashboard + evaluation (frontend)', () => {
       myEvaluation: { id: 'e1', status: 'DRAFT', scores: { innovation: 9, feasibility: 4, impact: 6, presentation: 3 }, total: 22, comments: 'looks good', submittedAt: null, updatedAt: new Date().toISOString() },
     });
     renderDetail(detail);
-    expect(screen.getByTestId('judge-score-innovation')).toHaveValue('9');
+    expect(screen.getByTestId('judge-score-innovation')).toHaveValue(9);
     expect(screen.getByText(/TOTAL SCORE: 22/)).toBeInTheDocument();
   });
 

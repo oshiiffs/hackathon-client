@@ -31,6 +31,7 @@ function mockAdminState(overrides: Partial<AdminHackathonStatePayload> = {}): Ad
     challengeStartedAt: null,
     challengeEndsAt: null,
     submissionsLocked: false,
+    allowIncompleteTeams: false,
     serverNow: new Date().toISOString(),
     connectedParticipants: 7,
     ...overrides,
@@ -47,10 +48,10 @@ function mockOverview(overrides: Partial<AdminOverview> = {}): AdminOverview {
     finalizedTeams: 0,
     ceoCount: 2,
     categoryUsage: [
-      { category: 'HEALTH', used: 1, capacity: 3, available: 2, full: false },
-      { category: 'ENVIRONMENT', used: 0, capacity: 3, available: 3, full: false },
-      { category: 'AGRICULTURE', used: 0, capacity: 3, available: 3, full: false },
-      { category: 'TOURISM', used: 0, capacity: 3, available: 3, full: false },
+      { category: 'HEALTH', used: 1, capacity: 3, available: 2, full: false, teams: [] },
+      { category: 'ENVIRONMENT', used: 0, capacity: 3, available: 3, full: false, teams: [] },
+      { category: 'AGRICULTURE', used: 0, capacity: 3, available: 3, full: false, teams: [] },
+      { category: 'TOURISM', used: 0, capacity: 3, available: 3, full: false, teams: [] },
     ],
     ...overrides,
   };

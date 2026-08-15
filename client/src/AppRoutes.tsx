@@ -25,10 +25,14 @@ const CeoFinalizePage = lazy(() =>
 const ParticipantQrPage = lazy(() =>
   import('./pages/participant/ParticipantQrPage').then((m) => ({ default: m.ParticipantQrPage })),
 );
+const ParticipantDirectoryPage = lazy(() =>
+  import('./pages/participant/ParticipantDirectoryPage').then((m) => ({ default: m.ParticipantDirectoryPage })),
+);
 const AdminLayout = lazy(() => import('./components/layouts/AdminLayout').then((m) => ({ default: m.AdminLayout })));
 const AdminDashboardPage = lazy(() =>
   import('./pages/admin/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })),
 );
+const PresenterPage = lazy(() => import('./pages/admin/PresenterPage').then((m) => ({ default: m.PresenterPage })));
 const JudgeLayout = lazy(() => import('./components/layouts/JudgeLayout').then((m) => ({ default: m.JudgeLayout })));
 const JudgeDashboardPage = lazy(() =>
   import('./pages/judge/JudgeDashboardPage').then((m) => ({ default: m.JudgeDashboardPage })),
@@ -64,6 +68,7 @@ export function AppRoutes() {
               <Route index element={<ParticipantDashboardPage />} />
               <Route path="challenge" element={<ParticipantChallengePage />} />
               <Route path="qr" element={<ParticipantQrPage />} />
+              <Route path="directory" element={<ParticipantDirectoryPage />} />
             </Route>
           </Route>
 
@@ -81,6 +86,8 @@ export function AppRoutes() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<AdminDashboardPage />} />
             </Route>
+            {/* Full-bleed, no AppShell chrome — meant to be cast to an LCD/projector. */}
+            <Route path="/admin/presenter" element={<PresenterPage />} />
           </Route>
 
           <Route element={<RequireRole roles={['JUDGE']} />}>

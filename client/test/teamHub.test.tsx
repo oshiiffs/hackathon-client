@@ -19,6 +19,10 @@ function mockUser(overrides: Partial<PublicUser> = {}): PublicUser {
     role: 'PARTICIPANT',
     drafted: true,
     teamId: 'team_1',
+    nickname: null,
+    bio: null,
+    skills: [],
+    avatarUrl: null,
     ...overrides,
   };
 }

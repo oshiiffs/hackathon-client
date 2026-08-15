@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { QRBadge } from '../../components/QRBadge';
 import { useMyQr } from '../../hooks/useQr';
@@ -37,6 +37,9 @@ export function ParticipantQrPage() {
         <>
           <QRBadge qrPayload={qr.qrPayload} fullName={user.fullName} homeDepartment={user.homeDepartment} />
           <p className="text-slate-400 text-sm max-w-xs">Show this QR code to your CEO.</p>
+          <Link to="/participant" className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition">
+            ← Back to dashboard
+          </Link>
         </>
       )}
     </div>

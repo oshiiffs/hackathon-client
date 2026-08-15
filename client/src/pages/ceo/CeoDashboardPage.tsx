@@ -2,6 +2,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { Badge } from '../../components/Badge';
 import { EditableNameField } from '../../components/EditableNameField';
+import { ProfileEditor } from '../../components/ProfileEditor';
 import { TeamRosterGrid } from '../../components/TeamRosterGrid';
 import { useMyTeam } from '../../hooks/useTeam';
 import { useHackathonState } from '../../hooks/useHackathon';
@@ -90,6 +91,8 @@ export function CeoDashboardPage() {
           </div>
         )}
       </section>
+
+      {user && <ProfileEditor user={user} />}
     </div>
   );
 }

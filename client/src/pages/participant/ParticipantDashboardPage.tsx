@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { EditableNameField } from '../../components/EditableNameField';
 import { PhaseProgress } from '../../components/PhaseProgress';
+import { ProfileEditor } from '../../components/ProfileEditor';
 import { LoadingState } from '../../components/StateViews';
 import { useHackathonState } from '../../hooks/useHackathon';
 import { useMyTeam } from '../../hooks/useTeam';
@@ -55,7 +56,12 @@ export function ParticipantDashboardPage() {
       <PhaseProgress currentPhase={phase} />
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">My status</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-100">My status</h2>
+          <Link to="/participant/directory" className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition">
+            View all participants →
+          </Link>
+        </div>
         <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           <div>
             <dt className="text-slate-500 text-xs uppercase font-semibold">Name</dt>
@@ -85,6 +91,8 @@ export function ParticipantDashboardPage() {
           </div>
         </dl>
       </section>
+
+      <ProfileEditor user={user} />
 
       <section className="flex flex-col items-center justify-center gap-8 py-6">
         {stateLoading && !state && <LoadingState label="Loading event state…" />}

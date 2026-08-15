@@ -6,7 +6,12 @@ export function AdminLayout() {
   return (
     <AppShell
       title="Admin — Main Controller"
-      nav={<NavTab to="/admin/dashboard">Dashboard</NavTab>}
+      nav={
+        <>
+          <NavTab to="/admin/dashboard">Dashboard</NavTab>
+          <NavTab to="/admin/presenter">Presenter</NavTab>
+        </>
+      }
     >
       <Outlet />
     </AppShell>

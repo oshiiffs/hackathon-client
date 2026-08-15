@@ -22,6 +22,10 @@ export type PublicUser = {
   role: UserRole;
   drafted: boolean;
   teamId: string | null;
+  nickname: string | null;
+  bio: string | null;
+  skills: string[];
+  avatarUrl: string | null;
 };
 
 export type HackathonStatePayload = {
@@ -34,6 +38,7 @@ export type HackathonStatePayload = {
   challengeStartedAt: string | null;
   challengeEndsAt: string | null;
   submissionsLocked: boolean;
+  allowIncompleteTeams: boolean;
   serverNow: string;
 };
 
@@ -92,8 +97,23 @@ export type AdminHackathonStatePayload = HackathonStatePayload & {
 export type TeamMember = {
   id: string;
   fullName: string;
+  nickname: string | null;
+  avatarUrl: string | null;
   homeDepartment: Department;
   slotDepartment: Department | null;
+  role: UserRole;
+};
+
+// ---------- Participant directory ----------
+
+export type DirectoryParticipant = {
+  id: string;
+  fullName: string;
+  nickname: string | null;
+  homeDepartment: Department;
+  bio: string | null;
+  skills: string[];
+  avatarUrl: string | null;
   role: UserRole;
 };
 
@@ -176,7 +196,14 @@ export type TeamDeliverableStatus = {
   documentation: { status: 'UPLOADED' | 'NOT_UPLOADED'; count: number };
 };
 
-export type CategoryUsage = { category: HeatCategory; used: number; capacity: number; available: number; full: boolean };
+export type CategoryUsage = {
+  category: HeatCategory;
+  used: number;
+  capacity: number;
+  available: number;
+  full: boolean;
+  teams: { id: string; name: string }[];
+};
 
 // ---------- Phase 11: AI mentor ----------
 
@@ -245,6 +272,7 @@ export type FinalizationStatus = {
   canFinalize: boolean;
   reason: string | null;
   categories: CategoryUsage[];
+  allowIncompleteTeams: boolean;
 };
 
 export type SubmissionStatus = 'DRAFT' | 'IN_PROGRESS' | 'READY_FOR_SUBMISSION' | 'SUBMITTED';
@@ -271,8 +299,8 @@ export type TeamOverview = {
     memberCount: number;
     maxMembers: number;
   };
-  ceo: { id: string; name: string };
-  members: { id: string; name: string; department: Department | null; isCeo: boolean }[];
+  ceo: { id: string; name: string; nickname: string | null; avatarUrl: string | null };
+  members: { id: string; name: string; nickname: string | null; avatarUrl: string | null; department: Department | null; isCeo: boolean }[];
   project: ProjectData;
   submission: { status: SubmissionStatus };
   deliverables: {
@@ -334,6 +362,38 @@ export type JudgeTeamDetail = {
     assets: { id: string; filename: string; fileUrl: string; size: number; uploadedBy: string; createdAt: string }[];
   };
   myEvaluation: EvaluationPayload;
+};
+
+export type StaffAccount = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  role: 'ADMIN' | 'JUDGE';
+  createdAt: string;
+};
+
+export type AdminTeamResources = {
+  pitchDeckVersions: FileDetail[];
+  files: FileDetail[];
+};
+
+export type LiveAnswerAggregate = {
+  questionId: string;
+  question: string;
+  totalSubmitted: number;
+  correctCount: number;
+  top5: { answer: string; count: number; isCorrect: boolean }[];
+};
+
+export type TeamFeedback = {
+  available: boolean;
+  evaluations: {
+    judgeLabel: string;
+    scores: { id: string; label: string; value: number }[];
+    total: number;
+    maxTotal: number;
+    comments: string | null;
+  }[];
 };
 
 export type AdminEvaluationOverview = {

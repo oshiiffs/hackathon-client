@@ -13,6 +13,48 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Cloudinary serves every file at a plain viewable URL; inserting the
+ * `fl_attachment` flag after `/upload/` is what makes the browser download it
+ * instead of navigating to it — there's no separate "download" endpoint. */
+function toDownloadUrl(fileUrl: string): string {
+  return fileUrl.replace('/upload/', '/upload/fl_attachment/');
+}
+
+function isPdf(filename: string): boolean {
+  return filename.toLowerCase().endsWith('.pdf');
+}
+
+/** Inline PDF viewer + explicit download link, toggled per-file rather than
+ * always-open so the judging form isn't crowded by default. */
+function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string }) {
+  const [viewing, setViewing] = useState(false);
+  return (
+    <div className="flex flex-col gap-2 items-end">
+      <div className="flex gap-2 shrink-0">
+        {isPdf(filename) && (
+          <button
+            onClick={() => setViewing((v) => !v)}
+            className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-primary-400"
+          >
+            {viewing ? 'HIDE' : 'VIEW'}
+          </button>
+        )}
+        {!isPdf(filename) && (
+          <a href={fileUrl} target="_blank" rel="noreferrer" className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-primary-400">
+            VIEW
+          </a>
+        )}
+        <a href={toDownloadUrl(fileUrl)} className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-accent-400">
+          DOWNLOAD
+        </a>
+      </div>
+      {viewing && isPdf(filename) && (
+        <iframe src={fileUrl} title={filename} className="w-full h-[70vh] rounded-lg border border-slate-700 bg-slate-950" />
+      )}
+    </div>
+  );
+}
+
 export function JudgeTeamDetailPage() {
   const { teamId = null } = useParams<{ teamId: string }>();
   const criteria = useJudgeCriteria();
@@ -102,41 +144,30 @@ export function JudgeTeamDetailPage() {
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="judge-deliverables-section">
         <h2 className="text-lg font-bold text-slate-100 mb-4">DELIVERABLES</h2>
         <div className="flex flex-col gap-3 text-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-slate-300">
               Pitch Deck{team.deliverables.pitchDeck.status === 'UPLOADED' ? ` (v${team.deliverables.pitchDeck.version})` : ''}
             </span>
             {team.deliverables.pitchDeck.status === 'UPLOADED' ? (
-              <a
-                href={team.deliverables.pitchDeck.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-primary-400"
-              >
-                VIEW
-              </a>
+              <FileActions filename={team.deliverables.pitchDeck.filename} fileUrl={team.deliverables.pitchDeck.fileUrl} />
             ) : (
               <span className="text-slate-500 text-xs">Not uploaded</span>
             )}
           </div>
           {team.deliverables.documents.map((d) => (
-            <div key={d.id} className="flex items-center justify-between">
+            <div key={d.id} className="flex items-center justify-between gap-2">
               <span className="text-slate-300">
                 {d.filename} ({formatBytes(d.size)})
               </span>
-              <a href={d.fileUrl} target="_blank" rel="noreferrer" className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-primary-400">
-                VIEW
-              </a>
+              <FileActions filename={d.filename} fileUrl={d.fileUrl} />
             </div>
           ))}
           {team.deliverables.assets.map((a) => (
-            <div key={a.id} className="flex items-center justify-between">
+            <div key={a.id} className="flex items-center justify-between gap-2">
               <span className="text-slate-300">
                 {a.filename} ({formatBytes(a.size)})
               </span>
-              <a href={a.fileUrl} target="_blank" rel="noreferrer" className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-primary-400">
-                VIEW
-              </a>
+              <FileActions filename={a.filename} fileUrl={a.fileUrl} />
             </div>
           ))}
           {team.deliverables.documents.length === 0 && team.deliverables.assets.length === 0 && (
@@ -164,18 +195,30 @@ export function JudgeTeamDetailPage() {
             <div key={c.id}>
               <label className="text-sm text-slate-300 flex flex-col gap-1">
                 <span className="font-semibold">
-                  {c.label} ({effectiveScores[c.id]}/{c.max})
+                  {c.label} <span className="text-slate-500 font-normal">(max {c.max})</span>
                 </span>
-                <input
-                  type="range"
-                  min={c.min}
-                  max={c.max}
-                  value={effectiveScores[c.id] ?? c.min}
-                  disabled={isSubmitted}
-                  data-testid={`judge-score-${c.id}`}
-                  onChange={(e) => setScore(c, Number(e.target.value))}
-                  className="w-full disabled:opacity-50"
-                />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={c.min}
+                    max={c.max}
+                    value={effectiveScores[c.id] ?? c.min}
+                    disabled={isSubmitted}
+                    onChange={(e) => setScore(c, Number(e.target.value))}
+                    className="w-full disabled:opacity-50"
+                  />
+                  <input
+                    type="number"
+                    min={c.min}
+                    max={c.max}
+                    step={1}
+                    value={effectiveScores[c.id] ?? ''}
+                    disabled={isSubmitted}
+                    data-testid={`judge-score-${c.id}`}
+                    onChange={(e) => setScore(c, Number(e.target.value))}
+                    className="w-16 shrink-0 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1 text-center text-slate-100 disabled:opacity-50"
+                  />
+                </div>
               </label>
               {scoreErrors[c.id] && (
                 <p className="text-xs text-red-400 mt-1" data-testid={`judge-score-error-${c.id}`}>

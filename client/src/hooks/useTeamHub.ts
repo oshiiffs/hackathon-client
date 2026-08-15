@@ -1,12 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
-import type { ProjectData, TeamOverview } from '../types/api';
+import type { ProjectData, TeamFeedback, TeamOverview } from '../types/api';
 
 export function useTeamOverview(enabled = true) {
   return useQuery({
     queryKey: ['team-overview'],
     queryFn: async () => {
       const { data } = await apiClient.get<TeamOverview>('/team/overview');
+      return data;
+    },
+    enabled,
+    retry: false,
+  });
+}
+
+/** Judge feedback — only ever populated once the event is COMPLETE (see
+ * getTeamFeedback's doc comment on the backend for why). */
+export function useTeamFeedback(enabled = true) {
+  return useQuery({
+    queryKey: ['team-feedback'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<TeamFeedback>('/team/feedback');
       return data;
     },
     enabled,

@@ -33,7 +33,17 @@ export type ChallengeStartPayload = {
 
 export type ChallengeEndPayload = {
   round: number;
-  winners: { userId: string; teamId: string }[];
+  winners: { userId: string; teamId: string; fullName: string; avatarUrl: string | null }[];
+};
+
+// Admin-room-only — never sent to participants (see backend events.ts's doc
+// comment on CHALLENGE_ANSWER_SUBMITTED). Drives the presenter view's
+// "name lights up when answered" live indicator.
+export type ChallengeAnswerSubmittedPayload = {
+  round: number;
+  questionId: string;
+  userId: string;
+  fullName: string;
 };
 
 export type CeoDepartmentAssignedPayload = {

@@ -47,12 +47,35 @@ export function useCurrentUserQuery(enabled: boolean) {
   });
 }
 
-/** Self-service display-name change (participants/CEOs only — see auth.service.ts). */
-export function useUpdateMyName() {
+export type UpdateMyProfileInput = {
+  fullName?: string;
+  nickname?: string | null;
+  bio?: string | null;
+  skills?: string[];
+};
+
+/** Self-service profile edit (participants/CEOs only — see auth.service.ts).
+ * Any subset of fields may be sent; only what's included is changed. */
+export function useUpdateMyProfile() {
   const setUser = useAuthStore((s) => s.setUser);
   return useMutation({
-    mutationFn: async (fullName: string) => {
-      const { data } = await apiClient.patch<PublicUser>('/auth/me', { fullName });
+    mutationFn: async (input: UpdateMyProfileInput) => {
+      const { data } = await apiClient.patch<PublicUser>('/auth/me', input);
+      return data;
+    },
+    onSuccess: (data) => setUser(data),
+  });
+}
+
+export function useUploadAvatar() {
+  const setUser = useAuthStore((s) => s.setUser);
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await apiClient.post<PublicUser>('/auth/me/avatar', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return data;
     },
     onSuccess: (data) => setUser(data),

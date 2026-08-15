@@ -3,11 +3,15 @@ import { Badge } from '../../components/Badge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CeoQuestionsPanel } from './CeoQuestionsPanel';
 import {
+  useAdminDeletePitchDeckVersion,
+  useAdminDeleteTeamFile,
   useAdminDeliverables,
   useAdminEvaluations,
   useAdminHackathonState,
   useAdminOverview,
   useAdminParticipants,
+  useAdminStaff,
+  useAdminTeamResources,
   useAdminTeams,
   useCompleteEvent,
   useCreateParticipant,
@@ -19,6 +23,7 @@ import {
   useOpenSubmissions,
   useRegenerateAccessCode,
   useResetCompetition,
+  useSetAllowIncompleteTeams,
   useStartCeoChallenge,
   useStopCeoChallenge,
   useUnlockParticipants,
@@ -44,6 +49,7 @@ export function AdminDashboardPage() {
   const overview = useAdminOverview();
   const teams = useAdminTeams();
   const participants = useAdminParticipants();
+  const staff = useAdminStaff();
   const deliverables = useAdminDeliverables();
   const evaluations = useAdminEvaluations();
 
@@ -61,6 +67,12 @@ export function AdminDashboardPage() {
   const regenerateCode = useRegenerateAccessCode();
   const exportEventData = useExportEventData();
   const resetCompetition = useResetCompetition();
+  const setAllowIncompleteTeams = useSetAllowIncompleteTeams();
+
+  const [resourcesTeamId, setResourcesTeamId] = useState<string | null>(null);
+  const teamResources = useAdminTeamResources(resourcesTeamId);
+  const deleteTeamFile = useAdminDeleteTeamFile();
+  const deletePitchDeckVersion = useAdminDeletePitchDeckVersion();
 
   const [duration, setDuration] = useState(30);
   const [ceoSlots, setCeoSlots] = useState(4);
@@ -145,6 +157,21 @@ export function AdminDashboardPage() {
             className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition"
           >
             Unlock participants
+          </button>
+
+          <span className="w-px h-6 bg-slate-800 mx-1" />
+
+          <span className="text-sm text-slate-400">Incomplete teams:</span>
+          <Badge tone={state?.allowIncompleteTeams ? 'primary' : 'neutral'}>
+            {state?.allowIncompleteTeams ? 'Allowed' : 'Not allowed'}
+          </Badge>
+          <button
+            onClick={() => setAllowIncompleteTeams.mutate(!state?.allowIncompleteTeams)}
+            disabled={setAllowIncompleteTeams.isPending}
+            title="Worst-case escape hatch: lets CEOs finalize with fewer than 5 members if recruitment ran short."
+            className="rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 text-sm font-semibold px-4 py-2 transition"
+          >
+            {state?.allowIncompleteTeams ? 'Require full rosters' : 'Allow incomplete rosters'}
           </button>
         </div>
 
@@ -285,6 +312,15 @@ export function AdminDashboardPage() {
                 {c.used}/{c.capacity}
               </p>
               {c.full && <p className="text-[10px] font-bold text-accent-400 mt-0.5">FULL</p>}
+              {c.teams.length > 0 && (
+                <ul className="mt-2 text-[11px] text-slate-400 leading-snug">
+                  {c.teams.map((t) => (
+                    <li key={t.id} className="truncate">
+                      {t.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           ))}
         </div>
@@ -437,6 +473,39 @@ export function AdminDashboardPage() {
               </button>
               {createStaff.isError && <p className="text-sm text-red-400">{getApiErrorMessage(createStaff.error)}</p>}
             </form>
+
+            <div className="mt-5">
+              <h3 className="text-sm font-bold text-slate-300 mb-2">Judges &amp; admins</h3>
+              <div className="max-h-40 overflow-y-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-slate-500 text-xs uppercase">
+                    <tr>
+                      <th className="py-1">Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staff.data?.map((s) => (
+                      <tr key={s.id} className="border-t border-slate-800 text-slate-300">
+                        <td className="py-1.5">{s.fullName}</td>
+                        <td className="text-slate-400">{s.email}</td>
+                        <td>
+                          <Badge tone={s.role === 'ADMIN' ? 'gold' : 'primary'}>{s.role}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                    {staff.data?.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-2 text-slate-600 text-center">
+                          No staff accounts yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -592,6 +661,51 @@ export function AdminDashboardPage() {
                     Evaluations: {evalStatus.evaluationsSubmitted}/{evalStatus.totalJudges} submitted
                     {evalStatus.evaluationsInProgress > 0 ? ` · ${evalStatus.evaluationsInProgress} in progress` : ''}
                   </p>
+                )}
+
+                <button
+                  onClick={() => setResourcesTeamId(resourcesTeamId === team.id ? null : team.id)}
+                  className="mt-2 text-xs font-semibold text-primary-400 hover:text-primary-300 transition"
+                >
+                  {resourcesTeamId === team.id ? 'Hide resources' : 'View resources'}
+                </button>
+
+                {resourcesTeamId === team.id && (
+                  <div className="mt-2 pt-2 border-t border-slate-700 flex flex-col gap-1.5">
+                    {teamResources.isLoading && <p className="text-xs text-slate-500">Loading…</p>}
+                    {teamResources.data?.pitchDeckVersions.length === 0 && teamResources.data?.files.length === 0 && (
+                      <p className="text-xs text-slate-600">Nothing uploaded yet.</p>
+                    )}
+                    {teamResources.data?.pitchDeckVersions.map((v) => (
+                      <div key={v.id} className="flex items-center justify-between gap-2 text-xs">
+                        <a href={v.fileUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-primary-300 truncate">
+                          {v.isCurrent ? '(current) ' : ''}
+                          {v.filename} (v{v.version})
+                        </a>
+                        <button
+                          disabled={deletePitchDeckVersion.isPending}
+                          onClick={() => deletePitchDeckVersion.mutate({ teamId: team.id, versionId: v.id })}
+                          className="text-red-400 hover:text-red-300 font-semibold shrink-0"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {teamResources.data?.files.map((f) => (
+                      <div key={f.id} className="flex items-center justify-between gap-2 text-xs">
+                        <a href={f.fileUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-primary-300 truncate">
+                          {f.filename} ({f.type})
+                        </a>
+                        <button
+                          disabled={deleteTeamFile.isPending}
+                          onClick={() => deleteTeamFile.mutate({ teamId: team.id, fileId: f.id })}
+                          className="text-red-400 hover:text-red-300 font-semibold shrink-0"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             );

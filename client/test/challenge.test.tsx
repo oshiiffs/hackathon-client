@@ -21,6 +21,10 @@ function mockUser(overrides: Partial<PublicUser> = {}): PublicUser {
     role: 'PARTICIPANT',
     drafted: false,
     teamId: null,
+    nickname: null,
+    bio: null,
+    skills: [],
+    avatarUrl: null,
     ...overrides,
   };
 }
@@ -36,6 +40,7 @@ function mockState(overrides: Partial<HackathonStatePayload> = {}): HackathonSta
     challengeStartedAt: new Date().toISOString(),
     challengeEndsAt: new Date(Date.now() + 30000).toISOString(),
     submissionsLocked: false,
+    allowIncompleteTeams: false,
     serverNow: new Date().toISOString(),
     ...overrides,
   };

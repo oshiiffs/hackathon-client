@@ -23,11 +23,14 @@ function FinalizedView({ team }: { team: Team }) {
         {team.members.length} / 5 MEMBERS
       </p>
       <div className="grid grid-cols-5 gap-2 text-xs text-slate-300 mt-1">
-        {ALL_DEPARTMENTS.map((dept) => (
-          <div key={dept}>
-            ✓ {dept}
-          </div>
-        ))}
+        {ALL_DEPARTMENTS.map((dept) => {
+          const filled = team.members.some((m) => m.slotDepartment === dept);
+          return (
+            <div key={dept} className={filled ? '' : 'text-slate-600'}>
+              {filled ? '✓' : '—'} {dept}
+            </div>
+          );
+        })}
       </div>
       <Link
         to="/team"
@@ -99,10 +102,18 @@ export function CeoFinalizePage() {
         ))}
       </div>
 
+      {status.allowIncompleteTeams && !status.team.finalizedAt && (
+        <p className="text-xs text-accent-400 max-w-sm">
+          Recruitment is short on participants today — teams may finalize with fewer than 5 members.
+        </p>
+      )}
+
       {!status.canFinalize && status.reason && (
         <p className="text-sm text-slate-400 max-w-sm" data-testid="finalize-not-ready">
           {status.reason === 'TEAM_NOT_COMPLETE'
-            ? 'Recruit the remaining departments before finalizing.'
+            ? status.allowIncompleteTeams
+              ? 'Recruit at least one member before finalizing.'
+              : 'Recruit the remaining departments before finalizing.'
             : `Finalization isn't available right now (${status.reason}).`}
         </p>
       )}

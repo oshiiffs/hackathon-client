@@ -7,7 +7,7 @@ import { TeamRosterGrid } from '../../components/TeamRosterGrid';
 import { ProjectSection } from './ProjectSection';
 import { DeliverablesSection } from './DeliverablesSection';
 import { AiMentorPanel } from './AiMentorPanel';
-import { useTeamOverview, useRenameTeam } from '../../hooks/useTeamHub';
+import { useTeamOverview, useRenameTeam, useTeamFeedback } from '../../hooks/useTeamHub';
 import { useHackathonState } from '../../hooks/useHackathon';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
@@ -93,10 +93,20 @@ function toRosterTeam(overview: TeamOverview): Team {
     id: overview.team.id,
     name: overview.team.name,
     ceoId: overview.ceo.id,
-    ceo: { id: overview.ceo.id, fullName: overview.ceo.name, homeDepartment: 'COE', slotDepartment: null, role: 'CEO' },
+    ceo: {
+      id: overview.ceo.id,
+      fullName: overview.ceo.name,
+      nickname: overview.ceo.nickname,
+      avatarUrl: overview.ceo.avatarUrl,
+      homeDepartment: 'COE',
+      slotDepartment: null,
+      role: 'CEO',
+    },
     members: overview.members.map((m) => ({
       id: m.id,
       fullName: m.name,
+      nickname: m.nickname,
+      avatarUrl: m.avatarUrl,
       homeDepartment: m.department ?? 'COE',
       slotDepartment: m.department,
       role: m.isCeo ? 'CEO' : 'PARTICIPANT',
@@ -107,6 +117,41 @@ function toRosterTeam(overview: TeamOverview): Team {
     deliverable: null,
     createdAt: overview.team.createdAt,
   };
+}
+
+/** Judge scores/comments, once the event is COMPLETE. The backend gates this
+ * itself (returns `available: false` before then) — `enabled` here just
+ * avoids firing the request at all on every other phase. */
+function TeamFeedbackSection({ enabled }: { enabled: boolean }) {
+  const { data: feedback } = useTeamFeedback(enabled);
+  if (!enabled || !feedback?.available || feedback.evaluations.length === 0) return null;
+
+  return (
+    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="team-feedback-section">
+      <h2 className="text-lg font-bold text-slate-100 mb-4">JUDGE FEEDBACK</h2>
+      <div className="flex flex-col gap-4">
+        {feedback.evaluations.map((evaluation) => (
+          <div key={evaluation.judgeLabel} className="bg-slate-800 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-bold text-slate-100">{evaluation.judgeLabel}</p>
+              <Badge tone="gold">
+                {evaluation.total} / {evaluation.maxTotal}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-2">
+              {evaluation.scores.map((s) => (
+                <div key={s.id}>
+                  <p className="text-slate-500 uppercase font-semibold">{s.label}</p>
+                  <p className="text-slate-100 font-bold">{s.value}</p>
+                </div>
+              ))}
+            </div>
+            {evaluation.comments && <p className="text-sm text-slate-300 mt-2 whitespace-pre-wrap">{evaluation.comments}</p>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export function TeamHubPage() {
@@ -236,6 +281,7 @@ export function TeamHubPage() {
       </section>
 
       <DeliverablesSection ceoId={overview.ceo.id} />
+      <TeamFeedbackSection enabled={hackathonState?.phase === 'COMPLETE'} />
       <AiMentorPanel />
     </div>
   );

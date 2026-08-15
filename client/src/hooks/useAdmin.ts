@@ -5,8 +5,11 @@ import type {
   AdminEvaluationOverview,
   AdminHackathonStatePayload,
   AdminOverview,
+  AdminTeamResources,
   CeoQuestion,
   Department,
+  LiveAnswerAggregate,
+  StaffAccount,
   Team,
   TeamDeliverableStatus,
 } from '../types/api';
@@ -113,6 +116,89 @@ export function useAdminParticipants() {
       return data;
     },
     refetchInterval: 20000,
+  });
+}
+
+export function useAdminStaff() {
+  return useQuery({
+    queryKey: ['admin-staff'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<StaffAccount[]>('/admin/staff');
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdminTeamResources(teamId: string | null) {
+  return useQuery({
+    queryKey: ['admin-team-resources', teamId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<AdminTeamResources>(`/admin/teams/${teamId}/resources`);
+      return data;
+    },
+    enabled: teamId !== null,
+  });
+}
+
+export function useAdminDeleteTeamFile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ teamId, fileId }: { teamId: string; fileId: string }) => {
+      await apiClient.delete(`/admin/teams/${teamId}/files/${fileId}`);
+    },
+    onSuccess: (_, { teamId }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-team-resources', teamId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deliverables'] });
+      showSuccessToast('File removed.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export function useAdminDeletePitchDeckVersion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ teamId, versionId }: { teamId: string; versionId: string }) => {
+      await apiClient.delete(`/admin/teams/${teamId}/pitch-deck/${versionId}`);
+    },
+    onSuccess: (_, { teamId }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-team-resources', teamId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deliverables'] });
+      showSuccessToast('Pitch deck version removed.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+/** Worst-case-headcount escape hatch — lets CEOs finalize with fewer than 5
+ * members once the admin flips this on (still capped at one per department). */
+export function useSetAllowIncompleteTeams() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: async (allow: boolean) => {
+      const { data } = await apiClient.post<AdminHackathonStatePayload>('/admin/hackathon/allow-incomplete-teams', { allow });
+      return data;
+    },
+    onSuccess: (data) => {
+      invalidate();
+      showSuccessToast(data.allowIncompleteTeams ? 'Incomplete teams are now allowed to finalize.' : 'Incomplete teams can no longer finalize.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+/** Live "top 5 answers" for one topic, for the presenter/LCD view — poll
+ * while that topic is on screen, not otherwise. */
+export function useLiveAnswerAggregate(questionId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['live-answer-aggregate', questionId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<LiveAnswerAggregate>(`/admin/hackathon/challenge/answers/${questionId}`);
+      return data;
+    },
+    enabled: enabled && questionId !== null,
+    refetchInterval: enabled ? 1500 : false,
   });
 }
 

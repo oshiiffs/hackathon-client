@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useUpdateMyName } from '../hooks/useAuth';
+import { useUpdateMyProfile } from '../hooks/useAuth';
 import { getApiErrorMessage } from '../lib/apiClient';
 
 /** Self-service display-name editor for participants/CEOs — badge access
@@ -7,7 +7,7 @@ import { getApiErrorMessage } from '../lib/apiClient';
  * ever a starting point. Renders as a `<dd>` so it drops into the existing
  * `dt`/`dd` status grids on the participant and CEO dashboards. */
 export function EditableNameField({ currentName }: { currentName: string }) {
-  const updateName = useUpdateMyName();
+  const updateName = useUpdateMyProfile();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(currentName);
 
@@ -40,7 +40,7 @@ export function EditableNameField({ currentName }: { currentName: string }) {
             setEditing(false);
             return;
           }
-          updateName.mutate(trimmed, { onSuccess: () => setEditing(false) });
+          updateName.mutate({ fullName: trimmed }, { onSuccess: () => setEditing(false) });
         }}
       >
         <input

@@ -21,6 +21,10 @@ function mockUser(overrides: Partial<PublicUser> = {}): PublicUser {
     role: 'CEO',
     drafted: true,
     teamId: 'team_1',
+    nickname: null,
+    bio: null,
+    skills: [],
+    avatarUrl: null,
     ...overrides,
   };
 }
@@ -58,10 +62,10 @@ function mockTeam(overrides: Partial<Team> = {}): Team {
 
 function mockCategories(overrides: Partial<Record<string, Partial<CategoryUsage>>> = {}): CategoryUsage[] {
   const base: CategoryUsage[] = [
-    { category: 'HEALTH', used: 1, capacity: 3, available: 2, full: false },
-    { category: 'ENVIRONMENT', used: 2, capacity: 3, available: 1, full: false },
-    { category: 'AGRICULTURE', used: 3, capacity: 3, available: 0, full: true },
-    { category: 'TOURISM', used: 0, capacity: 3, available: 3, full: false },
+    { category: 'HEALTH', used: 1, capacity: 3, available: 2, full: false, teams: [] },
+    { category: 'ENVIRONMENT', used: 2, capacity: 3, available: 1, full: false, teams: [] },
+    { category: 'AGRICULTURE', used: 3, capacity: 3, available: 0, full: true, teams: [] },
+    { category: 'TOURISM', used: 0, capacity: 3, available: 3, full: false, teams: [] },
   ];
   return base.map((c) => ({ ...c, ...overrides[c.category] }));
 }
@@ -76,6 +80,7 @@ function mockStatus(overrides: Partial<FinalizationStatus> = {}): FinalizationSt
     canFinalize: true,
     reason: null,
     categories: mockCategories(),
+    allowIncompleteTeams: false,
     ...overrides,
   };
 }
