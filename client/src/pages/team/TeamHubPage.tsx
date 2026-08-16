@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { Badge } from '../../components/Badge';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PhaseProgress } from '../../components/PhaseProgress';
 import { TeamRosterGrid } from '../../components/TeamRosterGrid';
 import { ProjectSection } from './ProjectSection';
 import { DeliverablesSection } from './DeliverablesSection';
 import { AiMentorPanel } from './AiMentorPanel';
-import { useTeamOverview, useRenameTeam, useTeamFeedback } from '../../hooks/useTeamHub';
+import { useTeamOverview, useRenameTeam, useTeamFeedback, useSubmitDeliverable } from '../../hooks/useTeamHub';
 import { useHackathonState } from '../../hooks/useHackathon';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
@@ -158,6 +159,8 @@ export function TeamHubPage() {
   const user = useAuthStore((s) => s.user);
   const { data: overview, isLoading, error, refetch } = useTeamOverview();
   const { data: hackathonState } = useHackathonState();
+  const submitDeliverable = useSubmitDeliverable();
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
 
   if (isLoading) return <LoadingState label="Loading your team…" />;
 
@@ -287,8 +290,49 @@ export function TeamHubPage() {
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="project-status-section">
         <h2 className="text-lg font-bold text-slate-100 mb-4">PROJECT STATUS</h2>
-        <Badge tone="gold">{overview.submission.status.replace(/_/g, ' ')}</Badge>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Badge tone={overview.submission.status === 'SUBMITTED' ? 'primary' : 'gold'}>
+            {overview.submission.status.replace(/_/g, ' ')}
+          </Badge>
+
+          {overview.submission.status !== 'SUBMITTED' &&
+            (user?.role === 'CEO' ? (
+              <button
+                data-testid="submit-project-button"
+                disabled={hackathonState?.submissionsLocked || overview.deliverables.pitchDeck.status !== 'UPLOADED'}
+                onClick={() => setConfirmSubmit(true)}
+                className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white font-semibold px-4 py-2 text-sm transition"
+              >
+                Submit
+              </button>
+            ) : (
+              <span className="text-xs text-slate-500">Only your CEO can submit.</span>
+            ))}
+        </div>
+
+        {overview.submission.status !== 'SUBMITTED' && overview.deliverables.pitchDeck.status !== 'UPLOADED' && (
+          <p className="text-xs text-slate-500 mt-2">Upload a pitch deck below before you can submit.</p>
+        )}
+        {overview.submission.status !== 'SUBMITTED' && hackathonState?.submissionsLocked && (
+          <p className="text-xs text-slate-500 mt-2">Submissions are currently locked by the event admin.</p>
+        )}
+        {submitDeliverable.isError && (
+          <p className="text-xs text-red-400 mt-2">{getApiErrorMessage(submitDeliverable.error)}</p>
+        )}
       </section>
+
+      <ConfirmDialog
+        open={confirmSubmit}
+        title="Submit your project?"
+        description="Your CEO can keep updating deliverables until admin locks submissions, but this marks the team as done."
+        confirmLabel="Submit"
+        pending={submitDeliverable.isPending}
+        onCancel={() => setConfirmSubmit(false)}
+        onConfirm={() => {
+          submitDeliverable.mutate();
+          setConfirmSubmit(false);
+        }}
+      />
 
       <DeliverablesSection ceoId={overview.ceo.id} />
       <TeamFeedbackSection enabled={hackathonState?.phase === 'COMPLETE'} />

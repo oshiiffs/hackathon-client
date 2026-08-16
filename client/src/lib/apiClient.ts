@@ -4,8 +4,10 @@ import { useAuthStore } from '../store/authStore';
 
 // API base URL comes from a build-time env var, never a hardcoded secret. No API
 // keys (Cloudinary, xAI, JWT signing secret) ever live in this client — every
-// privileged operation is proxied through the server.
-export const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+// privileged operation is proxied through the server. Strip a trailing slash —
+// VITE_API_URL is commonly configured with one (e.g. "https://host.onrender.com/"),
+// which would otherwise double up into ".../onrender.com//api".
+export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000').replace(/\/+$/, '');
 
 // Auth is an httpOnly session cookie set by the server on login — this client
 // never sees or stores the raw JWT. `withCredentials` is what makes the browser

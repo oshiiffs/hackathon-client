@@ -60,3 +60,19 @@ export function useUpdateProject() {
     },
   });
 }
+
+/** CEO-only, moves the team's submission status from DRAFT to SUBMITTED —
+ * requires a finalized team, an uploaded pitch deck, and that admin hasn't
+ * locked submissions yet (see submitDeliverable on the backend). */
+export function useSubmitDeliverable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<{ status: string }>('/team/submit');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-overview'] });
+    },
+  });
+}
