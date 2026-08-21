@@ -223,7 +223,7 @@ describe('CEO selection flow', () => {
 
     expect(screen.getAllByText('Ada Lovelace').length).toBeGreaterThan(0);
     expect(screen.getByText('TEAM_FORMATION')).toBeInTheDocument();
-    expect(screen.getByText(/NEXT STEP: Recruit the remaining four departments using QR/)).toBeInTheDocument();
+    expect(screen.getByText(/NEXT STEP: Recruit the remaining departments using QR/)).toBeInTheDocument();
   });
 
   it('8. a fresh render (simulating a refresh) restores CEO state purely from seeded server data', () => {

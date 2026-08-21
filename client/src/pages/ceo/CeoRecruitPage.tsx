@@ -111,6 +111,11 @@ export function CeoRecruitPage() {
   if (teamIsFull && scanState.kind === 'scanning') {
     return (
       <div className="flex flex-col items-center gap-4 py-12 text-center" data-testid="team-complete">
+        <div className="w-full max-w-sm">
+          <Link to="/ceo" className="text-xs font-black uppercase text-forest hover:text-crimson transition">
+            ← Back to dashboard
+          </Link>
+        </div>
         <p className="text-5xl">🎉</p>
         <h2 className="text-2xl font-black text-forest uppercase">TEAM COMPLETE</h2>
         <p className="text-navy text-sm font-bold">5 / 5 members recruited.</p>
@@ -124,6 +129,16 @@ export function CeoRecruitPage() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-8 text-center" data-testid="ceo-recruit-page">
+      <div className="w-full max-w-sm">
+        <Link
+          to="/ceo"
+          data-testid="recruit-back-button"
+          className="text-xs font-black uppercase text-forest hover:text-crimson transition"
+        >
+          ← Back to dashboard
+        </Link>
+      </div>
+
       <div>
         <h2 className="text-2xl font-black text-ink tracking-tight uppercase">SCAN TEAM MEMBER</h2>
         <p className="text-navy text-sm mt-1 font-bold">Point the camera at a participant QR code.</p>

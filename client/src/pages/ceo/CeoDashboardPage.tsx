@@ -64,10 +64,22 @@ export function CeoDashboardPage() {
 
         {!team.isComplete && (
           <div className="mt-5 rounded-xl border-[3px] border-ink bg-crimson/10 px-4 py-3 flex flex-col items-start gap-3 shadow-[4px_4px_0px_#111111]">
-            <p className="text-crimson font-black text-sm uppercase">NEXT STEP: Recruit the remaining four departments using QR</p>
-            <Link to="/ceo/recruit" className={comicButton('crimson')}>
-              SCAN MEMBER
-            </Link>
+            <p className="text-crimson font-black text-sm uppercase">NEXT STEP: Recruit the remaining departments using QR</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link to="/ceo/recruit" className={comicButton('crimson')}>
+                SCAN MEMBER
+              </Link>
+              {hackathonState?.allowIncompleteTeams && (
+                <Link to="/ceo/team/finalize" className={comicButton('white', 'sm')} data-testid="finalize-incomplete-link">
+                  Finalize anyway
+                </Link>
+              )}
+            </div>
+            {hackathonState?.allowIncompleteTeams && (
+              <p className="text-xs font-bold text-navy/70">
+                Admin has allowed incomplete rosters this round — you can finalize with fewer than 5 members if you need to.
+              </p>
+            )}
           </div>
         )}
 

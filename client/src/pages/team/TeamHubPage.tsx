@@ -8,74 +8,12 @@ import { TeamRosterGrid } from '../../components/TeamRosterGrid';
 import { ProjectSection } from './ProjectSection';
 import { DeliverablesSection } from './DeliverablesSection';
 import { AiMentorPanel } from './AiMentorPanel';
-import { useTeamOverview, useRenameTeam, useTeamFeedback, useSubmitDeliverable } from '../../hooks/useTeamHub';
+import { useTeamOverview, useTeamFeedback, useSubmitDeliverable } from '../../hooks/useTeamHub';
 import { useHackathonState } from '../../hooks/useHackathon';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
-import { comicButton, comicHeading, comicLink } from '../../lib/comic';
+import { comicButton, comicHeading } from '../../lib/comic';
 import type { Team, TeamOverview } from '../../types/api';
-
-/** CEO-only inline rename control — team.name is set once at finalization but
- * the CEO can still fix a typo or reconsider it afterward via PATCH /team/name. */
-function TeamNameField({ name, canRename }: { name: string | null; canRename: boolean }) {
-  const renameTeam = useRenameTeam();
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(name ?? '');
-
-  if (!canRename) {
-    return <dd className="text-ink font-bold mt-0.5">{name}</dd>;
-  }
-
-  if (!editing) {
-    return (
-      <dd className="flex items-center gap-2 mt-0.5">
-        <span className="text-ink font-bold">{name}</span>
-        <button
-          type="button"
-          onClick={() => {
-            setValue(name ?? '');
-            setEditing(true);
-          }}
-          className={`text-xs ${comicLink}`}
-        >
-          Rename
-        </button>
-      </dd>
-    );
-  }
-
-  return (
-    <dd className="mt-0.5">
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const trimmed = value.trim();
-          if (!trimmed || trimmed === name) {
-            setEditing(false);
-            return;
-          }
-          renameTeam.mutate(trimmed, { onSuccess: () => setEditing(false) });
-        }}
-      >
-        <input
-          autoFocus
-          value={value}
-          maxLength={80}
-          onChange={(e) => setValue(e.target.value)}
-          className="rounded-lg bg-white border-[3px] border-ink px-2 py-1 text-sm text-ink font-bold focus:outline-none focus:ring-2 focus:ring-crimson"
-        />
-        <button type="submit" disabled={renameTeam.isPending || value.trim().length === 0} className={comicButton('forest', 'sm')}>
-          {renameTeam.isPending ? 'Saving…' : 'Save'}
-        </button>
-        <button type="button" disabled={renameTeam.isPending} onClick={() => setEditing(false)} className={comicButton('white', 'sm')}>
-          Cancel
-        </button>
-      </form>
-      {renameTeam.isError && <p className="text-crimson font-bold text-xs mt-1">{getApiErrorMessage(renameTeam.error)}</p>}
-    </dd>
-  );
-}
 
 /** Adapts the Team Hub overview shape into the existing TeamRosterGrid's
  * `Team` prop contract (id/ceoId/members[].slotDepartment|fullName|id) so
@@ -242,7 +180,9 @@ export function TeamHubPage() {
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
             <dt className="text-forest text-xs uppercase font-black">Team Name</dt>
-            <TeamNameField name={overview.team.name} canRename={user?.role === 'CEO'} />
+            {/* Permanent once finalized — see the caution on the CEO finalize screen.
+                No rename control here on purpose. */}
+            <dd className="text-ink font-bold mt-0.5">{overview.team.name}</dd>
           </div>
           <div>
             <dt className="text-forest text-xs uppercase font-black">HEAT Category</dt>

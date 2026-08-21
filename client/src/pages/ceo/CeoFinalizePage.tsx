@@ -129,6 +129,9 @@ export function CeoFinalizePage() {
           onChange={(e) => setName(e.target.value)}
           className="mt-1 w-full rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-ink font-bold disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-crimson"
         />
+        <p className="mt-1.5 text-[11px] font-bold text-crimson flex items-center gap-1" data-testid="team-name-caution">
+          <span aria-hidden="true">⚠</span> Choose carefully — your team name is permanent and can&apos;t be changed once finalized.
+        </p>
       </div>
 
       <div className="w-full max-w-sm text-left">
@@ -181,6 +184,7 @@ export function CeoFinalizePage() {
               <p className="text-ink font-black">{status.memberCount} / 5</p>
             </div>
             <p className="text-navy/60 text-xs">Once finalized, normal recruitment will be closed.</p>
+            <p className="text-crimson text-xs font-bold">⚠ Your team name can&apos;t be changed after this.</p>
             <div className="flex gap-3 mt-1">
               <button data-testid="cancel-finalize-button" onClick={cancelConfirm} className={comicButton('white', 'sm')}>
                 CANCEL
