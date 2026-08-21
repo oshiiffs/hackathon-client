@@ -57,7 +57,19 @@ export function AppRoutes() {
             <Route path="overview" element={<TeamHubPage />} />
           </Route>
 
-          <Route element={<RequireRole roles={['PARTICIPANT']} />}>
+          {/* Also allows CEO here (not just PARTICIPANT): the CEO Selection
+              Challenge promotes a winner's role server-side the moment the
+              round ends, and the client picks that up via a socket-triggered
+              /auth/me refetch (see RealtimeProvider's onChallengeEnd) while
+              the winner is often still sitting on /participant/challenge
+              mid-"revealing" animation. A PARTICIPANT-only guard here used to
+              yank that in-progress screen out from under them into a 403 the
+              instant their role flipped, before they ever saw "YOU ARE THE
+              CEO" or could click through to /ceo. These pages already handle
+              a freshly-promoted CEO themselves (see e.g.
+              ParticipantDashboardPage's own `role === 'CEO'` redirect) — this
+              guard just needs to get out of their way and let that run. */}
+          <Route element={<RequireRole roles={['PARTICIPANT', 'CEO']} />}>
             <Route path="/participant" element={<ParticipantLayout />}>
               <Route index element={<ParticipantDashboardPage />} />
               <Route path="challenge" element={<ParticipantChallengePage />} />

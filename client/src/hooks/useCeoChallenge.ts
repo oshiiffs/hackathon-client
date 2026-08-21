@@ -32,7 +32,20 @@ export function useMyCeoChallenge(enabled: boolean) {
  * (ordinary network/processing latency) — the very first request can land
  * just before the server agrees the window is closed and get rejected. A
  * short, bounded retry rides out that race instead of leaving the reveal
- * card permanently blank for the rest of the 5s window. */
+ * card permanently blank for the rest of the 5s window.
+ *
+ * Also refetches every 1.2s for as long as the reveal card stays mounted,
+ * rather than trusting the first successful response forever: `leaderboard`
+ * / `correctCount` / `totalAnswered` reflect "whoever has submitted SO FAR"
+ * (same "not a final settled value" nature as the admin's live answer
+ * aggregate), and EVERY participant's client flips into the reveal phase at
+ * basically the same synchronized instant — so that very first fetch often
+ * lands before almost anyone's (including the viewer's own) answer for this
+ * topic has actually committed server-side, making the leaderboard look
+ * empty even when plenty of people got it right. Only `correctAnswer` is
+ * genuinely static; polling the same endpoint a few more times over the 5s
+ * reveal window is a cheap way to let the leaderboard catch up instead of
+ * freezing on that near-empty first snapshot. */
 export function useCeoTopicReveal(questionId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ['ceo-challenge-reveal', questionId],
@@ -43,7 +56,8 @@ export function useCeoTopicReveal(questionId: string | undefined, enabled: boole
     enabled: enabled && Boolean(questionId),
     retry: 4,
     retryDelay: 400, // 4 retries * 400ms comfortably covers ordinary clock skew within the 5s reveal window
-    staleTime: Infinity, // a topic's correct answer never changes once fetched
+    staleTime: 0,
+    refetchInterval: 1200, // stops on its own once the reveal card unmounts at the next topic
   });
 }
 
