@@ -43,11 +43,20 @@ function TopicReveal({
       <div className="w-full rounded-xl border-[3px] border-ink bg-lime/40 px-6 py-4 text-center shadow-[4px_4px_0px_#111111]">
         <p className="text-xs font-black uppercase tracking-wide text-forest mb-1">Correct answer</p>
         <p className="text-2xl font-black text-ink" data-testid="topic-correct-answer">
-          {reveal.isLoading ? '…' : (reveal.data?.correctAnswer ?? '—')}
+          {reveal.isLoading ? '…' : reveal.isError ? 'Unavailable' : (reveal.data?.correctAnswer || '—')}
         </p>
+        {reveal.isError && (
+          <button
+            type="button"
+            onClick={() => reveal.refetch()}
+            className="mt-1 text-[11px] font-bold uppercase text-forest hover:text-crimson underline"
+          >
+            Retry
+          </button>
+        )}
       </div>
 
-      {!reveal.isLoading && (
+      {!reveal.isLoading && !reveal.isError && (
         <div className="w-full rounded-xl border-[3px] border-ink bg-white px-5 py-4 shadow-[4px_4px_0px_#111111]" data-testid="topic-leaderboard">
           <p className="text-xs font-black uppercase tracking-wide text-navy/60 mb-2 text-center">
             Got it right · {reveal.data?.correctCount ?? 0}/{reveal.data?.totalAnswered ?? 0}

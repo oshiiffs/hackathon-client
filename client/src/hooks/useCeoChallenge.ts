@@ -24,7 +24,15 @@ export function useMyCeoChallenge(enabled: boolean) {
  * before returning the answer — this is never prefetched for topics whose
  * window hasn't closed yet, so there's nothing to leak via dev tools ahead
  * of time (see the backend's getCeoTopicReveal doc comment). Also carries
- * that topic's `leaderboard` — who answered it correctly, fastest-first. */
+ * that topic's `leaderboard` — who answered it correctly, fastest-first.
+ *
+ * Retries a few times on failure: the client flips into the reveal phase
+ * the instant ITS OWN clock-corrected timer says the answering window
+ * ended, which can be a beat ahead of the server's own authoritative check
+ * (ordinary network/processing latency) — the very first request can land
+ * just before the server agrees the window is closed and get rejected. A
+ * short, bounded retry rides out that race instead of leaving the reveal
+ * card permanently blank for the rest of the 5s window. */
 export function useCeoTopicReveal(questionId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ['ceo-challenge-reveal', questionId],
@@ -33,7 +41,8 @@ export function useCeoTopicReveal(questionId: string | undefined, enabled: boole
       return data;
     },
     enabled: enabled && Boolean(questionId),
-    retry: false,
+    retry: 4,
+    retryDelay: 400, // 4 retries * 400ms comfortably covers ordinary clock skew within the 5s reveal window
     staleTime: Infinity, // a topic's correct answer never changes once fetched
   });
 }
