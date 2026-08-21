@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 
 const ELEMENT_ID = 'qr-scanner-region';
 
@@ -43,19 +43,42 @@ export function QrScanner({
 
     return () => {
       stopped = true;
-      scanner.stop().then(() => scanner.clear()).catch(() => {
-        /* already stopped */
-      });
+      // scanner.stop()/clear() THROW SYNCHRONOUSLY (not a rejected promise —
+      // see html5-qrcode's Html5Qrcode.prototype.stop) if the scanner never
+      // reached SCANNING/PAUSED — e.g. the camera permission prompt was
+      // denied or there's no camera at all, which rejects start() above,
+      // which sets cameraError in the parent, which immediately unmounts
+      // this component in the same tick. That synchronous throw happens
+      // inside a cleanup callback, which React has no error boundary for on
+      // this app's root — left unguarded it takes down the entire page to a
+      // blank white screen instead of just failing to clean up a scanner
+      // that was never running. try/catch is the fix, not a state check
+      // alone: isScanning() covers this correctly, but wrapping it too means
+      // a change to that internal check can never reopen this crash.
+      try {
+        const state = scanner.getState();
+        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          scanner.stop().then(() => scanner.clear()).catch(() => {
+            /* already stopped */
+          });
+        }
+      } catch {
+        /* never started — nothing to tear down */
+      }
     };
   }, []);
 
   useEffect(() => {
     const scanner = scannerRef.current;
     if (!scanner) return;
-    if (paused && scanner.getState() === 2 /* SCANNING */) {
-      scanner.pause(true);
-    } else if (!paused && scanner.getState() === 3 /* PAUSED */) {
-      scanner.resume();
+    try {
+      if (paused && scanner.getState() === Html5QrcodeScannerState.SCANNING) {
+        scanner.pause(true);
+      } else if (!paused && scanner.getState() === Html5QrcodeScannerState.PAUSED) {
+        scanner.resume();
+      }
+    } catch {
+      /* scanner isn't in a pausable/resumable state (e.g. never started) — nothing to do */
     }
   }, [paused]);
 
