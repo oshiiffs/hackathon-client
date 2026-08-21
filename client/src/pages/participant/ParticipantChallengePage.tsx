@@ -14,7 +14,8 @@ type Result = 'success' | 'ended' | null;
 /** Shown for the 5s reveal window after a topic's answering countdown runs
  * out — fetches that one topic's correct answer, which the server only
  * hands over once it has independently verified the window has closed (see
- * useCeoTopicReveal / the backend's getCeoTopicReveal). */
+ * useCeoTopicReveal / the backend's getCeoTopicReveal). Also shows that
+ * topic's leaderboard — who answered it correctly, fastest-first. */
 function TopicReveal({
   questionId,
   questionText,
@@ -29,6 +30,7 @@ function TopicReveal({
   serverNow: string;
 }) {
   const reveal = useCeoTopicReveal(questionId, true);
+  const leaderboard = reveal.data?.leaderboard ?? [];
   return (
     <div className="w-full flex flex-col items-center gap-5" data-testid="topic-reveal">
       <p className="text-sm font-black uppercase tracking-wide text-crimson text-center">{topicLabel}</p>
@@ -44,6 +46,33 @@ function TopicReveal({
           {reveal.isLoading ? '…' : (reveal.data?.correctAnswer ?? '—')}
         </p>
       </div>
+
+      {!reveal.isLoading && (
+        <div className="w-full rounded-xl border-[3px] border-ink bg-white px-5 py-4 shadow-[4px_4px_0px_#111111]" data-testid="topic-leaderboard">
+          <p className="text-xs font-black uppercase tracking-wide text-navy/60 mb-2 text-center">
+            Got it right · {reveal.data?.correctCount ?? 0}/{reveal.data?.totalAnswered ?? 0}
+          </p>
+          {leaderboard.length === 0 ? (
+            <p className="text-sm font-bold text-navy/50 text-center">Nobody got this one yet.</p>
+          ) : (
+            <ol className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+              {leaderboard.map((p, i) => (
+                <li key={p.userId} className="flex items-center gap-2 text-sm font-bold text-ink">
+                  <span className="w-5 shrink-0 text-xs font-black text-navy/50">{i + 1}.</span>
+                  {p.avatarUrl ? (
+                    <img src={p.avatarUrl} alt="" className="w-6 h-6 shrink-0 rounded-full object-cover border-2 border-ink" />
+                  ) : (
+                    <span className="w-6 h-6 shrink-0 rounded-full bg-gold border-2 border-ink flex items-center justify-center text-[10px] font-black text-ink">
+                      {p.fullName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="truncate">{p.fullName}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
     </div>
   );
 }

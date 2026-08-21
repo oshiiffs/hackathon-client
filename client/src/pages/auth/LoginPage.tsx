@@ -31,7 +31,7 @@ export function LoginPage() {
           <div className="relative">
             <img
               src="/hackverse-icon.png"
-              alt="HackVerse"
+              alt="Nexus Multiverse"
               className="relative w-20 h-20 rounded-2xl border-[3px] border-ink shadow-[4px_4px_0px_#111111]"
             />
             {/* A small spark orbiting the mark, echoing the logo's own ring-and-globe motif. */}
@@ -41,8 +41,8 @@ export function LoginPage() {
             />
           </div>
           <h1 className="text-3xl font-black text-center tracking-tight uppercase">
-            <span className="text-crimson">Hack</span>
-            <span className="text-forest">Verse</span> <span className="text-navy">2026</span>
+            <span className="text-crimson">Nexus</span>{' '}
+            <span className="text-forest">Multiverse</span> <span className="text-navy">2026</span>
           </h1>
         </div>
         <p className="text-center text-navy font-bold text-xs uppercase tracking-[0.2em] mb-7">Team Building &amp; Pitch</p>

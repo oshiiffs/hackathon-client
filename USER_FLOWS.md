@@ -1,4 +1,4 @@
-# HackVerse 2026 — User Flows
+# Nexus Multiverse 2026 — User Flows
 
 This document walks through what each role actually does in the app, in order,
 end to end. It's a companion to [README.md](README.md) (which covers the stack

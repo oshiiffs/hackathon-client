@@ -77,6 +77,18 @@ export type SubmitCeoAnswerResult = {
   score: number;
 };
 
+// Fetched once per topic, only after that topic's answering window has
+// closed server-side (see the backend's getCeoTopicReveal). `leaderboard` is
+// who answered THIS topic correctly, fastest-first — meant for the 5s reveal
+// window alongside `correctAnswer`.
+export type CeoTopicReveal = {
+  questionId: string;
+  correctAnswer: string;
+  correctCount: number;
+  totalAnswered: number;
+  leaderboard: { userId: string; fullName: string; avatarUrl: string | null }[];
+};
+
 // Admin-only — includes acceptedAnswers, since question management needs it.
 export type CeoQuestion = {
   id: string;

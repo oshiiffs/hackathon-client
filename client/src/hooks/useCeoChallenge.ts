@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
-import type { MyCeoChallengeResult, SubmitCeoAnswerResult } from '../types/api';
+import type { CeoTopicReveal, MyCeoChallengeResult, SubmitCeoAnswerResult } from '../types/api';
 
 /** The active topic set for the CEO Selection Competition (req. 48-49) —
  * never includes acceptedAnswers. Who becomes CEO isn't decided by this
@@ -23,14 +23,13 @@ export function useMyCeoChallenge(enabled: boolean) {
  * The server independently re-verifies that window has actually closed
  * before returning the answer — this is never prefetched for topics whose
  * window hasn't closed yet, so there's nothing to leak via dev tools ahead
- * of time (see the backend's getCeoTopicReveal doc comment). */
+ * of time (see the backend's getCeoTopicReveal doc comment). Also carries
+ * that topic's `leaderboard` — who answered it correctly, fastest-first. */
 export function useCeoTopicReveal(questionId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ['ceo-challenge-reveal', questionId],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ questionId: string; correctAnswer: string }>(
-        `/participant/ceo/challenge/reveal/${questionId}`,
-      );
+      const { data } = await apiClient.get<CeoTopicReveal>(`/participant/ceo/challenge/reveal/${questionId}`);
       return data;
     },
     enabled: enabled && Boolean(questionId),

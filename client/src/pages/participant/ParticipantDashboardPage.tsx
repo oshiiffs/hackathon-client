@@ -103,7 +103,7 @@ export function ParticipantDashboardPage() {
           <div className="comic-panel text-center px-10 py-8" data-testid="waiting-screen">
             <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
             <div className="w-3 h-3 rounded-full bg-crimson border-2 border-ink mx-auto mb-4 animate-ping" />
-            <h2 className="text-3xl font-black text-ink tracking-tight uppercase">HACKVERSE 2026</h2>
+            <h2 className="text-3xl font-black text-ink tracking-tight uppercase">NEXUS MULTIVERSE 2026</h2>
             <p className="text-xl font-black text-crimson mt-2 uppercase">PLEASE WAIT</p>
             <p className="text-navy mt-2 max-w-sm font-medium">The challenge has not started.</p>
           </div>

@@ -183,7 +183,7 @@ function IdleScreen() {
     <div className="text-center flex flex-col items-center gap-6">
       <img
         src="/hackverse-logo-horizontal.png"
-        alt="HackVerse 2026"
+        alt="Nexus Multiverse 2026"
         className="w-full max-w-xl rounded-2xl border-[3px] border-ink shadow-[8px_8px_0px_#111111]"
       />
       <p className="text-xl font-bold text-navy">Waiting for the next phase…</p>
