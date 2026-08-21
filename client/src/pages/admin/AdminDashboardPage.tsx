@@ -64,9 +64,13 @@ function downloadCanvasPng(canvas: HTMLCanvasElement | null, filename: string) {
 
 /** A participant's QR badge, viewable/downloadable from the admin's
  * participant list — e.g. to reprint a lost or damaged physical badge.
- * Layered over the participant-list pop-up rather than its own dialog,
- * matching the nested-modal pattern used for the participant directory's
- * own detail view. */
+ * Rendered as its own fixed, full-viewport overlay (stacked above the
+ * participant-list pop-up) rather than nested inside that pop-up's own
+ * box — the list panel's height shrinks/grows with its table content, so
+ * anchoring the QR card to it (as a plain `absolute inset-0`) let a short
+ * table squeeze the QR/text out of a too-small area. Anchoring to the
+ * viewport instead guarantees room regardless of how tall the list panel
+ * happens to be. */
 function ParticipantQrModal({
   participant,
   onClose,
@@ -80,13 +84,13 @@ function ParticipantQrModal({
 
   return (
     <div
-      className="absolute inset-0 z-10 flex items-center justify-center bg-ink/70 px-4 py-6 rounded-[inherit]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 py-6"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="comic-panel w-full max-w-xs max-h-full overflow-y-auto p-6 flex flex-col items-center gap-4 text-center"
+        className="comic-panel relative w-full max-w-xs max-h-[90vh] overflow-y-auto p-6 flex flex-col items-center gap-4 text-center"
         style={{ boxShadow: '6px 6px 0px #111111' }}
         onClick={(e) => e.stopPropagation()}
         data-testid="admin-participant-qr-modal"
