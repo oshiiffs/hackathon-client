@@ -8,6 +8,7 @@ import { useMyTeam } from '../../hooks/useTeam';
 import { useHackathonState } from '../../hooks/useHackathon';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorMessage } from '../../lib/apiClient';
+import { comicButton } from '../../lib/comic';
 
 /**
  * CEO dashboard. The CEO's own team slot is auto-assigned to their home
@@ -27,35 +28,34 @@ export function CeoDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 className="text-lg font-bold text-slate-100">{team.name ?? 'Your team (not yet named)'}</h2>
+          <h2 className="text-lg font-black uppercase tracking-wide text-navy">
+            {team.name ?? 'Your team (not yet named)'}
+          </h2>
           <Badge tone="gold">CEO</Badge>
         </div>
 
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm mb-4">
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">CEO</dt>
-            {user?.fullName ? (
-              <EditableNameField currentName={user.fullName} />
-            ) : (
-              <dd className="text-slate-100 font-medium mt-0.5">{me?.fullName}</dd>
-            )}
+            <dt className="text-forest text-xs uppercase font-black">CEO</dt>
+            {user?.fullName ? <EditableNameField currentName={user.fullName} /> : <dd className="text-ink font-bold mt-0.5">{me?.fullName}</dd>}
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Hackathon phase</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">{hackathonState?.phaseLabel ?? '…'}</dd>
+            <dt className="text-forest text-xs uppercase font-black">Hackathon phase</dt>
+            <dd className="text-ink font-bold mt-0.5">{hackathonState?.phaseLabel ?? '…'}</dd>
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Department</dt>
-            <dd className="text-slate-100 font-medium mt-0.5" data-testid="ceo-assigned-department">
+            <dt className="text-forest text-xs uppercase font-black">Department</dt>
+            <dd className="text-ink font-bold mt-0.5" data-testid="ceo-assigned-department">
               {me?.slotDepartment}
             </dd>
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Finalized</dt>
+            <dt className="text-forest text-xs uppercase font-black">Finalized</dt>
             <dd className="mt-0.5">
-              <Badge tone={team.finalizedAt ? 'primary' : 'neutral'}>{team.finalizedAt ? 'Yes' : 'Not yet'}</Badge>
+              <Badge tone={team.finalizedAt ? 'success' : 'neutral'}>{team.finalizedAt ? 'Yes' : 'Not yet'}</Badge>
             </dd>
           </div>
         </dl>
@@ -63,24 +63,18 @@ export function CeoDashboardPage() {
         <TeamRosterGrid team={team} />
 
         {!team.isComplete && (
-          <div className="mt-5 rounded-xl border border-accent-700 bg-accent-950/40 px-4 py-3 flex flex-col items-start gap-3">
-            <p className="text-accent-300 font-bold text-sm">NEXT STEP: Recruit the remaining four departments using QR</p>
-            <Link
-              to="/ceo/recruit"
-              className="rounded-lg bg-accent-500 hover:bg-accent-400 text-slate-950 font-black px-4 py-2 text-sm transition"
-            >
+          <div className="mt-5 rounded-xl border-[3px] border-ink bg-crimson/10 px-4 py-3 flex flex-col items-start gap-3 shadow-[4px_4px_0px_#111111]">
+            <p className="text-crimson font-black text-sm uppercase">NEXT STEP: Recruit the remaining four departments using QR</p>
+            <Link to="/ceo/recruit" className={comicButton('crimson')}>
               SCAN MEMBER
             </Link>
           </div>
         )}
 
         {team.isComplete && !team.finalizedAt && (
-          <div className="mt-5 rounded-xl border border-primary-700 bg-primary-950/40 px-4 py-3 flex flex-col items-start gap-3">
-            <p className="text-primary-300 font-bold text-sm">TEAM COMPLETE — NEXT: FINALIZE TEAM</p>
-            <Link
-              to="/ceo/team/finalize"
-              className="rounded-lg bg-accent-500 hover:bg-accent-400 text-slate-950 font-black px-4 py-2 text-sm transition"
-            >
+          <div className="mt-5 rounded-xl border-[3px] border-ink bg-forest/10 px-4 py-3 flex flex-col items-start gap-3 shadow-[4px_4px_0px_#111111]">
+            <p className="text-forest font-black text-sm uppercase">TEAM COMPLETE — NEXT: FINALIZE TEAM</p>
+            <Link to="/ceo/team/finalize" className={comicButton('crimson')}>
               FINALIZE TEAM
             </Link>
           </div>

@@ -12,7 +12,11 @@ export function connectSocket(): Socket {
   if (socket && socket.connected) return socket;
   if (socket) socket.disconnect();
 
-  socket = io(API_BASE_URL, {
+  // An empty API_BASE_URL means "same origin" (see apiClient.ts) — passing
+  // that through as-is would make socket.io-client treat it as a literal
+  // empty host, so fall back to `undefined`, which is socket.io-client's own
+  // signal to connect to the page's current origin.
+  socket = io(API_BASE_URL || undefined, {
     withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnection: true,

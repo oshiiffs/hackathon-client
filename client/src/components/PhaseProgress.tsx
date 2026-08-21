@@ -1,4 +1,5 @@
 import type { HackathonPhase } from '../types/api';
+import { comicHeading } from '../lib/comic';
 
 const PHASE_ORDER: HackathonPhase[] = [
   'LOBBY',
@@ -28,8 +29,9 @@ export function PhaseProgress({ currentPhase }: { currentPhase: HackathonPhase |
   const currentIndex = currentPhase ? PHASE_ORDER.indexOf(currentPhase) : -1;
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="phase-progress">
-      <h2 className="text-lg font-bold text-slate-100 mb-5">Event Progress</h2>
+    <section className="comic-panel p-6" data-testid="phase-progress">
+      <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+      <h2 className={`text-lg mb-5 ${comicHeading}`}>Event Progress</h2>
       <div className="overflow-x-auto">
         <ol className="flex items-start min-w-max">
           {PHASE_ORDER.map((phase, index) => {
@@ -39,26 +41,26 @@ export function PhaseProgress({ currentPhase }: { currentPhase: HackathonPhase |
               <li key={phase} className="flex items-start">
                 <div className="flex flex-col items-center gap-1.5 w-24 text-center">
                   <div
-                    className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-black border-2 ${
+                    className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-black border-[3px] border-ink ${
                       status === 'done'
-                        ? 'bg-primary-600 border-primary-600 text-white'
+                        ? 'bg-forest text-cream'
                         : status === 'current'
-                          ? 'border-accent-400 text-accent-400 bg-accent-950/40'
-                          : 'border-slate-700 text-slate-600'
+                          ? 'bg-crimson text-ink animate-pulse'
+                          : 'bg-white text-navy/40'
                     }`}
                   >
                     {status === 'done' ? '✓' : index + 1}
                   </div>
                   <span
-                    className={`text-[11px] font-semibold leading-tight ${
-                      status === 'current' ? 'text-accent-400' : status === 'done' ? 'text-slate-300' : 'text-slate-600'
+                    className={`text-[11px] font-bold uppercase leading-tight ${
+                      status === 'current' ? 'text-crimson' : status === 'done' ? 'text-forest' : 'text-navy/40'
                     }`}
                   >
                     {PHASE_TITLES[phase]}
                   </span>
                 </div>
                 {!isLast && (
-                  <div className={`h-0.5 w-8 mt-3.5 ${index < currentIndex ? 'bg-primary-600' : 'bg-slate-700'}`} />
+                  <div className={`h-1 w-8 mt-3.5 border-y border-ink ${index < currentIndex ? 'bg-forest' : 'bg-white'}`} />
                 )}
               </li>
             );

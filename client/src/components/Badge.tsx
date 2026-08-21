@@ -1,20 +1,23 @@
 import type { ReactNode } from 'react';
 
-type BadgeTone = 'primary' | 'gold' | 'neutral' | 'danger';
+type BadgeTone = 'primary' | 'success' | 'warning' | 'gold' | 'neutral' | 'danger';
 
+// Sound-burst pill: thick ink outline + tiny hard shadow, filled with the
+// tone's brand color. Gold/brand is reserved for the CEO badge, achievements,
+// and other emphasis/premium moments — see the design tokens in index.css.
 const TONE_CLASSES: Record<BadgeTone, string> = {
-  primary: 'bg-primary-500/15 text-primary-300 border-primary-600/40',
-  // Gold is reserved for the CEO badge, achievements, and other emphasis/premium
-  // moments — see the design tokens in index.css.
-  gold: 'bg-accent-500/15 text-accent-300 border-accent-600/50',
-  neutral: 'bg-slate-800 text-slate-300 border-slate-700',
-  danger: 'bg-red-500/15 text-red-300 border-red-600/40',
+  primary: 'bg-lime text-ink',
+  success: 'bg-lime text-ink',
+  warning: 'bg-gold text-ink',
+  gold: 'bg-gold text-ink',
+  neutral: 'bg-white text-navy',
+  danger: 'bg-crimson text-ink',
 };
 
 export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TONE_CLASSES[tone]}`}
+      className={`inline-flex items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide shadow-[2px_2px_0px_#111111] ${TONE_CLASSES[tone]}`}
     >
       {children}
     </span>

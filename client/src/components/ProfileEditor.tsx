@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useUpdateMyProfile, useUploadAvatar } from '../hooks/useAuth';
 import { getApiErrorMessage } from '../lib/apiClient';
+import { comicButton, comicHeading, comicLink } from '../lib/comic';
 import type { PublicUser } from '../types/api';
 
 const BIO_MAX = 280;
@@ -13,14 +14,14 @@ function Avatar({ url, name, size = 64 }: { url: string | null; name: string; si
       <img
         src={url}
         alt={`${name}'s profile picture`}
-        className="rounded-full object-cover bg-slate-800 border border-slate-700"
+        className="rounded-full object-cover bg-white border-[3px] border-ink shadow-[3px_3px_0px_#111111]"
         style={{ width: size, height: size }}
       />
     );
   }
   return (
     <div
-      className="rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-black"
+      className="rounded-full bg-cream border-[3px] border-ink shadow-[3px_3px_0px_#111111] flex items-center justify-center text-ink font-black"
       style={{ width: size, height: size, fontSize: size / 2.5 }}
     >
       {initial}
@@ -72,15 +73,12 @@ export function ProfileEditor({ user }: { user: PublicUser }) {
   }
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+    <section className="comic-panel p-6">
+      <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-slate-100">My Profile</h2>
+        <h2 className={`text-lg ${comicHeading}`}>My Profile</h2>
         {!editing && (
-          <button
-            type="button"
-            onClick={startEditing}
-            className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition"
-          >
+          <button type="button" onClick={startEditing} className={`text-xs ${comicLink}`}>
             Edit
           </button>
         )}
@@ -93,7 +91,7 @@ export function ProfileEditor({ user }: { user: PublicUser }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadAvatar.isPending}
-            className="text-[11px] font-semibold text-primary-400 hover:text-primary-300 transition disabled:opacity-50"
+            className={`text-[11px] disabled:opacity-50 ${comicLink}`}
           >
             {uploadAvatar.isPending ? 'Uploading…' : 'Change photo'}
           </button>
@@ -104,19 +102,19 @@ export function ProfileEditor({ user }: { user: PublicUser }) {
           {!editing ? (
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
-                <dt className="text-slate-500 text-xs uppercase font-semibold">Nickname</dt>
-                <dd className="text-slate-100 font-medium mt-0.5">{user.nickname || <span className="text-slate-600">Not set</span>}</dd>
+                <dt className="text-forest text-xs uppercase font-black">Nickname</dt>
+                <dd className="text-ink font-bold mt-0.5">{user.nickname || <span className="text-navy/40 font-medium">Not set</span>}</dd>
               </div>
               <div className="sm:col-span-2">
-                <dt className="text-slate-500 text-xs uppercase font-semibold">Bio</dt>
-                <dd className="text-slate-300 mt-0.5 whitespace-pre-wrap">{user.bio || <span className="text-slate-600">Not set</span>}</dd>
+                <dt className="text-forest text-xs uppercase font-black">Bio</dt>
+                <dd className="text-navy mt-0.5 whitespace-pre-wrap">{user.bio || <span className="text-navy/40 font-medium">Not set</span>}</dd>
               </div>
               <div className="sm:col-span-2">
-                <dt className="text-slate-500 text-xs uppercase font-semibold">Skills</dt>
+                <dt className="text-forest text-xs uppercase font-black">Skills</dt>
                 <dd className="mt-1 flex flex-wrap gap-1.5">
-                  {user.skills.length === 0 && <span className="text-slate-600 text-sm">None added</span>}
+                  {user.skills.length === 0 && <span className="text-navy/40 text-sm">None added</span>}
                   {user.skills.map((skill) => (
-                    <span key={skill} className="rounded-full bg-primary-500/15 text-primary-300 border border-primary-600/40 px-2 py-0.5 text-xs font-semibold">
+                    <span key={skill} className="rounded-full bg-lime/40 text-ink border-2 border-ink px-2 py-0.5 text-xs font-bold">
                       {skill}
                     </span>
                   ))}
@@ -135,20 +133,20 @@ export function ProfileEditor({ user }: { user: PublicUser }) {
               }}
             >
               <div>
-                <label className="text-slate-500 text-xs uppercase font-semibold block mb-1">Nickname</label>
+                <label className="text-forest text-xs uppercase font-black block mb-1">Nickname</label>
                 <input
                   value={nickname}
                   maxLength={50}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="What should people call you?"
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm text-ink font-medium focus:outline-none focus:ring-2 focus:ring-crimson"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-500 text-xs uppercase font-semibold">Bio</label>
-                  <span className={`text-[11px] font-semibold ${bio.length > BIO_MAX ? 'text-red-400' : 'text-slate-600'}`}>
+                  <label className="text-forest text-xs uppercase font-black">Bio</label>
+                  <span className={`text-[11px] font-bold ${bio.length > BIO_MAX ? 'text-crimson' : 'text-navy/50'}`}>
                     {bio.length}/{BIO_MAX}
                   </span>
                 </div>
@@ -158,22 +156,22 @@ export function ProfileEditor({ user }: { user: PublicUser }) {
                   rows={3}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="A short intro for other participants."
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 resize-none"
+                  className="w-full rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm text-ink font-medium resize-none focus:outline-none focus:ring-2 focus:ring-crimson"
                 />
               </div>
 
               <div>
-                <label className="text-slate-500 text-xs uppercase font-semibold block mb-1">
+                <label className="text-forest text-xs uppercase font-black block mb-1">
                   Skills ({skills.length}/{MAX_SKILLS})
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {skills.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center gap-1 rounded-full bg-primary-500/15 text-primary-300 border border-primary-600/40 px-2 py-0.5 text-xs font-semibold"
+                      className="inline-flex items-center gap-1 rounded-full bg-lime/40 text-ink border-2 border-ink px-2 py-0.5 text-xs font-bold"
                     >
                       {skill}
-                      <button type="button" onClick={() => removeSkill(skill)} className="hover:text-primary-100" aria-label={`Remove ${skill}`}>
+                      <button type="button" onClick={() => removeSkill(skill)} className="hover:text-crimson font-black" aria-label={`Remove ${skill}`}>
                         ×
                       </button>
                     </span>
@@ -192,13 +190,13 @@ export function ProfileEditor({ user }: { user: PublicUser }) {
                       }
                     }}
                     placeholder="Add a skill and press Enter"
-                    className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 disabled:opacity-50"
+                    className="flex-1 rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm text-ink font-medium disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-crimson"
                   />
                   <button
                     type="button"
                     onClick={addSkill}
                     disabled={skills.length >= MAX_SKILLS || !skillInput.trim()}
-                    className="rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold px-3 transition"
+                    className={comicButton('white', 'sm')}
                   >
                     Add
                   </button>
@@ -206,27 +204,18 @@ export function ProfileEditor({ user }: { user: PublicUser }) {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={updateProfile.isPending || bio.length > BIO_MAX}
-                  className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 transition"
-                >
+                <button type="submit" disabled={updateProfile.isPending || bio.length > BIO_MAX} className={comicButton('forest', 'sm')}>
                   {updateProfile.isPending ? 'Saving…' : 'Save profile'}
                 </button>
-                <button
-                  type="button"
-                  disabled={updateProfile.isPending}
-                  onClick={() => setEditing(false)}
-                  className="rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 transition"
-                >
+                <button type="button" disabled={updateProfile.isPending} onClick={() => setEditing(false)} className={comicButton('white', 'sm')}>
                   Cancel
                 </button>
               </div>
 
-              {updateProfile.isError && <p className="text-red-400 text-xs">{getApiErrorMessage(updateProfile.error)}</p>}
+              {updateProfile.isError && <p className="text-crimson font-bold text-xs">{getApiErrorMessage(updateProfile.error)}</p>}
             </form>
           )}
-          {uploadAvatar.isError && <p className="text-red-400 text-xs mt-2">{getApiErrorMessage(uploadAvatar.error)}</p>}
+          {uploadAvatar.isError && <p className="text-crimson font-bold text-xs mt-2">{getApiErrorMessage(uploadAvatar.error)}</p>}
         </div>
       </div>
     </section>

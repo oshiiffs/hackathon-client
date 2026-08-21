@@ -60,7 +60,7 @@ export function QrScanner({
   }, [paused]);
 
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700 bg-black">
+    <div className="rounded-xl overflow-hidden border-[3px] border-ink shadow-[4px_4px_0px_#111111] bg-black">
       <div id={ELEMENT_ID} className="w-full" />
     </div>
   );

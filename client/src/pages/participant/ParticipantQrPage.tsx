@@ -26,8 +26,8 @@ export function ParticipantQrPage() {
   return (
     <div className="flex flex-col items-center gap-6 py-10 text-center" data-testid="participant-qr-page">
       <div>
-        <h2 className="text-2xl font-black text-slate-100 tracking-tight">HACKVERSE 2026</h2>
-        <p className="text-lg font-bold text-accent-400 mt-1">MY TEAM QR</p>
+        <h2 className="text-2xl font-black text-ink tracking-tight uppercase">HACKVERSE 2026</h2>
+        <p className="text-lg font-black text-crimson mt-1 uppercase">MY TEAM QR</p>
       </div>
 
       {isLoading && <LoadingState label="Generating your QR code…" />}
@@ -36,8 +36,8 @@ export function ParticipantQrPage() {
       {qr && user && (
         <>
           <QRBadge qrPayload={qr.qrPayload} fullName={user.fullName} homeDepartment={user.homeDepartment} />
-          <p className="text-slate-400 text-sm max-w-xs">Show this QR code to your CEO.</p>
-          <Link to="/participant" className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition">
+          <p className="text-navy font-medium text-sm max-w-xs">Show this QR code to your CEO.</p>
+          <Link to="/participant" className="text-xs font-black uppercase text-forest hover:text-crimson transition">
             ← Back to dashboard
           </Link>
         </>

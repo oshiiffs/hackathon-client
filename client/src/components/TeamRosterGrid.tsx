@@ -8,8 +8,8 @@ export function TeamRosterGrid({ team }: { team: Team }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-bold text-slate-300">Team roster</h3>
-        <span className="text-xs font-bold text-accent-400" data-testid="member-count">
+        <h3 className="text-sm font-black uppercase tracking-wide text-navy">Team roster</h3>
+        <span className="text-xs font-black uppercase text-crimson" data-testid="member-count">
           {team.members.length} / 5 MEMBERS
         </span>
       </div>
@@ -20,19 +20,19 @@ export function TeamRosterGrid({ team }: { team: Team }) {
           return (
             <div
               key={dept}
-              className={`rounded-xl p-3 text-center border ${
-                member ? 'bg-primary-950 border-primary-700' : 'bg-slate-800 border-slate-700 border-dashed'
+              className={`rounded-lg p-3 text-center border-[3px] ${
+                member ? 'bg-lime/40 border-ink shadow-[3px_3px_0px_#111111]' : 'bg-white border-ink border-dashed'
               }`}
             >
-              <p className="text-xs font-bold text-slate-400">{dept}</p>
-              <p className="text-sm mt-1 text-slate-100 truncate">
+              <p className="text-xs font-black uppercase text-forest">{dept}</p>
+              <p className="text-sm mt-1 text-ink font-bold truncate">
                 {member ? (
                   <>
                     {member.fullName}
                     {isCeo && <span className="ml-1">👑</span>}
                   </>
                 ) : (
-                  'Available'
+                  <span className="text-navy/40 font-medium">Available</span>
                 )}
               </p>
             </div>

@@ -18,6 +18,27 @@ export function useMyCeoChallenge(enabled: boolean) {
   });
 }
 
+/** Fetched once per topic, exactly when that topic's synchronized answering
+ * window closes (see useSyncedTopic's `topicPhase` flipping to `'reveal'`).
+ * The server independently re-verifies that window has actually closed
+ * before returning the answer — this is never prefetched for topics whose
+ * window hasn't closed yet, so there's nothing to leak via dev tools ahead
+ * of time (see the backend's getCeoTopicReveal doc comment). */
+export function useCeoTopicReveal(questionId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['ceo-challenge-reveal', questionId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ questionId: string; correctAnswer: string }>(
+        `/participant/ceo/challenge/reveal/${questionId}`,
+      );
+      return data;
+    },
+    enabled: enabled && Boolean(questionId),
+    retry: false,
+    staleTime: Infinity, // a topic's correct answer never changes once fetched
+  });
+}
+
 /** Saves ONE topic's answer immediately — called as each topic's
  * synchronized window closes, not batched to the end of the round. The
  * admin's "stop challenge" ranks whoever is already saved in Postgres at

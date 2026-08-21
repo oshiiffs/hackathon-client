@@ -8,6 +8,7 @@ import {
   useUpdateCeoQuestion,
 } from '../../hooks/useAdmin';
 import { getApiErrorMessage } from '../../lib/apiClient';
+import { comicButton, comicHeading } from '../../lib/comic';
 import type { CeoQuestion } from '../../types/api';
 
 type QuestionForm = {
@@ -27,6 +28,8 @@ const EMPTY_FORM: QuestionForm = {
   order: 1,
   isActive: true,
 };
+
+const fieldInput = 'mt-1 w-full rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-crimson';
 
 function toForm(q: CeoQuestion): QuestionForm {
   return {
@@ -80,11 +83,12 @@ export function CeoQuestionsPanel() {
   }
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="ceo-questions-panel">
+    <section className="comic-panel p-6" data-testid="ceo-questions-panel">
+      <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-        <h2 className="text-lg font-bold text-slate-100">CEO Topics</h2>
+        <h2 className={`text-lg ${comicHeading}`}>CEO Topics</h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs font-bold text-navy/60">
             {activeCount} active / {questions.data?.length ?? 0} total (10 minimum to start)
           </span>
           <button
@@ -92,7 +96,7 @@ export function CeoQuestionsPanel() {
               setAddForm({ ...EMPTY_FORM, order: (questions.data?.length ?? 0) + 1 });
               setShowAddForm((s) => !s);
             }}
-            className="rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold px-3 py-1.5 text-xs transition"
+            className={comicButton('forest', 'xs')}
           >
             {showAddForm ? 'Cancel' : 'Add topic'}
           </button>
@@ -101,7 +105,7 @@ export function CeoQuestionsPanel() {
 
       {showAddForm && (
         <form
-          className="mb-5 pb-5 border-b border-slate-800 flex flex-col gap-3"
+          className="mb-5 pb-5 border-b-[3px] border-ink flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
             createQuestion.mutate(buildPayload(addForm), {
@@ -112,32 +116,32 @@ export function CeoQuestionsPanel() {
             });
           }}
         >
-          <label className="text-xs font-bold uppercase text-slate-400">
+          <label className="text-xs font-black uppercase text-forest">
             Topic / prompt
             <textarea
               value={addForm.question}
               onChange={(e) => setAddForm((f) => ({ ...f, question: e.target.value }))}
               placeholder='e.g. "The ability to guide and inspire a team toward a shared goal is called ___."'
               rows={2}
-              className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm font-normal text-slate-100"
+              className={fieldInput}
             />
           </label>
 
-          <label className="text-xs font-bold uppercase text-slate-400">
+          <label className="text-xs font-black uppercase text-forest">
             Accepted answers (comma-separated)
             <input
               value={addForm.acceptedAnswersText}
               onChange={(e) => setAddForm((f) => ({ ...f, acceptedAnswersText: e.target.value }))}
               placeholder="leadership, leading"
-              className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm font-normal text-slate-100"
+              className={fieldInput}
             />
           </label>
-          <p className="text-[11px] text-slate-500 -mt-1">
+          <p className="text-[11px] text-navy/60 -mt-1">
             A submitted word counts as correct if it matches any of these, ignoring case and extra spaces.
           </p>
 
           <div className="flex flex-wrap gap-3">
-            <label className="text-xs font-bold uppercase text-slate-400">
+            <label className="text-xs font-black uppercase text-forest">
               Points
               <input
                 type="number"
@@ -145,51 +149,47 @@ export function CeoQuestionsPanel() {
                 max={10}
                 value={addForm.points}
                 onChange={(e) => setAddForm((f) => ({ ...f, points: Number(e.target.value) }))}
-                className="mt-1 block w-20 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm font-normal text-slate-100"
+                className={`${fieldInput} w-20`}
               />
             </label>
-            <label className="text-xs font-bold uppercase text-slate-400">
+            <label className="text-xs font-black uppercase text-forest">
               Order
               <input
                 type="number"
                 min={1}
                 value={addForm.order}
                 onChange={(e) => setAddForm((f) => ({ ...f, order: Number(e.target.value) }))}
-                className="mt-1 block w-20 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm font-normal text-slate-100"
+                className={`${fieldInput} w-20`}
               />
             </label>
-            <label className="text-xs font-bold uppercase text-slate-400 flex-1 min-w-[10rem]">
+            <label className="text-xs font-black uppercase text-forest flex-1 min-w-[10rem]">
               Category (optional)
               <input
                 value={addForm.category}
                 placeholder="Leadership, Ethics, ..."
                 onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value }))}
-                className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm font-normal text-slate-100"
+                className={fieldInput}
               />
             </label>
           </div>
 
-          <button
-            type="submit"
-            disabled={createQuestion.isPending || !isFormValid(addForm)}
-            className="self-start rounded-lg bg-accent-500 hover:bg-accent-400 disabled:opacity-50 text-slate-950 font-black px-4 py-2 text-sm transition"
-          >
+          <button type="submit" disabled={createQuestion.isPending || !isFormValid(addForm)} className={`self-start ${comicButton('forest', 'sm')}`}>
             {createQuestion.isPending ? 'Adding…' : 'Add topic'}
           </button>
-          {createQuestion.isError && <p className="text-red-400 text-sm">{getApiErrorMessage(createQuestion.error)}</p>}
+          {createQuestion.isError && <p className="text-crimson font-bold text-sm">{getApiErrorMessage(createQuestion.error)}</p>}
         </form>
       )}
 
-      <div className="max-h-96 overflow-y-auto">
+      <div className="max-h-96 overflow-y-auto border-[3px] border-ink rounded-lg">
         <table className="w-full text-sm text-left">
-          <thead className="text-slate-500 text-xs uppercase">
+          <thead className="text-forest text-xs uppercase font-black bg-cream/60">
             <tr>
-              <th className="py-1 w-10">#</th>
+              <th className="py-1 pl-2 w-10">#</th>
               <th>Topic</th>
               <th>Category</th>
               <th className="w-16">Points</th>
               <th className="w-20">Active</th>
-              <th className="text-right">Actions</th>
+              <th className="text-right pr-2">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -197,25 +197,25 @@ export function CeoQuestionsPanel() {
               const isEditing = editingId === q.id;
               if (isEditing) {
                 return (
-                  <tr key={q.id} className="border-t border-slate-800 text-slate-300 align-top">
-                    <td colSpan={6} className="py-3">
-                      <div className="flex flex-col gap-3 bg-slate-800/50 rounded-xl p-3">
+                  <tr key={q.id} className="border-t-2 border-ink/15 text-ink align-top">
+                    <td colSpan={6} className="py-3 px-2">
+                      <div className="flex flex-col gap-3 bg-cream/40 border-[3px] border-ink rounded-lg p-3">
                         <textarea
                           value={editForm.question}
                           onChange={(e) => setEditForm((f) => ({ ...f, question: e.target.value }))}
                           rows={2}
-                          className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100"
+                          className="w-full rounded-lg bg-white border-2 border-ink px-3 py-2 text-sm text-ink font-medium"
                         />
-                        <label className="text-xs text-slate-400">
+                        <label className="text-xs font-bold text-navy">
                           Accepted answers (comma-separated)
                           <input
                             value={editForm.acceptedAnswersText}
                             onChange={(e) => setEditForm((f) => ({ ...f, acceptedAnswersText: e.target.value }))}
-                            className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+                            className="mt-1 block w-full rounded-lg bg-white border-2 border-ink px-2 py-1.5 text-sm text-ink font-medium"
                           />
                         </label>
                         <div className="flex flex-wrap gap-3">
-                          <label className="text-xs text-slate-400">
+                          <label className="text-xs font-bold text-navy">
                             Points
                             <input
                               type="number"
@@ -223,25 +223,25 @@ export function CeoQuestionsPanel() {
                               max={10}
                               value={editForm.points}
                               onChange={(e) => setEditForm((f) => ({ ...f, points: Number(e.target.value) }))}
-                              className="mt-1 block w-20 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-slate-100"
+                              className="mt-1 block w-20 rounded-lg bg-white border-2 border-ink px-2 py-1 text-sm text-ink font-medium"
                             />
                           </label>
-                          <label className="text-xs text-slate-400">
+                          <label className="text-xs font-bold text-navy">
                             Order
                             <input
                               type="number"
                               min={1}
                               value={editForm.order}
                               onChange={(e) => setEditForm((f) => ({ ...f, order: Number(e.target.value) }))}
-                              className="mt-1 block w-20 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-slate-100"
+                              className="mt-1 block w-20 rounded-lg bg-white border-2 border-ink px-2 py-1 text-sm text-ink font-medium"
                             />
                           </label>
-                          <label className="text-xs text-slate-400 flex-1 min-w-[10rem]">
+                          <label className="text-xs font-bold text-navy flex-1 min-w-[10rem]">
                             Category
                             <input
                               value={editForm.category}
                               onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
-                              className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-slate-100"
+                              className="mt-1 block w-full rounded-lg bg-white border-2 border-ink px-2 py-1 text-sm text-ink font-medium"
                             />
                           </label>
                         </div>
@@ -254,55 +254,44 @@ export function CeoQuestionsPanel() {
                                 { onSuccess: () => setEditingId(null) },
                               )
                             }
-                            className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5"
+                            className={comicButton('forest', 'xs')}
                           >
                             Save
                           </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5"
-                          >
+                          <button onClick={() => setEditingId(null)} className={comicButton('white', 'xs')}>
                             Cancel
                           </button>
                         </div>
-                        {updateQuestion.isError && (
-                          <p className="text-red-400 text-xs">{getApiErrorMessage(updateQuestion.error)}</p>
-                        )}
+                        {updateQuestion.isError && <p className="text-crimson font-bold text-xs">{getApiErrorMessage(updateQuestion.error)}</p>}
                       </div>
                     </td>
                   </tr>
                 );
               }
               return (
-                <tr key={q.id} className="border-t border-slate-800 text-slate-300">
-                  <td className="py-1.5">{q.order}</td>
+                <tr key={q.id} className="border-t-2 border-ink/15 text-ink">
+                  <td className="py-1.5 pl-2">{q.order}</td>
                   <td className="max-w-xs truncate pr-2" title={q.question}>
                     {q.question}
                   </td>
-                  <td>{q.category ?? <span className="text-slate-600">—</span>}</td>
+                  <td>{q.category ?? <span className="text-navy/40">—</span>}</td>
                   <td>{q.points}</td>
                   <td>
-                    <button
-                      onClick={() => updateQuestion.mutate({ id: q.id, isActive: !q.isActive })}
-                      disabled={updateQuestion.isPending}
-                    >
-                      <Badge tone={q.isActive ? 'primary' : 'neutral'}>{q.isActive ? 'Active' : 'Inactive'}</Badge>
+                    <button onClick={() => updateQuestion.mutate({ id: q.id, isActive: !q.isActive })} disabled={updateQuestion.isPending}>
+                      <Badge tone={q.isActive ? 'success' : 'neutral'}>{q.isActive ? 'Active' : 'Inactive'}</Badge>
                     </button>
                   </td>
-                  <td className="text-right whitespace-nowrap">
+                  <td className="text-right whitespace-nowrap pr-2">
                     <button
                       onClick={() => {
                         setEditingId(q.id);
                         setEditForm(toForm(q));
                       }}
-                      className="text-primary-400 hover:text-primary-300 font-semibold text-xs mr-3"
+                      className="text-forest hover:text-crimson font-black uppercase text-xs mr-3"
                     >
                       Edit
                     </button>
-                    <button
-                      onClick={() => setDeleteTarget({ id: q.id, question: q.question })}
-                      className="text-red-400 hover:text-red-300 font-semibold text-xs"
-                    >
+                    <button onClick={() => setDeleteTarget({ id: q.id, question: q.question })} className="text-crimson hover:text-ink font-black uppercase text-xs">
                       Delete
                     </button>
                   </td>

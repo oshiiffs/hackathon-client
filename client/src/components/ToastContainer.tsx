@@ -12,14 +12,12 @@ export function ToastContainer() {
         <div
           key={toast.id}
           role="status"
-          className={`rounded-lg px-4 py-3 shadow-xl text-sm font-medium flex items-start gap-2 border ${
-            toast.kind === 'success'
-              ? 'bg-primary-950 border-primary-700 text-primary-200'
-              : 'bg-red-950 border-red-800 text-red-200'
+          className={`rounded-lg px-4 py-3 shadow-[4px_4px_0px_#111111] text-sm font-bold flex items-start gap-2 border-[3px] border-ink ${
+            toast.kind === 'success' ? 'bg-lime text-ink' : 'bg-crimson text-ink'
           }`}
         >
           <span className="flex-1">{toast.message}</span>
-          <button onClick={() => dismiss(toast.id)} className="text-xs opacity-60 hover:opacity-100">
+          <button onClick={() => dismiss(toast.id)} className="text-xs opacity-70 hover:opacity-100 font-black">
             ✕
           </button>
         </div>

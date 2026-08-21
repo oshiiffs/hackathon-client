@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Badge } from '../../components/Badge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CeoQuestionsPanel } from './CeoQuestionsPanel';
+import { comicButton, comicHeading, comicHeadingSm, comicLink } from '../../lib/comic';
 import {
   useAdminDeletePitchDeckVersion,
   useAdminDeleteTeamFile,
@@ -36,6 +37,9 @@ import { getApiErrorMessage } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
 type PendingAction = { title: string; description: string; confirmLabel: string; tone?: 'primary' | 'danger'; run: () => void };
+
+const tableInput = 'w-full rounded-md bg-white border-2 border-ink px-2 py-1 text-ink font-medium focus:outline-none focus:ring-2 focus:ring-crimson';
+const fieldInput = 'mt-1 block rounded-lg bg-white border-[3px] border-ink px-2 py-1.5 text-ink font-medium focus:outline-none focus:ring-2 focus:ring-crimson';
 
 function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -149,63 +153,64 @@ export function AdminDashboardPage() {
         <Stat label="Submissions" value={state?.submissionsLocked ? 'LOCKED' : 'OPEN'} sub="team hub uploads" />
       </section>
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">Main Controller</h2>
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>Main Controller</h2>
 
-        <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-slate-800">
-          <span className="text-sm text-slate-400 mr-1">Device lock:</span>
-          <Badge tone={state?.participantsLocked ? 'danger' : 'primary'}>
+        <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b-[3px] border-ink">
+          <span className="text-sm text-navy font-bold mr-1">Device lock:</span>
+          <Badge tone={state?.participantsLocked ? 'danger' : 'success'}>
             {state?.participantsLocked ? 'Locked' : 'Unlocked'}
           </Badge>
           <button
             onClick={() => lockParticipants.mutate(undefined)}
             disabled={lockParticipants.isPending || state?.participantsLocked}
-            className="rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 text-sm font-semibold px-4 py-2 transition"
+            className={comicButton('white', 'sm')}
           >
             Lock participants
           </button>
           <button
             onClick={() => unlockParticipants.mutate(undefined)}
             disabled={unlockParticipants.isPending || state?.participantsLocked === false}
-            className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition"
+            className={comicButton('crimson', 'sm')}
           >
             Unlock participants
           </button>
 
-          <span className="w-px h-6 bg-slate-800 mx-1" />
+          <span className="w-1 h-6 bg-ink mx-1" />
 
-          <span className="text-sm text-slate-400">Incomplete teams:</span>
-          <Badge tone={state?.allowIncompleteTeams ? 'primary' : 'neutral'}>
+          <span className="text-sm text-navy font-bold">Incomplete teams:</span>
+          <Badge tone={state?.allowIncompleteTeams ? 'success' : 'neutral'}>
             {state?.allowIncompleteTeams ? 'Allowed' : 'Not allowed'}
           </Badge>
           <button
             onClick={() => setAllowIncompleteTeams.mutate(!state?.allowIncompleteTeams)}
             disabled={setAllowIncompleteTeams.isPending}
             title="Worst-case escape hatch: lets CEOs finalize with fewer than 5 members if recruitment ran short."
-            className="rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 text-sm font-semibold px-4 py-2 transition"
+            className={comicButton('white', 'sm')}
           >
             {state?.allowIncompleteTeams ? 'Require full rosters' : 'Allow incomplete rosters'}
           </button>
         </div>
 
-        <div className="mb-5 pb-5 border-b border-slate-800">
-          <div className="flex items-center gap-2 mb-3">
-            <p className="text-sm text-slate-400">CEO Challenge</p>
-            <span className="text-xs text-slate-500">
+        <div className="mb-5 pb-5 border-b-[3px] border-ink">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <p className="text-sm font-bold text-navy">CEO Challenge</p>
+            <span className="text-xs text-navy/60">
               · Eligible participants: {overview.data?.eligibleCeoParticipants ?? '—'} · Active questions:{' '}
               {overview.data?.activeCeoQuestionCount ?? '—'}
             </span>
-            <Badge tone={overview.data?.ceoQuestionsReady ? 'primary' : 'danger'}>
+            <Badge tone={overview.data?.ceoQuestionsReady ? 'success' : 'danger'}>
               {overview.data?.ceoQuestionsReady ? 'READY' : 'NOT READY'}
             </Badge>
           </div>
           {overview.data && !overview.data.ceoQuestionsReady && (
-            <p className="text-xs text-accent-400 mb-3">
+            <p className="text-xs font-bold text-forest mb-3">
               At least 10 active CEO challenge questions are required to start — manage the question bank below.
             </p>
           )}
           <div className="flex flex-wrap items-end gap-4">
-            <label className="text-sm text-slate-300">
+            <label className="text-sm text-navy font-bold">
               Seconds per topic
               <input
                 type="number"
@@ -214,10 +219,10 @@ export function AdminDashboardPage() {
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
                 disabled={!canStartChallenge}
-                className="mt-1 w-28 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100 disabled:opacity-50"
+                className={`${fieldInput} w-28 disabled:opacity-50`}
               />
             </label>
-            <label className="text-sm text-slate-300">
+            <label className="text-sm text-navy font-bold">
               CEO slots this round
               <input
                 type="number"
@@ -226,7 +231,7 @@ export function AdminDashboardPage() {
                 value={ceoSlots}
                 onChange={(e) => setCeoSlots(Number(e.target.value))}
                 disabled={!canStartChallenge}
-                className="mt-1 w-28 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100 disabled:opacity-50"
+                className={`${fieldInput} w-28 disabled:opacity-50`}
               />
             </label>
             <button
@@ -235,12 +240,12 @@ export function AdminDashboardPage() {
                 const topicCount = overview.data?.activeCeoQuestionCount ?? 0;
                 setPendingAction({
                   title: 'Start the CEO challenge?',
-                  description: `This unlocks every participant device immediately. All ${topicCount} topics play in sync for everyone, ${duration}s each (~${Math.round((duration * topicCount) / 60)} min total). The top ${ceoSlots} scorers become CEOs once the round ends.`,
+                  description: `This unlocks every participant device immediately. All ${topicCount} topics play in sync for everyone, ${duration}s each plus a 5s answer reveal (~${Math.round(((duration + 5) * topicCount) / 60)} min total). The top ${ceoSlots} scorers become CEOs once the round ends.`,
                   confirmLabel: 'Start challenge',
                   run: () => startChallenge.mutate({ durationSeconds: duration, ceoSlots }),
                 });
               }}
-              className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white font-semibold px-4 py-2 text-sm transition"
+              className={comicButton('crimson')}
             >
               Start CEO challenge
             </button>
@@ -255,7 +260,7 @@ export function AdminDashboardPage() {
                   run: () => stopChallenge.mutate(undefined),
                 })
               }
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 font-semibold px-4 py-2 text-sm transition"
+              className={comicButton('white')}
             >
               Stop CEO challenge
             </button>
@@ -263,12 +268,12 @@ export function AdminDashboardPage() {
         </div>
 
         <div>
-          <p className="text-sm text-slate-400 mb-3">Submissions &amp; event lifecycle</p>
+          <p className="text-sm font-bold text-navy mb-3">Submissions &amp; event lifecycle</p>
           <div className="flex flex-wrap gap-3">
             <button
               disabled={!canOpenSubmissions || openSubmissions.isPending}
               onClick={() => openSubmissions.mutate(undefined)}
-              className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white font-semibold px-4 py-2 text-sm transition"
+              className={comicButton('crimson')}
             >
               Open submissions
             </button>
@@ -283,14 +288,14 @@ export function AdminDashboardPage() {
                   run: () => lockSubmissions.mutate(undefined),
                 })
               }
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 font-semibold px-4 py-2 text-sm transition"
+              className={comicButton('white')}
             >
               Lock submissions
             </button>
             <button
               disabled={!canComplete || completeEvent.isPending}
               onClick={() => completeEvent.mutate(undefined)}
-              className="rounded-lg bg-accent-500 hover:bg-accent-400 disabled:opacity-40 text-slate-950 font-semibold px-4 py-2 text-sm transition"
+              className={comicButton('forest')}
             >
               Mark event complete
             </button>
@@ -298,16 +303,16 @@ export function AdminDashboardPage() {
         </div>
 
         {canStartNewCompetition && (
-          <div className="mt-5 pt-5 border-t border-slate-800">
-            <p className="text-sm text-slate-400 mb-1">New competition</p>
-            <p className="text-xs text-slate-500 mb-3 max-w-md">
+          <div className="mt-5 pt-5 border-t-[3px] border-ink">
+            <p className="text-sm font-bold text-navy mb-1">New competition</p>
+            <p className="text-xs text-navy/60 mb-3 max-w-md">
               Archives the current event (downloaded as JSON) then permanently deletes its participants, teams,
               submissions, and judge scores, and resets the event back to the lobby.
             </p>
             <button
               disabled={exportEventData.isPending || resetCompetition.isPending}
               onClick={() => void handleStartNewCompetition()}
-              className="rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white font-semibold px-4 py-2 text-sm transition"
+              className={comicButton('crimson')}
             >
               {exportEventData.isPending ? 'Archiving…' : 'Start new competition'}
             </button>
@@ -315,18 +320,19 @@ export function AdminDashboardPage() {
         )}
       </section>
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">HEAT Category Capacity</h2>
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>HEAT Category Capacity</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {overview.data?.categoryUsage.map((c) => (
-            <div key={c.category} className="bg-slate-800 rounded-xl p-3 text-center">
-              <p className="text-xs font-bold text-slate-400">{c.category}</p>
-              <p className="text-lg font-black text-slate-100">
+            <div key={c.category} className="bg-white border-[3px] border-ink rounded-lg p-3 text-center shadow-[3px_3px_0px_#111111]">
+              <p className="text-xs font-black uppercase text-forest">{c.category}</p>
+              <p className="text-lg font-black text-ink">
                 {c.used}/{c.capacity}
               </p>
-              {c.full && <p className="text-[10px] font-bold text-accent-400 mt-0.5">FULL</p>}
+              {c.full && <p className="text-[10px] font-black text-crimson mt-0.5">FULL</p>}
               {c.teams.length > 0 && (
-                <ul className="mt-2 text-[11px] text-slate-400 leading-snug">
+                <ul className="mt-2 text-[11px] text-navy leading-snug">
                   {c.teams.map((t) => (
                     <li key={t.id} className="truncate">
                       {t.name}
@@ -341,12 +347,13 @@ export function AdminDashboardPage() {
 
       <CeoQuestionsPanel />
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">People</h2>
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-forest" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>People</h2>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          <div className="lg:border-r lg:border-slate-800 lg:pr-6">
-            <h3 className="text-sm font-bold text-slate-300 mb-3">Register a participant</h3>
+          <div className="lg:border-r-[3px] lg:border-ink lg:pr-6">
+            <h3 className={`text-sm mb-3 ${comicHeadingSm}`}>Register a participant</h3>
             <form
               className="flex flex-wrap items-end gap-3"
               onSubmit={(e) => {
@@ -363,21 +370,13 @@ export function AdminDashboardPage() {
                 );
               }}
             >
-              <label className="text-sm text-slate-300">
+              <label className="text-sm text-navy font-bold">
                 Full name
-                <input
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
-                />
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} className={fieldInput} />
               </label>
-              <label className="text-sm text-slate-300">
+              <label className="text-sm text-navy font-bold">
                 Department
-                <select
-                  value={newDept}
-                  onChange={(e) => setNewDept(e.target.value as Department)}
-                  className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
-                >
+                <select value={newDept} onChange={(e) => setNewDept(e.target.value as Department)} className={fieldInput}>
                   {ALL_DEPARTMENTS.map((d) => (
                     <option key={d} value={d}>
                       {d}
@@ -385,36 +384,30 @@ export function AdminDashboardPage() {
                   ))}
                 </select>
               </label>
-              <label className="text-sm text-slate-300">
+              <label className="text-sm text-navy font-bold">
                 Access code (optional)
                 <input
                   value={newAccessCode}
                   onChange={(e) => setNewAccessCode(e.target.value)}
                   placeholder="auto-generated"
-                  className="mt-1 block w-36 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100 font-mono"
+                  className={`${fieldInput} w-36 font-mono`}
                 />
               </label>
-              <button
-                type="submit"
-                disabled={createParticipant.isPending || newName.trim().length < 2}
-                className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold px-4 py-2 text-sm"
-              >
+              <button type="submit" disabled={createParticipant.isPending || newName.trim().length < 2} className={comicButton('forest', 'sm')}>
                 Add
               </button>
             </form>
             {lastCreated && (
-              <p className="mt-3 text-sm text-primary-400">
+              <p className="mt-3 text-sm font-bold text-forest">
                 Created {lastCreated.fullName} — access code:{' '}
-                <span className="font-mono font-bold">{lastCreated.accessCode}</span>
+                <span className="font-mono font-black">{lastCreated.accessCode}</span>
               </p>
             )}
-            {createParticipant.isError && (
-              <p className="text-sm text-red-400 mt-2">{getApiErrorMessage(createParticipant.error)}</p>
-            )}
+            {createParticipant.isError && <p className="text-sm font-bold text-crimson mt-2">{getApiErrorMessage(createParticipant.error)}</p>}
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-slate-300 mb-3">Create staff account</h3>
+            <h3 className={`text-sm mb-3 ${comicHeadingSm}`}>Create staff account</h3>
             <form
               className="flex flex-col gap-3"
               onSubmit={(e) => {
@@ -432,43 +425,35 @@ export function AdminDashboardPage() {
               }}
             >
               <div className="flex flex-wrap gap-3">
-                <label className="text-sm text-slate-300 flex-1 min-w-[10rem]">
+                <label className="text-sm text-navy font-bold flex-1 min-w-[10rem]">
                   Full name
-                  <input
-                    value={staffName}
-                    onChange={(e) => setStaffName(e.target.value)}
-                    className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
-                  />
+                  <input value={staffName} onChange={(e) => setStaffName(e.target.value)} className={`${fieldInput} w-full`} />
                 </label>
-                <label className="text-sm text-slate-300">
+                <label className="text-sm text-navy font-bold">
                   Role
-                  <select
-                    value={staffRole}
-                    onChange={(e) => setStaffRole(e.target.value as 'JUDGE' | 'ADMIN')}
-                    className="mt-1 block rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
-                  >
+                  <select value={staffRole} onChange={(e) => setStaffRole(e.target.value as 'JUDGE' | 'ADMIN')} className={fieldInput}>
                     <option value="JUDGE">Judge</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </label>
               </div>
               <div className="flex flex-wrap gap-3">
-                <label className="text-sm text-slate-300 flex-1 min-w-[10rem]">
+                <label className="text-sm text-navy font-bold flex-1 min-w-[10rem]">
                   Email
                   <input
                     type="email"
                     value={staffEmail}
                     onChange={(e) => setStaffEmail(e.target.value)}
-                    className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                    className={`${fieldInput} w-full`}
                   />
                 </label>
-                <label className="text-sm text-slate-300 flex-1 min-w-[10rem]">
+                <label className="text-sm text-navy font-bold flex-1 min-w-[10rem]">
                   Temporary password
                   <input
                     type="text"
                     value={staffPassword}
                     onChange={(e) => setStaffPassword(e.target.value)}
-                    className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-slate-100"
+                    className={`${fieldInput} w-full`}
                   />
                 </label>
               </div>
@@ -480,23 +465,23 @@ export function AdminDashboardPage() {
                   !staffEmail.includes('@') ||
                   staffPassword.length < 8
                 }
-                className="self-start rounded-lg bg-accent-500 hover:bg-accent-400 disabled:opacity-50 text-slate-950 font-black px-4 py-2 text-sm transition"
+                className={`self-start ${comicButton('forest', 'sm')}`}
               >
                 {createStaff.isPending ? 'Creating…' : `Create ${staffRole === 'JUDGE' ? 'judge' : 'admin'} account`}
               </button>
-              {createStaff.isError && <p className="text-sm text-red-400">{getApiErrorMessage(createStaff.error)}</p>}
+              {createStaff.isError && <p className="text-sm font-bold text-crimson">{getApiErrorMessage(createStaff.error)}</p>}
             </form>
 
             <div className="mt-5">
-              <h3 className="text-sm font-bold text-slate-300 mb-2">Judges &amp; admins</h3>
-              <div className="max-h-56 overflow-y-auto">
+              <h3 className={`text-sm mb-2 ${comicHeadingSm}`}>Judges &amp; admins</h3>
+              <div className="max-h-56 overflow-y-auto border-[3px] border-ink rounded-lg">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-slate-500 text-xs uppercase">
+                  <thead className="text-forest text-xs uppercase font-black bg-cream/60">
                     <tr>
-                      <th className="py-1">Name</th>
+                      <th className="py-1 pl-2">Name</th>
                       <th>Email</th>
                       <th>Role</th>
-                      <th className="text-right">Actions</th>
+                      <th className="text-right pr-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -504,36 +489,26 @@ export function AdminDashboardPage() {
                       const isEditingStaff = editingStaffId === s.id;
                       const isSelf = s.id === currentUser?.id;
                       return (
-                        <tr key={s.id} className="border-t border-slate-800 text-slate-300">
+                        <tr key={s.id} className="border-t-2 border-ink/15 text-ink">
                           {isEditingStaff ? (
                             <>
-                              <td className="py-1.5 pr-2">
-                                <input
-                                  autoFocus
-                                  value={editStaffName}
-                                  onChange={(e) => setEditStaffName(e.target.value)}
-                                  className="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
-                                />
+                              <td className="py-1.5 pr-2 pl-2">
+                                <input autoFocus value={editStaffName} onChange={(e) => setEditStaffName(e.target.value)} className={tableInput} />
                               </td>
                               <td className="pr-2">
-                                <input
-                                  type="email"
-                                  value={editStaffEmail}
-                                  onChange={(e) => setEditStaffEmail(e.target.value)}
-                                  className="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
-                                />
+                                <input type="email" value={editStaffEmail} onChange={(e) => setEditStaffEmail(e.target.value)} className={tableInput} />
                               </td>
                               <td className="pr-2">
                                 <select
                                   value={editStaffRole}
                                   onChange={(e) => setEditStaffRole(e.target.value as 'ADMIN' | 'JUDGE')}
-                                  className="rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
+                                  className={tableInput}
                                 >
                                   <option value="JUDGE">JUDGE</option>
                                   <option value="ADMIN">ADMIN</option>
                                 </select>
                               </td>
-                              <td className="text-right whitespace-nowrap">
+                              <td className="text-right whitespace-nowrap pr-2">
                                 <button
                                   disabled={updateStaff.isPending || editStaffName.trim().length < 2 || !editStaffEmail.includes('@')}
                                   onClick={() =>
@@ -542,23 +517,23 @@ export function AdminDashboardPage() {
                                       { onSuccess: () => setEditingStaffId(null) },
                                     )
                                   }
-                                  className="text-primary-400 hover:text-primary-300 disabled:opacity-40 font-semibold text-xs mr-3"
+                                  className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
                                 >
                                   Save
                                 </button>
-                                <button onClick={() => setEditingStaffId(null)} className="text-slate-400 hover:text-slate-200 text-xs">
+                                <button onClick={() => setEditingStaffId(null)} className="text-navy hover:text-crimson font-bold text-xs">
                                   Cancel
                                 </button>
                               </td>
                             </>
                           ) : (
                             <>
-                              <td className="py-1.5">{s.fullName}</td>
-                              <td className="text-slate-400">{s.email}</td>
+                              <td className="py-1.5 pl-2 font-bold">{s.fullName}</td>
+                              <td className="text-navy">{s.email}</td>
                               <td>
                                 <Badge tone={s.role === 'ADMIN' ? 'gold' : 'primary'}>{s.role}</Badge>
                               </td>
-                              <td className="text-right whitespace-nowrap">
+                              <td className="text-right whitespace-nowrap pr-2">
                                 <button
                                   onClick={() => {
                                     setEditingStaffId(s.id);
@@ -566,18 +541,18 @@ export function AdminDashboardPage() {
                                     setEditStaffEmail(s.email ?? '');
                                     setEditStaffRole(s.role);
                                   }}
-                                  className="text-primary-400 hover:text-primary-300 font-semibold text-xs mr-3"
+                                  className={`${comicLink} text-xs mr-3`}
                                 >
                                   Edit
                                 </button>
                                 {isSelf ? (
-                                  <span className="text-slate-600 text-xs" title="You can't remove the account you're signed in as.">
+                                  <span className="text-navy/40 text-xs font-bold" title="You can't remove the account you're signed in as.">
                                     (you)
                                   </span>
                                 ) : (
                                   <button
                                     onClick={() => setDeleteStaffTarget({ id: s.id, fullName: s.fullName })}
-                                    className="text-red-400 hover:text-red-300 font-semibold text-xs"
+                                    className="text-crimson hover:text-ink font-black uppercase text-xs"
                                   >
                                     Delete
                                   </button>
@@ -590,7 +565,7 @@ export function AdminDashboardPage() {
                     })}
                     {staff.data?.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="py-2 text-slate-600 text-center">
+                        <td colSpan={4} className="py-2 text-navy/40 text-center">
                           No staff accounts yet.
                         </td>
                       </tr>
@@ -598,39 +573,34 @@ export function AdminDashboardPage() {
                   </tbody>
                 </table>
               </div>
-              {updateStaff.isError && <p className="text-sm text-red-400 mt-2">{getApiErrorMessage(updateStaff.error)}</p>}
+              {updateStaff.isError && <p className="text-sm font-bold text-crimson mt-2">{getApiErrorMessage(updateStaff.error)}</p>}
             </div>
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-slate-800">
-          <h3 className="text-sm font-bold text-slate-300 mb-3">All participants</h3>
-          <div className="max-h-72 overflow-y-auto">
+        <div className="mt-6 pt-6 border-t-[3px] border-ink">
+          <h3 className={`text-sm mb-3 ${comicHeadingSm}`}>All participants</h3>
+          <div className="max-h-72 overflow-y-auto border-[3px] border-ink rounded-lg">
             <table className="w-full text-sm text-left">
-              <thead className="text-slate-500 text-xs uppercase">
+              <thead className="text-forest text-xs uppercase font-black bg-cream/60">
                 <tr>
-                  <th className="py-1">Name</th>
+                  <th className="py-1 pl-2">Name</th>
                   <th>Dept</th>
                   <th>Role</th>
                   <th>Status</th>
-                  <th className="text-right">Actions</th>
+                  <th className="text-right pr-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {participants.data?.map((p) => {
                   const isEditing = editingId === p.id;
                   return (
-                    <tr key={p.id} className="border-t border-slate-800 text-slate-300">
+                    <tr key={p.id} className="border-t-2 border-ink/15 text-ink">
                       {isEditing ? (
                         <>
-                          <td className="py-1.5">{p.fullName}</td>
+                          <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
                           <td className="pr-2">
-                            <select
-                              autoFocus
-                              value={editDept}
-                              onChange={(e) => setEditDept(e.target.value as Department)}
-                              className="rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-slate-100"
-                            >
+                            <select autoFocus value={editDept} onChange={(e) => setEditDept(e.target.value as Department)} className={tableInput}>
                               {ALL_DEPARTMENTS.map((d) => (
                                 <option key={d} value={d}>
                                   {d}
@@ -640,44 +610,37 @@ export function AdminDashboardPage() {
                           </td>
                           <td>{p.role}</td>
                           <td>undrafted</td>
-                          <td className="text-right whitespace-nowrap">
+                          <td className="text-right whitespace-nowrap pr-2">
                             <button
                               disabled={updateParticipant.isPending}
                               onClick={() =>
-                                updateParticipant.mutate(
-                                  { id: p.id, homeDepartment: editDept },
-                                  { onSuccess: () => setEditingId(null) },
-                                )
+                                updateParticipant.mutate({ id: p.id, homeDepartment: editDept }, { onSuccess: () => setEditingId(null) })
                               }
-                              className="text-primary-400 hover:text-primary-300 disabled:opacity-40 font-semibold text-xs mr-3"
+                              className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
                             >
                               Save
                             </button>
-                            <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-slate-200 text-xs">
+                            <button onClick={() => setEditingId(null)} className="text-navy hover:text-crimson font-bold text-xs">
                               Cancel
                             </button>
                           </td>
                         </>
                       ) : (
                         <>
-                          <td className="py-1.5">{p.fullName}</td>
+                          <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
                           <td>{p.homeDepartment}</td>
                           <td>{p.role}</td>
                           <td>{p.drafted ? `on team (${p.slotDepartment})` : 'undrafted'}</td>
-                          <td className="text-right whitespace-nowrap">
+                          <td className="text-right whitespace-nowrap pr-2">
                             <button
                               disabled={regenerateCode.isPending}
-                              onClick={() =>
-                                regenerateCode.mutate(p.id, {
-                                  onSuccess: (data) => setRevealedCode(data),
-                                })
-                              }
-                              className="text-accent-400 hover:text-accent-300 disabled:opacity-40 font-semibold text-xs mr-3"
+                              onClick={() => regenerateCode.mutate(p.id, { onSuccess: (data) => setRevealedCode(data) })}
+                              className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
                             >
                               Get code
                             </button>
                             {p.drafted ? (
-                              <span className="text-slate-600 text-xs">locked</span>
+                              <span className="text-navy/40 text-xs font-bold">locked</span>
                             ) : (
                               <>
                                 <button
@@ -685,13 +648,13 @@ export function AdminDashboardPage() {
                                     setEditingId(p.id);
                                     setEditDept(p.homeDepartment);
                                   }}
-                                  className="text-primary-400 hover:text-primary-300 font-semibold text-xs mr-3"
+                                  className={`${comicLink} text-xs mr-3`}
                                 >
                                   Edit
                                 </button>
                                 <button
                                   onClick={() => setDeleteTarget({ id: p.id, fullName: p.fullName })}
-                                  className="text-red-400 hover:text-red-300 font-semibold text-xs"
+                                  className="text-crimson hover:text-ink font-black uppercase text-xs"
                                 >
                                   Delete
                                 </button>
@@ -706,17 +669,12 @@ export function AdminDashboardPage() {
               </tbody>
             </table>
           </div>
-          {updateParticipant.isError && (
-            <p className="text-sm text-red-400 mt-2">{getApiErrorMessage(updateParticipant.error)}</p>
-          )}
+          {updateParticipant.isError && <p className="text-sm font-bold text-crimson mt-2">{getApiErrorMessage(updateParticipant.error)}</p>}
           {revealedCode && (
-            <p className="mt-3 text-sm text-accent-400 flex items-center gap-2">
+            <p className="mt-3 text-sm font-bold text-forest flex items-center gap-2 flex-wrap">
               {revealedCode.fullName}&apos;s login code:{' '}
-              <span className="font-mono font-bold">{revealedCode.accessCode}</span>
-              <button
-                onClick={() => setRevealedCode(null)}
-                className="text-slate-500 hover:text-slate-300 text-xs font-semibold"
-              >
+              <span className="font-mono font-black bg-cream border-2 border-ink rounded px-1.5 py-0.5">{revealedCode.accessCode}</span>
+              <button onClick={() => setRevealedCode(null)} className="text-navy/50 hover:text-crimson text-xs font-bold">
                 dismiss
               </button>
             </p>
@@ -724,62 +682,64 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">Teams</h2>
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-crimson" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>Teams</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           {teams.data?.map((team) => {
             const status = deliverables.data?.find((d) => d.teamId === team.id);
             const evalStatus = evaluations.data?.find((e) => e.teamId === team.id);
             return (
-              <div key={team.id} className="bg-slate-800 rounded-xl p-3" data-testid={`admin-team-${team.id}`}>
-                <p className="font-bold text-slate-100">{team.name ?? '(unnamed draft)'}</p>
-                <p className="text-xs text-slate-400">
+              <div
+                key={team.id}
+                className="bg-white border-[3px] border-ink rounded-lg p-3 shadow-[3px_3px_0px_#111111]"
+                data-testid={`admin-team-${team.id}`}
+              >
+                <p className="font-black text-ink">{team.name ?? '(unnamed draft)'}</p>
+                <p className="text-xs text-navy">
                   {team.category ?? 'no category'} · {team.members.length}/5 members ·{' '}
                   {team.finalizedAt ? 'finalized' : 'in progress'} · CEO: {team.ceo.fullName}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-navy/60 mt-1">
                   {team.members.map((m) => `${m.slotDepartment}: ${m.fullName}`).join(' · ')}
                 </p>
-                <p className="text-xs text-accent-400 mt-1 font-semibold">
+                <p className="text-xs text-forest mt-1 font-black">
                   Project: {(team.deliverable?.status ?? 'DRAFT').replace(/_/g, ' ')}
                 </p>
                 {status && (
-                  <p className="text-xs text-slate-400 mt-1" data-testid={`admin-team-${team.id}-deliverables`}>
+                  <p className="text-xs text-navy mt-1" data-testid={`admin-team-${team.id}-deliverables`}>
                     Pitch deck: {status.pitchDeck.status === 'UPLOADED' ? `v${status.pitchDeck.latestVersion}` : 'not uploaded'}
                     {' · '}
                     Docs: {status.documentation.status === 'UPLOADED' ? `${status.documentation.count} file(s)` : 'none'}
                   </p>
                 )}
                 {evalStatus && (
-                  <p className="text-xs text-primary-400 mt-1" data-testid={`admin-team-${team.id}-evaluations`}>
+                  <p className="text-xs text-forest font-bold mt-1" data-testid={`admin-team-${team.id}-evaluations`}>
                     Evaluations: {evalStatus.evaluationsSubmitted}/{evalStatus.totalJudges} submitted
                     {evalStatus.evaluationsInProgress > 0 ? ` · ${evalStatus.evaluationsInProgress} in progress` : ''}
                   </p>
                 )}
 
-                <button
-                  onClick={() => setResourcesTeamId(resourcesTeamId === team.id ? null : team.id)}
-                  className="mt-2 text-xs font-semibold text-primary-400 hover:text-primary-300 transition"
-                >
+                <button onClick={() => setResourcesTeamId(resourcesTeamId === team.id ? null : team.id)} className={`mt-2 text-xs ${comicLink}`}>
                   {resourcesTeamId === team.id ? 'Hide resources' : 'View resources'}
                 </button>
 
                 {resourcesTeamId === team.id && (
-                  <div className="mt-2 pt-2 border-t border-slate-700 flex flex-col gap-1.5">
-                    {teamResources.isLoading && <p className="text-xs text-slate-500">Loading…</p>}
+                  <div className="mt-2 pt-2 border-t-2 border-ink/20 flex flex-col gap-1.5">
+                    {teamResources.isLoading && <p className="text-xs text-navy/50">Loading…</p>}
                     {teamResources.data?.pitchDeckVersions.length === 0 && teamResources.data?.files.length === 0 && (
-                      <p className="text-xs text-slate-600">Nothing uploaded yet.</p>
+                      <p className="text-xs text-navy/50">Nothing uploaded yet.</p>
                     )}
                     {teamResources.data?.pitchDeckVersions.map((v) => (
                       <div key={v.id} className="flex items-center justify-between gap-2 text-xs">
-                        <a href={v.fileUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-primary-300 truncate">
+                        <a href={v.fileUrl} target="_blank" rel="noreferrer" className="text-navy hover:text-forest font-medium truncate">
                           {v.isCurrent ? '(current) ' : ''}
                           {v.filename} (v{v.version})
                         </a>
                         <button
                           disabled={deletePitchDeckVersion.isPending}
                           onClick={() => deletePitchDeckVersion.mutate({ teamId: team.id, versionId: v.id })}
-                          className="text-red-400 hover:text-red-300 font-semibold shrink-0"
+                          className="text-crimson hover:text-ink font-black shrink-0"
                         >
                           Remove
                         </button>
@@ -787,13 +747,13 @@ export function AdminDashboardPage() {
                     ))}
                     {teamResources.data?.files.map((f) => (
                       <div key={f.id} className="flex items-center justify-between gap-2 text-xs">
-                        <a href={f.fileUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-primary-300 truncate">
+                        <a href={f.fileUrl} target="_blank" rel="noreferrer" className="text-navy hover:text-forest font-medium truncate">
                           {f.filename} ({f.type})
                         </a>
                         <button
                           disabled={deleteTeamFile.isPending}
                           onClick={() => deleteTeamFile.mutate({ teamId: team.id, fileId: f.id })}
-                          className="text-red-400 hover:text-red-300 font-semibold shrink-0"
+                          className="text-crimson hover:text-ink font-black shrink-0"
                         >
                           Remove
                         </button>
@@ -858,10 +818,10 @@ export function AdminDashboardPage() {
 
 function Stat({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: boolean }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p className="text-xs uppercase text-slate-500 font-semibold">{label}</p>
-      <p className={`text-2xl font-black ${accent ? 'text-accent-400' : 'text-slate-100'}`}>{value}</p>
-      {sub && <p className="text-[10px] text-slate-500">{sub}</p>}
+    <div className="comic-panel-sm p-4">
+      <p className="text-xs uppercase text-forest font-black">{label}</p>
+      <p className={`text-2xl font-black ${accent ? 'text-crimson' : 'text-ink'}`}>{value}</p>
+      {sub && <p className="text-[10px] text-navy/50 font-bold uppercase">{sub}</p>}
     </div>
   );
 }

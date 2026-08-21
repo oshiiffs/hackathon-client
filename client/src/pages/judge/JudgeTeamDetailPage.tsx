@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ErrorState, LoadingState } from '../../components/StateViews';
 import { getApiErrorMessage } from '../../lib/apiClient';
+import { comicButton, comicHeading } from '../../lib/comic';
 import { useJudgeCriteria, useJudgeTeamDetail, useSaveDraftEvaluation, useSubmitEvaluation } from '../../hooks/useJudge';
 import type { JudgeCriterion } from '../../types/api';
 
@@ -34,22 +35,30 @@ function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string 
         {isPdf(filename) && (
           <button
             onClick={() => setViewing((v) => !v)}
-            className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-primary-400"
+            className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
           >
             {viewing ? 'HIDE' : 'VIEW'}
           </button>
         )}
         {!isPdf(filename) && (
-          <a href={fileUrl} target="_blank" rel="noreferrer" className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-primary-400">
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+          >
             VIEW
           </a>
         )}
-        <a href={toDownloadUrl(fileUrl)} className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-accent-400">
+        <a
+          href={toDownloadUrl(fileUrl)}
+          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-crimson font-black uppercase"
+        >
           DOWNLOAD
         </a>
       </div>
       {viewing && isPdf(filename) && (
-        <iframe src={fileUrl} title={filename} className="w-full h-[70vh] rounded-lg border border-slate-700 bg-slate-950" />
+        <iframe src={fileUrl} title={filename} className="w-full h-[70vh] rounded-lg border-[3px] border-ink bg-white" />
       )}
     </div>
   );
@@ -100,21 +109,21 @@ export function JudgeTeamDetailPage() {
 
   return (
     <div className="flex flex-col gap-6" data-testid="judge-team-detail">
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <p className="text-primary-400 font-black text-xs tracking-wide">TEAM</p>
-        <h1 className="text-2xl font-black text-slate-100">{team.name}</h1>
-        <p className="text-accent-400 font-semibold text-sm">{team.category}</p>
-        <p className="text-sm text-slate-400 mt-2">CEO: {team.ceo.name}</p>
-        <p className="text-sm text-slate-400">
-          {team.memberCount} / 5 MEMBERS
-        </p>
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+        <p className="text-forest font-black text-xs tracking-wide uppercase">TEAM</p>
+        <h1 className="text-2xl font-black text-ink">{team.name}</h1>
+        <p className="text-crimson font-black uppercase text-sm">{team.category}</p>
+        <p className="text-sm font-bold text-navy mt-2">CEO: {team.ceo.name}</p>
+        <p className="text-sm font-bold text-navy">{team.memberCount} / 5 MEMBERS</p>
       </section>
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="judge-members-section">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">TEAM MEMBERS</h2>
+      <section className="comic-panel p-6" data-testid="judge-members-section">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>TEAM MEMBERS</h2>
         <ul className="grid sm:grid-cols-2 gap-2 text-sm">
           {team.members.map((m) => (
-            <li key={m.id} className="flex items-center gap-2 text-slate-200">
+            <li key={m.id} className="flex items-center gap-2 text-ink font-bold">
               <Badge tone="neutral">{m.department}</Badge>
               {m.name}
               {m.isCeo && <span title="CEO">👑</span>}
@@ -123,8 +132,9 @@ export function JudgeTeamDetailPage() {
         </ul>
       </section>
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="judge-project-section">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">PROJECT</h2>
+      <section className="comic-panel p-6" data-testid="judge-project-section">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-forest" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>PROJECT</h2>
         <dl className="grid sm:grid-cols-2 gap-4 text-sm">
           {[
             ['Title', team.project.title],
@@ -134,29 +144,30 @@ export function JudgeTeamDetailPage() {
             ['Technology Stack', team.project.technologyStack],
           ].map(([label, value]) => (
             <div key={label}>
-              <dt className="text-slate-500 text-xs uppercase font-semibold">{label}</dt>
-              <dd className="text-slate-100 mt-0.5">{value ?? '—'}</dd>
+              <dt className="text-forest text-xs uppercase font-black">{label}</dt>
+              <dd className="text-ink mt-0.5 font-medium">{value ?? '—'}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="judge-deliverables-section">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">DELIVERABLES</h2>
+      <section className="comic-panel p-6" data-testid="judge-deliverables-section">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>DELIVERABLES</h2>
         <div className="flex flex-col gap-3 text-sm">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-slate-300">
+            <span className="text-ink font-bold">
               Pitch Deck{team.deliverables.pitchDeck.status === 'UPLOADED' ? ` (v${team.deliverables.pitchDeck.version})` : ''}
             </span>
             {team.deliverables.pitchDeck.status === 'UPLOADED' ? (
               <FileActions filename={team.deliverables.pitchDeck.filename} fileUrl={team.deliverables.pitchDeck.fileUrl} />
             ) : (
-              <span className="text-slate-500 text-xs">Not uploaded</span>
+              <span className="text-navy/40 text-xs font-bold">Not uploaded</span>
             )}
           </div>
           {team.deliverables.documents.map((d) => (
             <div key={d.id} className="flex items-center justify-between gap-2">
-              <span className="text-slate-300">
+              <span className="text-ink font-bold">
                 {d.filename} ({formatBytes(d.size)})
               </span>
               <FileActions filename={d.filename} fileUrl={d.fileUrl} />
@@ -164,38 +175,39 @@ export function JudgeTeamDetailPage() {
           ))}
           {team.deliverables.assets.map((a) => (
             <div key={a.id} className="flex items-center justify-between gap-2">
-              <span className="text-slate-300">
+              <span className="text-ink font-bold">
                 {a.filename} ({formatBytes(a.size)})
               </span>
               <FileActions filename={a.filename} fileUrl={a.fileUrl} />
             </div>
           ))}
           {team.deliverables.documents.length === 0 && team.deliverables.assets.length === 0 && (
-            <p className="text-slate-500 text-xs">No documents or assets uploaded.</p>
+            <p className="text-navy/40 text-xs font-bold">No documents or assets uploaded.</p>
           )}
         </div>
       </section>
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="judge-criteria-section">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">JUDGING</h2>
+      <section className="comic-panel p-6" data-testid="judge-criteria-section">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-crimson" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>JUDGING</h2>
 
         {isSubmitted && (
-          <div className="mb-4 rounded-lg bg-primary-500/10 border border-primary-600/40 px-4 py-3" data-testid="judge-submitted-banner">
-            <p className="text-primary-300 font-bold text-sm">EVALUATION SUBMITTED</p>
-            <p className="text-xs text-slate-400 mt-1">
+          <div className="mb-4 rounded-lg bg-lime/40 border-[3px] border-ink px-4 py-3 shadow-[3px_3px_0px_#111111]" data-testid="judge-submitted-banner">
+            <p className="text-forest font-black text-sm uppercase">EVALUATION SUBMITTED</p>
+            <p className="text-xs font-bold text-navy mt-1">
               Submitted: {team.myEvaluation.submittedAt ? new Date(team.myEvaluation.submittedAt).toLocaleString() : '—'}
             </p>
-            <p className="text-xs text-slate-400">TOTAL SCORE: {team.myEvaluation.total}</p>
-            <p className="text-xs text-slate-500 mt-2">This evaluation has been submitted and cannot be modified.</p>
+            <p className="text-xs font-bold text-navy">TOTAL SCORE: {team.myEvaluation.total}</p>
+            <p className="text-xs text-navy/60 mt-2">This evaluation has been submitted and cannot be modified.</p>
           </div>
         )}
 
         <div className="grid sm:grid-cols-2 gap-4">
           {criteria.data.criteria.map((c) => (
             <div key={c.id}>
-              <label className="text-sm text-slate-300 flex flex-col gap-1">
-                <span className="font-semibold">
-                  {c.label} <span className="text-slate-500 font-normal">(max {c.max})</span>
+              <label className="text-sm text-ink flex flex-col gap-1">
+                <span className="font-black uppercase">
+                  {c.label} <span className="text-navy/50 font-normal normal-case">(max {c.max})</span>
                 </span>
                 <div className="flex items-center gap-3">
                   <input
@@ -205,7 +217,7 @@ export function JudgeTeamDetailPage() {
                     value={effectiveScores[c.id] ?? c.min}
                     disabled={isSubmitted}
                     onChange={(e) => setScore(c, Number(e.target.value))}
-                    className="w-full disabled:opacity-50"
+                    className="w-full accent-crimson disabled:opacity-50"
                   />
                   <input
                     type="number"
@@ -216,12 +228,12 @@ export function JudgeTeamDetailPage() {
                     disabled={isSubmitted}
                     data-testid={`judge-score-${c.id}`}
                     onChange={(e) => setScore(c, Number(e.target.value))}
-                    className="w-16 shrink-0 rounded-lg bg-slate-800 border border-slate-700 px-2 py-1 text-center text-slate-100 disabled:opacity-50"
+                    className="w-16 shrink-0 rounded-lg bg-white border-[3px] border-ink px-2 py-1 text-center text-ink font-bold disabled:opacity-50"
                   />
                 </div>
               </label>
               {scoreErrors[c.id] && (
-                <p className="text-xs text-red-400 mt-1" data-testid={`judge-score-error-${c.id}`}>
+                <p className="text-xs font-bold text-crimson mt-1" data-testid={`judge-score-error-${c.id}`}>
                   {scoreErrors[c.id]}
                 </p>
               )}
@@ -229,18 +241,18 @@ export function JudgeTeamDetailPage() {
           ))}
         </div>
 
-        <label className="text-sm text-slate-300 flex flex-col gap-1 mt-4">
+        <label className="text-sm text-ink font-black uppercase flex flex-col gap-1 mt-4">
           Comments
           <textarea
             value={effectiveComments}
             disabled={isSubmitted}
             onChange={(e) => setComments(e.target.value)}
             rows={3}
-            className="rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm text-slate-100 disabled:opacity-50"
+            className="rounded-lg bg-white border-[3px] border-ink px-2 py-1.5 text-sm text-ink font-medium normal-case disabled:opacity-50"
           />
         </label>
 
-        <p className="text-slate-100 font-bold mt-4" data-testid="judge-total-score">
+        <p className="text-ink font-black mt-4" data-testid="judge-total-score">
           TOTAL SCORE: {total} / {criteria.data.maxTotal}
         </p>
 
@@ -250,7 +262,7 @@ export function JudgeTeamDetailPage() {
               data-testid="judge-save-draft-button"
               disabled={saveDraft.isPending || hasErrors}
               onClick={() => saveDraft.mutate(submitPayload())}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-100 font-semibold px-4 py-2 text-sm"
+              className={comicButton('white')}
             >
               {saveDraft.isPending ? 'Saving…' : 'SAVE DRAFT'}
             </button>
@@ -258,7 +270,7 @@ export function JudgeTeamDetailPage() {
               data-testid="judge-submit-button"
               disabled={submitEvaluation.isPending || hasErrors}
               onClick={() => setConfirmSubmit(true)}
-              className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold px-4 py-2 text-sm"
+              className={comicButton('crimson')}
             >
               SUBMIT EVALUATION
             </button>
@@ -266,12 +278,16 @@ export function JudgeTeamDetailPage() {
         )}
 
         {saveDraft.isSuccess && !saveDraft.isPending && (
-          <p className="text-xs text-primary-400 mt-2" data-testid="judge-draft-saved">
+          <p className="text-xs font-bold text-forest mt-2" data-testid="judge-draft-saved">
             Draft saved.
           </p>
         )}
-        {saveDraft.isError && <p className="text-xs text-red-400 mt-2">{getApiErrorMessage(saveDraft.error)}</p>}
-        {submitEvaluation.isError && <p className="text-xs text-red-400 mt-2" data-testid="judge-submit-error">{getApiErrorMessage(submitEvaluation.error)}</p>}
+        {saveDraft.isError && <p className="text-xs font-bold text-crimson mt-2">{getApiErrorMessage(saveDraft.error)}</p>}
+        {submitEvaluation.isError && (
+          <p className="text-xs font-bold text-crimson mt-2" data-testid="judge-submit-error">
+            {getApiErrorMessage(submitEvaluation.error)}
+          </p>
+        )}
       </section>
 
       <ConfirmDialog

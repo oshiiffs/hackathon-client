@@ -2,53 +2,50 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { CountdownTimer } from '../../components/CountdownTimer';
 import { LoadingState, ErrorState } from '../../components/StateViews';
+import { useSyncedTopic } from '../../hooks/useSyncedTopic';
 import { useHackathonState } from '../../hooks/useHackathon';
-import { useMyCeoChallenge, useSubmitCeoAnswer } from '../../hooks/useCeoChallenge';
+import { useCeoTopicReveal, useMyCeoChallenge, useSubmitCeoAnswer } from '../../hooks/useCeoChallenge';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorMessage } from '../../lib/apiClient';
-import type { MyCeoChallengeResult } from '../../types/api';
+import { comicButton } from '../../lib/comic';
 
 type Result = 'success' | 'ended' | null;
 
-/**
- * Derives "which topic is active right now" and "when does it end" purely
- * from server timestamps (challengeStartedAt + challengeDurationSeconds-per-
- * topic + serverNow), the same clock-skew-corrected approach CountdownTimer
- * already uses. Every participant computes the same values from the same
- * inputs, so topics advance in lockstep for everyone with no server push —
- * "everyone's timer is in sync; once time stops on one topic, move to the
- * next immediately."
- */
-function useSyncedTopic(data: MyCeoChallengeResult | undefined) {
-  const [, forceTick] = useState(0);
-  const offsetRef = useRef<number | null>(null);
+/** Shown for the 5s reveal window after a topic's answering countdown runs
+ * out — fetches that one topic's correct answer, which the server only
+ * hands over once it has independently verified the window has closed (see
+ * useCeoTopicReveal / the backend's getCeoTopicReveal). */
+function TopicReveal({
+  questionId,
+  questionText,
+  topicLabel,
+  revealEndsAtMs,
+  serverNow,
+}: {
+  questionId: string;
+  questionText: string;
+  topicLabel: string;
+  revealEndsAtMs: number;
+  serverNow: string;
+}) {
+  const reveal = useCeoTopicReveal(questionId, true);
+  return (
+    <div className="w-full flex flex-col items-center gap-5" data-testid="topic-reveal">
+      <p className="text-sm font-black uppercase tracking-wide text-crimson text-center">{topicLabel}</p>
+      <p className="text-sm font-black uppercase tracking-wide text-navy/50 text-center">Time&apos;s up!</p>
 
-  useEffect(() => {
-    if (data?.serverNow && offsetRef.current === null) {
-      offsetRef.current = new Date(data.serverNow).getTime() - Date.now();
-    }
-  }, [data?.serverNow]);
+      <CountdownTimer endsAt={new Date(revealEndsAtMs).toISOString()} serverNow={serverNow} />
 
-  useEffect(() => {
-    const interval = setInterval(() => forceTick((t) => t + 1), 200);
-    return () => clearInterval(interval);
-  }, []);
+      <p className="text-lg font-bold text-ink text-center">{questionText}</p>
 
-  const totalTopics = data?.questions.length ?? 0;
-  if (!data?.challengeStartedAt || totalTopics === 0) {
-    return { topicIndex: 0, topicEndsAtMs: 0, roundOver: false };
-  }
-
-  const offset = offsetRef.current ?? 0;
-  const nowCorrected = Date.now() + offset;
-  const startedAtMs = new Date(data.challengeStartedAt).getTime();
-  const perTopicMs = data.challengeDurationSeconds * 1000;
-  const elapsedMs = Math.max(0, nowCorrected - startedAtMs);
-  const rawIndex = Math.floor(elapsedMs / perTopicMs);
-  const topicIndex = Math.min(rawIndex, totalTopics - 1);
-  const topicEndsAtMs = startedAtMs + (topicIndex + 1) * perTopicMs;
-
-  return { topicIndex, topicEndsAtMs, roundOver: rawIndex >= totalTopics };
+      <div className="w-full rounded-xl border-[3px] border-ink bg-lime/40 px-6 py-4 text-center shadow-[4px_4px_0px_#111111]">
+        <p className="text-xs font-black uppercase tracking-wide text-forest mb-1">Correct answer</p>
+        <p className="text-2xl font-black text-ink" data-testid="topic-correct-answer">
+          {reveal.isLoading ? '…' : (reveal.data?.correctAnswer ?? '—')}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -65,6 +62,10 @@ function useSyncedTopic(data: MyCeoChallengeResult | undefined) {
  * stopped). Submitting never reveals whether you became CEO — that's ranked
  * across everyone's saved answers only once the round ends (server-side, see
  * hackathon.service.ts's promoteTopScorers).
+ *
+ * Each topic's countdown is followed by a 5s "reveal" window (see
+ * useSyncedTopic's `topicPhase`) showing that topic's correct answer before
+ * the clock advances to the next one.
  */
 export function ParticipantChallengePage() {
   const user = useAuthStore((s) => s.user);
@@ -73,9 +74,15 @@ export function ParticipantChallengePage() {
 
   const challengeQuery = useMyCeoChallenge(phase === 'CEO_CHALLENGE_ACTIVE');
   const submitAnswer = useSubmitCeoAnswer();
-  const { topicIndex, topicEndsAtMs, roundOver } = useSyncedTopic(challengeQuery.data);
+  const totalTopics = challengeQuery.data?.questions.length ?? 0;
+  const { topicIndex, topicPhase, answerEndsAtMs, revealEndsAtMs, roundOver, serverNowIso } = useSyncedTopic(
+    challengeQuery.data?.challengeStartedAt,
+    challengeQuery.data?.challengeDurationSeconds ?? 30,
+    challengeQuery.data?.serverNow,
+    totalTopics,
+  );
 
-  const lastTopicIndexRef = useRef<number | null>(null);
+  const lastCycleKeyRef = useRef<string | null>(null);
   const hasFlushedFinalRef = useRef(false);
   const revealTimerStartedRef = useRef(false);
   const [inputValue, setInputValue] = useState('');
@@ -100,28 +107,41 @@ export function ParticipantChallengePage() {
     submitAnswer.mutate({ questionId, answer }, { onSuccess: (data) => setScore(data.score) });
   }
 
-  // The synchronized clock, not a click, decides when a topic ends — save
-  // whatever was typed for the outgoing topic immediately, then clear the
-  // box for the new one.
+  // The synchronized clock, not a click, decides when a topic's answering
+  // window ends — save whatever was typed the INSTANT that happens (the
+  // `answering` -> `reveal` transition), not when the next topic starts.
+  // That distinction matters here specifically: the reveal window shows the
+  // correct answer, so saving on topicIndex change (which now only happens
+  // after the reveal) would let someone read the answer and type it in
+  // before it's recorded. The input box resets once a NEW topic's answering
+  // phase begins.
   useEffect(() => {
-    if (lastTopicIndexRef.current === null) {
-      lastTopicIndexRef.current = topicIndex;
+    const key = `${topicIndex}:${topicPhase}`;
+    if (lastCycleKeyRef.current === null) {
+      lastCycleKeyRef.current = key;
       return;
     }
-    if (lastTopicIndexRef.current !== topicIndex) {
-      const prevQuestion = questions[lastTopicIndexRef.current];
+    if (lastCycleKeyRef.current === key) return;
+
+    const [prevIndexStr, prevPhase] = lastCycleKeyRef.current.split(':');
+    const prevIndex = Number(prevIndexStr);
+    if (prevPhase === 'answering') {
+      const prevQuestion = questions[prevIndex];
       if (prevQuestion) saveAnswer(prevQuestion.id, inputValue);
-      lastTopicIndexRef.current = topicIndex;
+    }
+    if (topicPhase === 'answering' && topicIndex !== prevIndex) {
       setInputValue('');
     }
-    // Only topicIndex should retrigger this — it fires exactly once per transition.
+    lastCycleKeyRef.current = key;
+    // Only topicIndex/topicPhase should retrigger this — it fires exactly once per transition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topicIndex]);
+  }, [topicIndex, topicPhase]);
 
   // Final flush: whatever's typed for the CURRENT (still in-progress) topic
-  // when the round ends — naturally, or via an early admin stop — gets saved
-  // once. Every earlier topic was already saved as it happened above, so
-  // this only ever covers the one topic that hadn't finished yet.
+  // when the round ends early (an admin manual stop, before this topic's own
+  // answering->reveal transition would have saved it) gets saved once. Every
+  // topic that already went through its own transition above is unaffected —
+  // this is just the safety net for an early cutoff.
   useEffect(() => {
     const roundEnding = roundOver || (phase !== undefined && phase !== 'CEO_CHALLENGE_ACTIVE');
     if (!roundEnding || hasFlushedFinalRef.current) return;
@@ -165,36 +185,32 @@ export function ParticipantChallengePage() {
     <div className="flex flex-col items-center justify-center gap-8 py-10" data-testid="challenge-page">
       {revealing && (
         <div className="text-center flex flex-col items-center gap-4" data-testid="revealing">
-          <div className="w-10 h-10 rounded-full border-4 border-slate-700 border-t-accent-400 animate-spin" />
-          <h2 className="text-xl font-black text-slate-100 tracking-tight">CALCULATING RESULTS…</h2>
+          <div className="w-10 h-10 rounded-full border-4 border-ink border-t-crimson animate-spin" />
+          <h2 className="text-xl font-black text-ink tracking-tight uppercase">CALCULATING RESULTS…</h2>
         </div>
       )}
 
       {!revealing && result === 'success' && (
-        <div className="text-center flex flex-col items-center gap-3" data-testid="result-success">
+        <div className="comic-panel text-center flex flex-col items-center gap-3 px-8 py-8" data-testid="result-success">
+          <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
           <p className="text-5xl">🎉</p>
-          <h2 className="text-2xl font-black text-primary-400">YOU ARE THE CEO</h2>
-          <p className="text-slate-300">Your CEO role has been confirmed.</p>
-          <p className="text-slate-500 text-sm">Continue to team formation.</p>
-          <Link
-            to="/ceo"
-            className="mt-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold px-4 py-2 text-sm transition"
-          >
+          <h2 className="text-2xl font-black text-forest uppercase">YOU ARE THE CEO</h2>
+          <p className="text-ink font-bold">Your CEO role has been confirmed.</p>
+          <p className="text-navy text-sm">Continue to team formation.</p>
+          <Link to="/ceo" className={`mt-2 ${comicButton('forest', 'sm')}`}>
             Go to CEO dashboard
           </Link>
         </div>
       )}
 
       {!revealing && result === 'ended' && (
-        <div className="text-center flex flex-col items-center gap-3" data-testid="result-ended">
-          <h2 className="text-2xl font-black text-slate-100">CHALLENGE ENDED</h2>
-          <p className="text-slate-300">CEOs have been selected for this round.</p>
-          <p className="text-slate-500 text-sm">Your score: {score}</p>
-          <p className="text-slate-500 text-sm">Please wait for team formation.</p>
-          <Link
-            to="/participant"
-            className="mt-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold px-4 py-2 text-sm transition"
-          >
+        <div className="comic-panel text-center flex flex-col items-center gap-3 px-8 py-8" data-testid="result-ended">
+          <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-crimson" aria-hidden="true" />
+          <h2 className="text-2xl font-black text-ink uppercase">CHALLENGE ENDED</h2>
+          <p className="text-ink font-bold">CEOs have been selected for this round.</p>
+          <p className="text-navy text-sm">Your score: {score}</p>
+          <p className="text-navy text-sm">Please wait for team formation.</p>
+          <Link to="/participant" className={`mt-2 ${comicButton('forest', 'sm')}`}>
             Go to dashboard
           </Link>
         </div>
@@ -202,7 +218,7 @@ export function ParticipantChallengePage() {
 
       {!revealing && result === null && phase === 'CEO_CHALLENGE_ACTIVE' && (
         <div className="w-full max-w-lg flex flex-col items-center gap-6" data-testid="challenge-active">
-          <h2 className="text-2xl font-black text-slate-100 tracking-tight">CEO SELECTION CHALLENGE</h2>
+          <h2 className="text-2xl font-black text-ink tracking-tight uppercase">CEO SELECTION CHALLENGE</h2>
 
           {challengeQuery.isLoading && <LoadingState label="Loading topics…" />}
           {challengeQuery.isError && (
@@ -211,26 +227,20 @@ export function ParticipantChallengePage() {
 
           {!roundActive && challengeQuery.data && (
             <div className="text-center" data-testid="locking-in">
-              <p className="text-slate-300 font-bold">Locking in your last answer…</p>
-              <p className="text-slate-500 text-sm mt-1">Your score: {score}</p>
+              <p className="text-ink font-black">Locking in your last answer…</p>
+              <p className="text-navy text-sm mt-1">Your score: {score}</p>
             </div>
           )}
 
-          {roundActive && currentQuestion && topicEndsAtMs > 0 && (
+          {roundActive && currentQuestion && topicPhase === 'answering' && answerEndsAtMs > 0 && (
             <div className="w-full flex flex-col items-center gap-5" data-testid="quiz">
-              <p
-                className="text-sm font-bold uppercase tracking-wide text-accent-400 text-center"
-                data-testid="topic-progress"
-              >
+              <p className="text-sm font-black uppercase tracking-wide text-crimson text-center" data-testid="topic-progress">
                 Topic {topicIndex + 1} of {questions.length}
               </p>
 
-              <CountdownTimer
-                endsAt={new Date(topicEndsAtMs).toISOString()}
-                serverNow={challengeQuery.data!.serverNow}
-              />
+              <CountdownTimer endsAt={new Date(answerEndsAtMs).toISOString()} serverNow={serverNowIso} />
 
-              <p className="text-lg font-semibold text-slate-100 text-center" data-testid="topic-prompt">
+              <p className="text-lg font-bold text-ink text-center" data-testid="topic-prompt">
                 {currentQuestion.question}
               </p>
 
@@ -241,12 +251,22 @@ export function ParticipantChallengePage() {
                 placeholder="Type your answer…"
                 maxLength={100}
                 data-testid="topic-answer-input"
-                className="w-full text-center rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-lg font-medium text-slate-100 focus:border-primary-500 focus:outline-none"
+                className="w-full text-center rounded-lg border-[3px] border-ink bg-white px-4 py-3 text-lg font-bold text-ink focus:outline-none focus:ring-2 focus:ring-crimson"
               />
-              <p className="text-xs text-slate-500 -mt-2">Your answer locks in automatically when time runs out.</p>
+              <p className="text-xs text-navy/60 -mt-2">Your answer locks in automatically when time runs out.</p>
 
-              {submitAnswer.isError && <p className="text-red-400 text-sm text-center">{getApiErrorMessage(submitAnswer.error)}</p>}
+              {submitAnswer.isError && <p className="text-crimson font-bold text-sm text-center">{getApiErrorMessage(submitAnswer.error)}</p>}
             </div>
+          )}
+
+          {roundActive && currentQuestion && topicPhase === 'reveal' && (
+            <TopicReveal
+              questionId={currentQuestion.id}
+              questionText={currentQuestion.question}
+              topicLabel={`Topic ${topicIndex + 1} of ${questions.length}`}
+              revealEndsAtMs={revealEndsAtMs}
+              serverNow={serverNowIso}
+            />
           )}
         </div>
       )}

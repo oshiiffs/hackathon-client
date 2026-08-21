@@ -39,11 +39,11 @@ export function CountdownTimer({
   return (
     <div className="text-center" data-testid="countdown-timer">
       <div
-        className={`text-7xl font-black tabular-nums ${totalSeconds <= 5 ? 'text-red-500 animate-pulse' : 'text-primary-400'}`}
+        className={`text-7xl font-black tabular-nums ${totalSeconds <= 5 ? 'text-crimson animate-pulse' : 'text-navy'}`}
       >
         {display}
       </div>
-      <div className="text-sm uppercase tracking-widest text-slate-400 mt-1">time remaining</div>
+      <div className="text-sm font-bold uppercase tracking-widest text-forest mt-1">time remaining</div>
     </div>
   );
 }

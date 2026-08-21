@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUpdateProject } from '../../hooks/useTeamHub';
 import { getApiErrorMessage } from '../../lib/apiClient';
+import { comicButton, comicHeading } from '../../lib/comic';
 import type { ProjectData } from '../../types/api';
 
 const FIELDS: { key: keyof ProjectData; label: string; maxLength: number; multiline?: boolean }[] = [
@@ -26,8 +27,9 @@ export function ProjectSection({ project }: { project: ProjectData }) {
   }
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="project-section">
-      <h2 className="text-lg font-bold text-slate-100 mb-4">PROJECT</h2>
+    <section className="comic-panel p-6" data-testid="project-section">
+      <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
+      <h2 className={`text-lg mb-4 ${comicHeading}`}>PROJECT</h2>
       <form
         className="flex flex-col gap-4"
         onSubmit={(e) => {
@@ -36,7 +38,7 @@ export function ProjectSection({ project }: { project: ProjectData }) {
         }}
       >
         {FIELDS.map(({ key, label, maxLength, multiline }) => (
-          <label key={key} className="text-xs font-bold uppercase text-slate-400">
+          <label key={key} className="text-xs font-black uppercase text-forest">
             {label}
             {multiline ? (
               <textarea
@@ -45,7 +47,7 @@ export function ProjectSection({ project }: { project: ProjectData }) {
                 maxLength={maxLength}
                 rows={3}
                 onChange={(e) => setField(key, e.target.value)}
-                className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm font-normal text-slate-100"
+                className="mt-1 w-full rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm font-medium normal-case text-ink focus:outline-none focus:ring-2 focus:ring-crimson"
               />
             ) : (
               <input
@@ -53,27 +55,22 @@ export function ProjectSection({ project }: { project: ProjectData }) {
                 value={form[key] ?? ''}
                 maxLength={maxLength}
                 onChange={(e) => setField(key, e.target.value)}
-                className="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm font-normal text-slate-100"
+                className="mt-1 w-full rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm font-medium normal-case text-ink focus:outline-none focus:ring-2 focus:ring-crimson"
               />
             )}
           </label>
         ))}
 
-        <button
-          type="submit"
-          data-testid="save-project-button"
-          disabled={updateProject.isPending}
-          className="self-start rounded-lg bg-accent-500 hover:bg-accent-400 disabled:opacity-50 text-slate-950 font-black px-5 py-2.5 text-sm transition"
-        >
+        <button type="submit" data-testid="save-project-button" disabled={updateProject.isPending} className={`self-start ${comicButton('crimson')}`}>
           {updateProject.isPending ? 'Saving…' : 'SAVE PROJECT'}
         </button>
         {updateProject.isError && (
-          <p className="text-red-400 text-sm" data-testid="save-project-error">
+          <p className="text-crimson font-bold text-sm" data-testid="save-project-error">
             {getApiErrorMessage(updateProject.error)}
           </p>
         )}
         {updateProject.isSuccess && !updateProject.isPending && (
-          <p className="text-primary-400 text-sm" data-testid="save-project-success">
+          <p className="text-forest font-bold text-sm" data-testid="save-project-success">
             Saved.
           </p>
         )}

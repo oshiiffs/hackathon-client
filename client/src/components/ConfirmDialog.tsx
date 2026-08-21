@@ -1,3 +1,5 @@
+import { comicButton } from '../lib/comic';
+
 export function ConfirmDialog({
   open,
   title,
@@ -20,25 +22,15 @@ export function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-slate-100">{title}</h2>
-        {description && <p className="mt-2 text-sm text-slate-400">{description}</p>}
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/70 px-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-sm bg-white border-[3px] border-ink rounded-xl p-6 shadow-[8px_8px_0px_#111111]">
+        <h2 className="text-lg font-black uppercase tracking-wide text-navy">{title}</h2>
+        {description && <p className="mt-2 text-sm text-ink">{description}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            disabled={pending}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 transition"
-          >
+          <button onClick={onCancel} disabled={pending} className={comicButton('white', 'sm')}>
             Cancel
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={pending}
-            className={`px-3 py-1.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition ${
-              tone === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-primary-600 hover:bg-primary-700'
-            }`}
-          >
+          <button onClick={onConfirm} disabled={pending} className={comicButton(tone === 'danger' ? 'crimson' : 'forest', 'sm')}>
             {pending ? 'Working…' : confirmLabel}
           </button>
         </div>

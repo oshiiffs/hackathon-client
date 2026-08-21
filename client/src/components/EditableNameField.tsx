@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUpdateMyProfile } from '../hooks/useAuth';
 import { getApiErrorMessage } from '../lib/apiClient';
+import { comicButton, comicLink } from '../lib/comic';
 
 /** Self-service display-name editor for participants/CEOs — badge access
  * codes carry no name, so whatever an admin typed at registration is only
@@ -14,14 +15,14 @@ export function EditableNameField({ currentName }: { currentName: string }) {
   if (!editing) {
     return (
       <dd className="flex items-center gap-2 mt-0.5">
-        <span className="text-slate-100 font-medium">{currentName}</span>
+        <span className="text-ink font-bold">{currentName}</span>
         <button
           type="button"
           onClick={() => {
             setValue(currentName);
             setEditing(true);
           }}
-          className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition"
+          className={`text-xs ${comicLink}`}
         >
           Edit
         </button>
@@ -48,25 +49,16 @@ export function EditableNameField({ currentName }: { currentName: string }) {
           value={value}
           maxLength={100}
           onChange={(e) => setValue(e.target.value)}
-          className="rounded-lg bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-slate-100"
+          className="rounded-lg bg-white border-[3px] border-ink px-2 py-1 text-sm text-ink font-bold focus:outline-none focus:ring-2 focus:ring-crimson"
         />
-        <button
-          type="submit"
-          disabled={updateName.isPending || value.trim().length < 2}
-          className="rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 transition"
-        >
+        <button type="submit" disabled={updateName.isPending || value.trim().length < 2} className={comicButton('forest', 'sm')}>
           {updateName.isPending ? 'Saving…' : 'Save'}
         </button>
-        <button
-          type="button"
-          disabled={updateName.isPending}
-          onClick={() => setEditing(false)}
-          className="rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 transition"
-        >
+        <button type="button" disabled={updateName.isPending} onClick={() => setEditing(false)} className={comicButton('white', 'sm')}>
           Cancel
         </button>
       </form>
-      {updateName.isError && <p className="text-red-400 text-xs mt-1">{getApiErrorMessage(updateName.error)}</p>}
+      {updateName.isError && <p className="text-crimson font-bold text-xs mt-1">{getApiErrorMessage(updateName.error)}</p>}
     </dd>
   );
 }

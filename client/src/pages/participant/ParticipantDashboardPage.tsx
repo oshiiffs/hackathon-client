@@ -9,6 +9,7 @@ import { useHackathonState } from '../../hooks/useHackathon';
 import { useMyTeam } from '../../hooks/useTeam';
 import { useAuthStore } from '../../store/authStore';
 import { apiClient } from '../../lib/apiClient';
+import { comicButton, comicHeading } from '../../lib/comic';
 
 export function ParticipantDashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -55,39 +56,40 @@ export function ParticipantDashboardPage() {
     <div className="flex flex-col gap-6">
       <PhaseProgress currentPhase={phase} />
 
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-100">My status</h2>
-          <Link to="/participant/directory" className="text-xs font-semibold text-primary-400 hover:text-primary-300 transition">
+          <h2 className={`text-lg ${comicHeading}`}>My status</h2>
+          <Link to="/participant/directory" className="text-xs font-black uppercase text-forest hover:text-crimson transition">
             View all participants →
           </Link>
         </div>
         <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Name</dt>
+            <dt className="text-forest text-xs uppercase font-black">Name</dt>
             <EditableNameField currentName={user.fullName} />
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Department</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">{user.homeDepartment}</dd>
+            <dt className="text-forest text-xs uppercase font-black">Department</dt>
+            <dd className="text-ink font-bold mt-0.5">{user.homeDepartment}</dd>
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Current status</dt>
+            <dt className="text-forest text-xs uppercase font-black">Current status</dt>
             <dd className="mt-0.5">
               <Badge tone="primary">{user.drafted ? 'On a team' : 'Candidate'}</Badge>
             </dd>
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Drafted status</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">{user.drafted ? 'Drafted' : 'Not yet drafted'}</dd>
+            <dt className="text-forest text-xs uppercase font-black">Drafted status</dt>
+            <dd className="text-ink font-bold mt-0.5">{user.drafted ? 'Drafted' : 'Not yet drafted'}</dd>
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">CEO status</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">Not currently a CEO</dd>
+            <dt className="text-forest text-xs uppercase font-black">CEO status</dt>
+            <dd className="text-ink font-bold mt-0.5">Not currently a CEO</dd>
           </div>
           <div>
-            <dt className="text-slate-500 text-xs uppercase font-semibold">Challenge state</dt>
-            <dd className="text-slate-100 font-medium mt-0.5">{stateLoading ? '…' : (state?.phaseLabel ?? 'Unknown')}</dd>
+            <dt className="text-forest text-xs uppercase font-black">Challenge state</dt>
+            <dd className="text-ink font-bold mt-0.5">{stateLoading ? '…' : (state?.phaseLabel ?? 'Unknown')}</dd>
           </div>
         </dl>
       </section>
@@ -98,30 +100,27 @@ export function ParticipantDashboardPage() {
         {stateLoading && !state && <LoadingState label="Loading event state…" />}
 
         {state && locked && (
-          <div className="text-center" data-testid="waiting-screen">
-            <div className="w-3 h-3 rounded-full bg-primary-500 mx-auto mb-4 animate-ping" />
-            <h2 className="text-3xl font-black text-slate-100 tracking-tight">HACKVERSE 2026</h2>
-            <p className="text-xl font-bold text-slate-300 mt-2">PLEASE WAIT</p>
-            <p className="text-slate-500 mt-2 max-w-sm">The challenge has not started.</p>
+          <div className="comic-panel text-center px-10 py-8" data-testid="waiting-screen">
+            <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+            <div className="w-3 h-3 rounded-full bg-crimson border-2 border-ink mx-auto mb-4 animate-ping" />
+            <h2 className="text-3xl font-black text-ink tracking-tight uppercase">HACKVERSE 2026</h2>
+            <p className="text-xl font-black text-crimson mt-2 uppercase">PLEASE WAIT</p>
+            <p className="text-navy mt-2 max-w-sm font-medium">The challenge has not started.</p>
           </div>
         )}
 
         {state && !locked && phase !== 'CEO_CHALLENGE_ACTIVE' && (
-          <div className="text-center flex flex-col items-center gap-4" data-testid="candidate-screen">
-            {hasRunAChallengeRound && (
-              <p className="text-sm font-bold uppercase tracking-wide text-slate-500">CHALLENGE ENDED</p>
-            )}
-            <h2 className="text-xl font-bold text-slate-100">Candidate Mode</h2>
-            <p className="text-slate-400 max-w-sm">
+          <div className="comic-panel text-center flex flex-col items-center gap-4 px-10 py-8" data-testid="candidate-screen">
+            <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-forest" aria-hidden="true" />
+            {hasRunAChallengeRound && <p className="text-sm font-black uppercase tracking-wide text-navy/60">CHALLENGE ENDED</p>}
+            <h2 className="text-xl font-black text-ink uppercase">Candidate Mode</h2>
+            <p className="text-navy max-w-sm font-medium">
               {hasRunAChallengeRound
                 ? "You didn't win this round's CEO challenge and can no longer submit yourself as CEO. "
                 : ''}
               Show your QR code to a CEO to get recruited onto their team.
             </p>
-            <Link
-              to="/participant/qr"
-              className="rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold px-4 py-2 text-sm transition"
-            >
+            <Link to="/participant/qr" className={comicButton('crimson')}>
               View My QR Code
             </Link>
           </div>

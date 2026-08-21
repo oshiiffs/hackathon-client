@@ -5,6 +5,7 @@ import { QrScanner } from '../../components/QrScanner';
 import { useMyTeam } from '../../hooks/useTeam';
 import { useScanQr, useRecruitParticipant } from '../../hooks/useQr';
 import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
+import { comicButton } from '../../lib/comic';
 import type { QrScanResult, RecruitResult } from '../../types/api';
 
 type ScanState =
@@ -111,13 +112,10 @@ export function CeoRecruitPage() {
     return (
       <div className="flex flex-col items-center gap-4 py-12 text-center" data-testid="team-complete">
         <p className="text-5xl">🎉</p>
-        <h2 className="text-2xl font-black text-primary-400">TEAM COMPLETE</h2>
-        <p className="text-slate-400 text-sm">5 / 5 members recruited.</p>
-        <p className="text-accent-300 font-bold text-sm mt-2">NEXT: FINALIZE TEAM</p>
-        <Link
-          to="/ceo/team/finalize"
-          className="mt-2 rounded-lg bg-accent-500 hover:bg-accent-400 text-slate-950 font-black px-4 py-2 text-sm transition"
-        >
+        <h2 className="text-2xl font-black text-forest uppercase">TEAM COMPLETE</h2>
+        <p className="text-navy text-sm font-bold">5 / 5 members recruited.</p>
+        <p className="text-crimson font-black text-sm mt-2 uppercase">NEXT: FINALIZE TEAM</p>
+        <Link to="/ceo/team/finalize" className={`mt-2 ${comicButton('crimson')}`}>
           FINALIZE TEAM
         </Link>
       </div>
@@ -127,20 +125,20 @@ export function CeoRecruitPage() {
   return (
     <div className="flex flex-col items-center gap-6 py-8 text-center" data-testid="ceo-recruit-page">
       <div>
-        <h2 className="text-2xl font-black text-slate-100 tracking-tight">SCAN TEAM MEMBER</h2>
-        <p className="text-slate-400 text-sm mt-1">Point the camera at a participant QR code.</p>
+        <h2 className="text-2xl font-black text-ink tracking-tight uppercase">SCAN TEAM MEMBER</h2>
+        <p className="text-navy text-sm mt-1 font-bold">Point the camera at a participant QR code.</p>
       </div>
 
       {cameraError ? (
         <div className="flex flex-col items-center gap-3 py-8" data-testid="camera-unavailable">
-          <p className="text-red-400 font-semibold">Camera unavailable</p>
-          <p className="text-sm text-slate-400 max-w-xs">{cameraError}</p>
+          <p className="text-crimson font-black uppercase">Camera unavailable</p>
+          <p className="text-sm font-bold text-navy max-w-xs">{cameraError}</p>
           <button
             onClick={() => {
               setCameraError(null);
               setCameraAttempt((n) => n + 1);
             }}
-            className="rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold px-4 py-2 transition"
+            className={comicButton('white', 'sm')}
           >
             Try again
           </button>
@@ -151,27 +149,31 @@ export function CeoRecruitPage() {
         </div>
       )}
 
-      {scanState.kind === 'checking' && <p className="text-slate-400 text-sm" data-testid="scan-checking">Checking…</p>}
+      {scanState.kind === 'checking' && (
+        <p className="text-navy font-bold text-sm" data-testid="scan-checking">
+          Checking…
+        </p>
+      )}
 
       {(scanState.kind === 'found' || scanState.kind === 'confirming' || scanState.kind === 'recruiting') && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-primary-700 bg-primary-950 px-6 py-5 max-w-sm" data-testid="scan-result-found">
-          <p className="text-primary-300 font-black text-sm tracking-wide">MEMBER FOUND</p>
-          <p className="text-xl font-bold text-slate-100">{scanState.result.participant.name}</p>
+        <div className="comic-panel-sm flex flex-col items-center gap-3 px-6 py-5 max-w-sm" data-testid="scan-result-found">
+          <p className="text-forest font-black text-sm tracking-wide uppercase">MEMBER FOUND</p>
+          <p className="text-xl font-black text-ink">{scanState.result.participant.name}</p>
           <div className="flex gap-6 text-sm">
             <div>
-              <p className="text-slate-500 text-xs uppercase font-semibold">Department</p>
-              <p className="text-slate-100 font-bold mt-0.5">{scanState.result.participant.department}</p>
+              <p className="text-forest text-xs uppercase font-black">Department</p>
+              <p className="text-ink font-black mt-0.5">{scanState.result.participant.department}</p>
             </div>
             <div>
-              <p className="text-slate-500 text-xs uppercase font-semibold">Status</p>
-              <p className="text-accent-400 font-bold mt-0.5">AVAILABLE</p>
+              <p className="text-forest text-xs uppercase font-black">Status</p>
+              <p className="text-forest font-black mt-0.5">AVAILABLE</p>
             </div>
           </div>
           <button
             data-testid="continue-to-recruit-button"
             disabled={scanState.kind !== 'found'}
             onClick={openConfirm}
-            className="mt-2 rounded-lg bg-accent-500 hover:bg-accent-400 disabled:opacity-50 text-slate-950 font-black px-5 py-2.5 text-sm transition"
+            className={`mt-2 ${comicButton('crimson')}`}
           >
             RECRUIT MEMBER
           </button>
@@ -179,28 +181,17 @@ export function CeoRecruitPage() {
       )}
 
       {scanState.kind === 'confirming' && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10"
-          data-testid="recruit-confirm-dialog"
-        >
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm flex flex-col items-center gap-4 text-center">
-            <p className="text-slate-100 font-bold">
+        <div className="fixed inset-0 bg-ink/70 flex items-center justify-center p-4 z-10" data-testid="recruit-confirm-dialog">
+          <div className="bg-white border-[3px] border-ink rounded-xl p-6 max-w-sm flex flex-col items-center gap-4 text-center shadow-[8px_8px_0px_#111111]">
+            <p className="text-ink font-black">
               Recruit {scanState.result.participant.name} as {scanState.result.participant.department}?
             </p>
-            <p className="text-slate-400 text-sm">This will permanently add them to your team.</p>
+            <p className="text-navy text-sm font-medium">This will permanently add them to your team.</p>
             <div className="flex gap-3">
-              <button
-                data-testid="cancel-recruit-button"
-                onClick={cancelConfirm}
-                className="rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold px-4 py-2 transition"
-              >
+              <button data-testid="cancel-recruit-button" onClick={cancelConfirm} className={comicButton('white', 'sm')}>
                 CANCEL
               </button>
-              <button
-                data-testid="confirm-recruit-button"
-                onClick={confirmRecruit}
-                className="rounded-lg bg-accent-500 hover:bg-accent-400 text-slate-950 font-black px-4 py-2 text-sm transition"
-              >
+              <button data-testid="confirm-recruit-button" onClick={confirmRecruit} className={comicButton('crimson', 'sm')}>
                 RECRUIT
               </button>
             </div>
@@ -209,38 +200,28 @@ export function CeoRecruitPage() {
       )}
 
       {scanState.kind === 'recruiting' && (
-        <p className="text-slate-400 text-sm" data-testid="recruiting-loading">
+        <p className="text-navy font-bold text-sm" data-testid="recruiting-loading">
           Recruiting…
         </p>
       )}
 
       {scanState.kind === 'recruited' && (
-        <div
-          className="flex flex-col items-center gap-3 rounded-xl border border-accent-700 bg-accent-950/40 px-6 py-5 max-w-sm"
-          data-testid="scan-result-recruited"
-        >
-          <p className="text-accent-300 font-black text-sm tracking-wide">MEMBER RECRUITED</p>
-          <p className="text-xl font-bold text-slate-100">{scanState.recruit.member.name}</p>
-          <p className="text-slate-400 text-sm">{scanState.recruit.member.department}</p>
-          <p className="text-sm text-slate-300" data-testid="member-count-transition">
+        <div className="comic-panel-sm flex flex-col items-center gap-3 px-6 py-5 max-w-sm" data-testid="scan-result-recruited">
+          <p className="text-forest font-black text-sm tracking-wide uppercase">MEMBER RECRUITED</p>
+          <p className="text-xl font-black text-ink">{scanState.recruit.member.name}</p>
+          <p className="text-navy text-sm font-bold">{scanState.recruit.member.department}</p>
+          <p className="text-sm text-ink font-bold" data-testid="member-count-transition">
             Team: {scanState.previousCount} / 5 → {scanState.recruit.team.memberCount} / 5
           </p>
           {scanState.recruit.team.memberCount >= 5 ? (
             <>
-              <p className="text-primary-300 font-black text-sm mt-1">TEAM COMPLETE</p>
-              <Link
-                to="/ceo/team/finalize"
-                className="mt-1 rounded-lg bg-accent-500 hover:bg-accent-400 text-slate-950 font-black px-4 py-2 text-sm transition"
-              >
+              <p className="text-forest font-black text-sm mt-1 uppercase">TEAM COMPLETE</p>
+              <Link to="/ceo/team/finalize" className={`mt-1 ${comicButton('crimson')}`}>
                 FINALIZE TEAM
               </Link>
             </>
           ) : (
-            <button
-              data-testid="scan-another-button"
-              onClick={scanAnother}
-              className="mt-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold px-4 py-2 transition"
-            >
+            <button data-testid="scan-another-button" onClick={scanAnother} className={`mt-2 ${comicButton('white', 'sm')}`}>
               SCAN ANOTHER
             </button>
           )}
@@ -248,16 +229,10 @@ export function CeoRecruitPage() {
       )}
 
       {scanState.kind === 'rejected' && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-red-800 bg-red-950/30 px-6 py-5 max-w-sm" data-testid="scan-result-rejected">
-          <p className="text-red-400 font-black text-sm tracking-wide">
-            {REJECTION_COPY[scanState.code]?.title ?? 'INVALID QR CODE'}
-          </p>
-          <p className="text-slate-400 text-sm">{REJECTION_COPY[scanState.code]?.body ?? scanState.message}</p>
-          <button
-            data-testid="scan-another-button"
-            onClick={scanAnother}
-            className="mt-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold px-4 py-2 transition"
-          >
+        <div className="comic-panel-sm flex flex-col items-center gap-3 px-6 py-5 max-w-sm" data-testid="scan-result-rejected">
+          <p className="text-crimson font-black text-sm tracking-wide uppercase">{REJECTION_COPY[scanState.code]?.title ?? 'INVALID QR CODE'}</p>
+          <p className="text-navy text-sm font-medium">{REJECTION_COPY[scanState.code]?.body ?? scanState.message}</p>
+          <button data-testid="scan-another-button" onClick={scanAnother} className={`mt-2 ${comicButton('white', 'sm')}`}>
             SCAN ANOTHER
           </button>
         </div>

@@ -3,45 +3,135 @@
 /*
  * Design tokens — single source of truth for color in this app.
  *
+ * DESIGN SYSTEM: "Retro Comic Book / Pop-Art" (neo-brutalist graphic novel).
  * Every `--color-*` variable below becomes a Tailwind utility automatically
  * (e.g. `--color-primary-600` -> `bg-primary-600` / `text-primary-600` / etc).
  * Components must reference these semantic names (primary / accent / surface)
- * rather than raw hues — never reach for `bg-blue-600` or similar generic
- * SaaS colors here.
+ * rather than raw hues.
  *
- *   primary (Jade Green) — buttons, navigation, active states, key UI
- *   accent  (Gold)        — CEO badge, achievements, selected states, emphasis
- *   neutral (slate)        — backgrounds and surfaces (Tailwind's built-in slate
- *                            scale is already neutral, so it is used as-is)
+ * The brand palette is exposed both as flat named tokens (bg-ink, text-navy,
+ * border-forest, bg-gold, bg-lime, bg-cream, bg-crimson, bg-canvas) for new
+ * comic-panel chrome (borders, corner blocks, banners, shadows), AND baked
+ * into Tailwind's built-in scales so every existing `primary-*` / `accent-*`
+ * / `slate-*` / `green-*` / `amber-*` / `red-*` / `white` utility already
+ * used throughout the app repaints in the new palette for free:
+ *
+ *   primary (-> Forest Green ramp)   — headings, brand/admin actions, CEO badges
+ *   accent  (-> Golden Yellow ramp)  — the single most emphasized action per
+ *                                      view, active nav, alerts/danger/errors
+ *   slate   (-> Ink/Navy neutral)    — borders (-> ink), body/muted text (-> navy),
+ *                                      headings (-> ink)
+ *   green   (-> Lime/Forest ramp)    — success states
+ *   amber   (-> Golden Yellow ramp)  — warning states
+ *   red     (-> Golden Yellow ramp)  — danger states (kept in sync with accent)
+ *
+ * Note: `crimson`/`accent`/`red` all resolve to Golden Yellow (#EEB21B) —
+ * this app has no red anywhere; every former "red" surface (danger badges,
+ * alerts, the active-nav pill, etc.) is gold instead. Anywhere gold sits as
+ * a background fill, pair it with `text-ink` (not `text-cream`) — cream is
+ * too low-contrast on gold.
+ *   white   (-> Off-White canvas)    — card/surface fill, so panels read as
+ *                                      "canvas separated by thick ink
+ *                                      borders + hard shadows" rather than by
+ *                                      color contrast, per the comic-panel look
+ *   background                       — page canvas
  */
 @theme {
-  --color-primary-50: #eefdf6;
-  --color-primary-100: #d6f5e3;
-  --color-primary-200: #adebc9;
-  --color-primary-300: #7ddba8;
-  --color-primary-400: #4ac787;
-  --color-primary-500: #22a06b;
-  --color-primary-600: #158457;
-  --color-primary-700: #106b47;
-  --color-primary-800: #0e5539;
-  --color-primary-900: #0c452f;
-  --color-primary-950: #062a1d;
+  --color-background: #f8f9fa;
+  --color-white: #f8f9fa;
 
-  --color-accent-50: #fdf8e7;
-  --color-accent-100: #faedc0;
-  --color-accent-200: #f5db85;
-  --color-accent-300: #eec249;
-  --color-accent-400: #e5ab22;
-  --color-accent-500: #cf9312;
-  --color-accent-600: #a8760d;
-  --color-accent-700: #825a0b;
-  --color-accent-800: #5f420b;
-  --color-accent-900: #422e09;
+  /* Flat brand tokens for comic-panel chrome: borders, corner blocks,
+     banners, halftones, hard shadows. */
+  --color-canvas: #f8f9fa;
+  --color-ink: #111111;
+  --color-forest: #3e612b;
+  --color-gold: #eeb21b;
+  --color-lime: #71c865;
+  --color-cream: #fee69c;
+  --color-crimson: #eeb21b;
+  --color-navy: #0e1d3e;
 
-  /* Ambient motion for the login screen's brand backdrop — slow drifting
-     glow, twinkling stars, and an orbiting spark echoing the logo's own
-     ring-and-globe mark. Kept subtle and slow; see the reduced-motion
-     override below. */
+  /* primary -> Forest Green ramp (brand/headings/admin actions) */
+  --color-primary-50: #eaf3e5;
+  --color-primary-100: #d2e6c7;
+  --color-primary-200: #a8d19a;
+  --color-primary-300: #8ac178;
+  --color-primary-400: #71c865;
+  --color-primary-500: #55974a;
+  --color-primary-600: #3e612b;
+  --color-primary-700: #324f23;
+  --color-primary-800: #263c1a;
+  --color-primary-900: #1a2a12;
+  --color-primary-950: #0f1a0a;
+
+  /* accent -> Golden Yellow ramp (emphasis / alert / danger) */
+  --color-accent-50: #fdf6e3;
+  --color-accent-100: #fbeac0;
+  --color-accent-200: #f7db93;
+  --color-accent-300: #f3cc66;
+  --color-accent-400: #eeb21b;
+  --color-accent-500: #eeb21b;
+  --color-accent-600: #d89a0f;
+  --color-accent-700: #b37f0c;
+  --color-accent-800: #8c630a;
+  --color-accent-900: #654707;
+  --color-accent-950: #3e2c04;
+
+  /* slate -> Ink/Navy neutral ramp (borders default to ink; body/muted text
+     and mid-tones default to navy so "gray" text stays legible and on-brand) */
+  --color-slate-50: #f8f9fa;
+  --color-slate-100: #ece6d2;
+  --color-slate-200: #111111;
+  --color-slate-300: #111111;
+  --color-slate-400: #3e612b;
+  --color-slate-500: #0e1d3e;
+  --color-slate-600: #0e1d3e;
+  --color-slate-700: #0e1d3e;
+  --color-slate-800: #111111;
+  --color-slate-900: #111111;
+  --color-slate-950: #111111;
+
+  /* green -> Lime/Forest ramp (success) */
+  --color-green-50: #eaf7e6;
+  --color-green-100: #d3efcb;
+  --color-green-200: #a8e0a0;
+  --color-green-300: #71c865;
+  --color-green-400: #5fb854;
+  --color-green-500: #4f9e45;
+  --color-green-600: #3e612b;
+  --color-green-700: #324f23;
+  --color-green-800: #263c1a;
+  --color-green-900: #1a2a12;
+  --color-green-950: #0f1a0a;
+
+  /* amber -> Golden Yellow ramp (warning) */
+  --color-amber-50: #fdf6e3;
+  --color-amber-100: #fbeac0;
+  --color-amber-200: #f7db93;
+  --color-amber-300: #f3cc66;
+  --color-amber-400: #eeb21b;
+  --color-amber-500: #d89a0f;
+  --color-amber-600: #b37f0c;
+  --color-amber-700: #8c630a;
+  --color-amber-800: #654707;
+  --color-amber-900: #3e2c04;
+  --color-amber-950: #241a02;
+
+  /* red -> Golden Yellow ramp (danger, kept in sync with accent) */
+  --color-red-50: #fdf6e3;
+  --color-red-100: #fbeac0;
+  --color-red-200: #f7db93;
+  --color-red-300: #f3cc66;
+  --color-red-400: #eeb21b;
+  --color-red-500: #eeb21b;
+  --color-red-600: #d89a0f;
+  --color-red-700: #b37f0c;
+  --color-red-800: #8c630a;
+  --color-red-900: #654707;
+  --color-red-950: #3e2c04;
+
+  /* Ambient motion for brand backdrops — slow drifting glow and an orbiting
+     spark. Kept subtle and slow; see the reduced-motion override below. */
   --animate-drift-a: drift-a 18s ease-in-out infinite;
   --animate-drift-b: drift-b 22s ease-in-out infinite;
   --animate-twinkle: twinkle 3s ease-in-out infinite;
@@ -94,7 +184,57 @@ body,
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  @apply bg-canvas text-ink antialiased;
+}
+
+/* Comic-panel utility classes — thick ink borders + hard (zero-blur) offset
+   shadows, used across every dashboard card/panel/banner. Kept as plain CSS
+   classes (rather than only inline Tailwind arbitrary values) so the "hard
+   shadow that collapses on press" interaction stays a single reusable hook. */
+.comic-panel {
+  @apply relative bg-white border-[3px] border-ink rounded-xl shadow-[6px_6px_0px_#111111];
+}
+
+.comic-panel-sm {
+  @apply relative bg-white border-2 border-ink rounded-lg shadow-[4px_4px_0px_#111111];
+}
+
+.comic-heading {
+  @apply uppercase font-black tracking-wide text-navy;
+}
+
+.comic-heading-sm {
+  @apply uppercase font-black tracking-wide text-navy;
+}
+
+/* Halftone dot texture — the recurring comic-book print texture, layered
+   under content at low opacity. */
+.halftone {
+  background-image: radial-gradient(circle, rgba(17, 17, 17, 0.14) 1.5px, transparent 1.6px);
+  background-size: 18px 18px;
+}
+
+/* Tactile "press" interaction: buttons/panels sink into their own hard
+   shadow on hover/active instead of fading or blurring. */
+.comic-press {
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+.comic-press:hover:not(:disabled) {
+  transform: translate(2px, 2px);
+}
+.comic-press:active:not(:disabled) {
+  transform: translate(4px, 4px);
+}
+
+/* Global tactile press for every plain button in the app, even ones that
+   haven't opted into the full comic-panel shadow treatment. */
+button:not(:disabled) {
+  transition: transform 0.1s ease;
+}
+button:not(:disabled):active {
+  transform: translate(1px, 1px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -103,5 +243,9 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+  .comic-press,
+  button {
+    transition: none !important;
   }
 }

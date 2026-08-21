@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Badge } from '../../components/Badge';
 import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
+import { comicButton, comicHeading } from '../../lib/comic';
 import {
   fetchPitchDeckVersionUrl,
   fetchTeamFileUrl,
@@ -69,8 +70,8 @@ export function DeliverablesSection({ ceoId }: { ceoId: string }) {
 
 function ProgressBar({ percent }: { percent: number }) {
   return (
-    <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden" data-testid="upload-progress">
-      <div className="h-full bg-primary-500 transition-all" style={{ width: `${percent}%` }} />
+    <div className="w-full h-3 rounded-full bg-white border-2 border-ink overflow-hidden" data-testid="upload-progress">
+      <div className="h-full bg-crimson transition-all" style={{ width: `${percent}%` }} />
     </div>
   );
 }
@@ -109,15 +110,11 @@ function PitchDeckPanel() {
   }
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid="pitch-deck-section">
+    <section className="comic-panel p-6" data-testid="pitch-deck-section">
+      <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-slate-100">PITCH DECK</h2>
-        <button
-          data-testid="pitch-deck-upload-button"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          className="text-sm px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold"
-        >
+        <h2 className={`text-lg ${comicHeading}`}>PITCH DECK</h2>
+        <button data-testid="pitch-deck-upload-button" disabled={busy} onClick={() => inputRef.current?.click()} className={comicButton('forest', 'sm')}>
           {busy ? 'Uploading…' : isReplace ? 'Replace' : 'Upload Pitch Deck'}
         </button>
         <input
@@ -135,50 +132,50 @@ function PitchDeckPanel() {
 
       {busy && (
         <div className="mb-4 flex flex-col gap-1">
-          <p className="text-xs text-slate-400">Uploading… {state.progress}%</p>
+          <p className="text-xs font-bold text-navy">Uploading… {state.progress}%</p>
           <ProgressBar percent={state.progress} />
         </div>
       )}
       {state.status === 'error' && (
-        <p className="text-xs text-red-400 mb-4" data-testid="pitch-deck-error">
+        <p className="text-xs font-bold text-crimson mb-4" data-testid="pitch-deck-error">
           {state.error}
         </p>
       )}
 
-      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {isLoading && <p className="text-sm font-bold text-navy">Loading…</p>}
 
       {!isLoading && !data?.current && (
-        <p className="text-sm text-slate-100" data-testid="pitch-deck-status">
+        <p className="text-sm font-bold text-ink" data-testid="pitch-deck-status">
           Not uploaded
         </p>
       )}
 
       {data?.current && (
         <div data-testid="pitch-deck-current">
-          <Badge tone="primary">CURRENT VERSION — v{data.current.version}</Badge>
+          <Badge tone="success">CURRENT VERSION — v{data.current.version}</Badge>
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm mt-3">
             <div>
-              <dt className="text-slate-500 text-xs uppercase font-semibold">Filename</dt>
-              <dd className="text-slate-100 font-medium mt-0.5">{data.current.filename}</dd>
+              <dt className="text-forest text-xs uppercase font-black">Filename</dt>
+              <dd className="text-ink font-bold mt-0.5">{data.current.filename}</dd>
             </div>
             <div>
-              <dt className="text-slate-500 text-xs uppercase font-semibold">Uploaded By</dt>
-              <dd className="text-slate-100 font-medium mt-0.5">{data.current.uploadedBy.name}</dd>
+              <dt className="text-forest text-xs uppercase font-black">Uploaded By</dt>
+              <dd className="text-ink font-bold mt-0.5">{data.current.uploadedBy.name}</dd>
             </div>
             <div>
-              <dt className="text-slate-500 text-xs uppercase font-semibold">Uploaded At</dt>
-              <dd className="text-slate-100 font-medium mt-0.5">{new Date(data.current.createdAt).toLocaleString()}</dd>
+              <dt className="text-forest text-xs uppercase font-black">Uploaded At</dt>
+              <dd className="text-ink font-bold mt-0.5">{new Date(data.current.createdAt).toLocaleString()}</dd>
             </div>
             <div className="flex items-end gap-2">
               <button
                 onClick={() => openFile(() => fetchPitchDeckVersionUrl(data.current!.id))}
-                className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100"
+                className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
               >
                 VIEW
               </button>
               <button
                 onClick={() => openFile(() => fetchPitchDeckVersionUrl(data.current!.id))}
-                className="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100"
+                className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
               >
                 DOWNLOAD
               </button>
@@ -188,18 +185,15 @@ function PitchDeckPanel() {
       )}
 
       {data && data.previousVersions.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-slate-800" data-testid="pitch-deck-previous-versions">
-          <p className="text-xs text-slate-500 uppercase font-semibold mb-2">Previous versions</p>
-          <ul className="flex flex-col gap-1 text-xs text-slate-400">
+        <div className="mt-4 pt-4 border-t-[3px] border-ink" data-testid="pitch-deck-previous-versions">
+          <p className="text-xs text-forest uppercase font-black mb-2">Previous versions</p>
+          <ul className="flex flex-col gap-1 text-xs text-navy">
             {data.previousVersions.map((v) => (
               <li key={v.id} className="flex justify-between gap-2" data-testid={`pitch-deck-version-${v.version}`}>
-                <span>
+                <span className="font-medium">
                   v{v.version} · {v.filename}
                 </span>
-                <button
-                  onClick={() => openFile(() => fetchPitchDeckVersionUrl(v.id))}
-                  className="text-primary-400 hover:underline"
-                >
+                <button onClick={() => openFile(() => fetchPitchDeckVersionUrl(v.id))} className="text-forest font-black hover:text-crimson">
                   VIEW
                 </button>
               </li>
@@ -265,15 +259,11 @@ function TeamFilesPanel({ type, ceoId }: { type: 'DOCUMENT' | 'PROJECT_ASSET'; c
   }
 
   return (
-    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6" data-testid={config.testid}>
+    <section className="comic-panel p-6" data-testid={config.testid}>
+      <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-slate-100">{config.title}</h2>
-        <button
-          data-testid={`${config.testid}-upload-button`}
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          className="text-sm px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold"
-        >
+        <h2 className={`text-lg ${comicHeading}`}>{config.title}</h2>
+        <button data-testid={`${config.testid}-upload-button`} disabled={busy} onClick={() => inputRef.current?.click()} className={comicButton('forest', 'sm')}>
           {busy ? 'Uploading…' : config.uploadLabel}
         </button>
         <input
@@ -291,21 +281,21 @@ function TeamFilesPanel({ type, ceoId }: { type: 'DOCUMENT' | 'PROJECT_ASSET'; c
 
       {busy && (
         <div className="mb-4 flex flex-col gap-1">
-          <p className="text-xs text-slate-400">Uploading… {state.progress}%</p>
+          <p className="text-xs font-bold text-navy">Uploading… {state.progress}%</p>
           <ProgressBar percent={state.progress} />
         </div>
       )}
       {state.status === 'error' && (
-        <p className="text-xs text-red-400 mb-4" data-testid={`${config.testid}-error`}>
+        <p className="text-xs font-bold text-crimson mb-4" data-testid={`${config.testid}-error`}>
           {state.error}
         </p>
       )}
       {getApiErrorCode(upload.error) === 'CLOUDINARY_NOT_CONFIGURED' && (
-        <p className="text-xs text-amber-400 mb-4">File storage isn&apos;t configured on this server yet.</p>
+        <p className="text-xs font-bold text-forest mb-4">File storage isn&apos;t configured on this server yet.</p>
       )}
 
-      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
-      {!isLoading && files.length === 0 && <p className="text-sm text-slate-100">No files uploaded yet.</p>}
+      {isLoading && <p className="text-sm font-bold text-navy">Loading…</p>}
+      {!isLoading && files.length === 0 && <p className="text-sm font-bold text-ink">No files uploaded yet.</p>}
 
       {files.length > 0 && (
         <ul className="flex flex-col gap-2 text-sm">
@@ -321,33 +311,30 @@ function TeamFilesPanel({ type, ceoId }: { type: 'DOCUMENT' | 'PROJECT_ASSET'; c
 function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete: boolean; onDelete: () => void }) {
   return (
     <li
-      className="flex flex-wrap items-center justify-between gap-2 bg-slate-800 rounded-lg px-3 py-2"
+      className="flex flex-wrap items-center justify-between gap-2 bg-white border-[3px] border-ink rounded-lg px-3 py-2 shadow-[3px_3px_0px_#111111]"
       data-testid={`file-row-${file.id}`}
     >
       <div>
-        <p className="text-slate-100 font-medium">{file.filename}</p>
-        <p className="text-xs text-slate-500">
+        <p className="text-ink font-bold">{file.filename}</p>
+        <p className="text-xs text-navy/60">
           {formatBytes(file.size)} · {file.uploadedBy.name} · {new Date(file.createdAt).toLocaleString()}
         </p>
       </div>
       <div className="flex items-center gap-2">
         <button
           onClick={() => openFile(() => fetchTeamFileUrl(file.id))}
-          className="text-xs px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100"
+          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
         >
           VIEW
         </button>
         <button
           onClick={() => openFile(() => fetchTeamFileUrl(file.id))}
-          className="text-xs px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100"
+          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
         >
           DOWNLOAD
         </button>
         {canDelete && (
-          <button
-            onClick={onDelete}
-            className="text-xs px-2 py-1 rounded-lg bg-red-900/60 hover:bg-red-900 text-red-200"
-          >
+          <button onClick={onDelete} className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-crimson/10 hover:bg-crimson/20 text-crimson font-black uppercase">
             DELETE
           </button>
         )}

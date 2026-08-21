@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
+import { comicHeading } from '../../lib/comic';
 import { useJudgeTeams } from '../../hooks/useJudge';
 import type { EvaluationStatus } from '../../types/api';
 
@@ -11,10 +12,10 @@ const STATUS_FILTERS: { label: string; value: EvaluationStatus | 'ALL' }[] = [
   { label: 'SUBMITTED', value: 'SUBMITTED' },
 ];
 
-const STATUS_TONE: Record<EvaluationStatus, 'neutral' | 'gold' | 'primary'> = {
+const STATUS_TONE: Record<EvaluationStatus, 'neutral' | 'warning' | 'success'> = {
   NOT_STARTED: 'neutral',
-  IN_PROGRESS: 'gold',
-  SUBMITTED: 'primary',
+  IN_PROGRESS: 'warning',
+  SUBMITTED: 'success',
 };
 
 export function JudgeDashboardPage() {
@@ -27,9 +28,10 @@ export function JudgeDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6" data-testid="judge-dashboard">
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h1 className="text-xl font-black text-slate-100">JUDGE DASHBOARD</h1>
-        <p className="text-sm text-slate-400 mt-1" data-testid="judge-team-count">
+      <section className="comic-panel p-6">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+        <h1 className={`text-xl ${comicHeading}`}>JUDGE DASHBOARD</h1>
+        <p className="text-sm font-bold text-navy mt-1" data-testid="judge-team-count">
           Teams to evaluate: {teams.data?.length ?? '—'}
         </p>
 
@@ -38,7 +40,7 @@ export function JudgeDashboardPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search teams…"
-          className="mt-4 w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="mt-4 w-full rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm text-ink font-medium focus:outline-none focus:ring-2 focus:ring-crimson"
         />
 
         <div className="flex flex-wrap gap-2 mt-3">
@@ -47,10 +49,8 @@ export function JudgeDashboardPage() {
               key={f.value}
               data-testid={`judge-filter-${f.value}`}
               onClick={() => setStatusFilter(f.value)}
-              className={`text-xs font-bold uppercase px-3 py-1.5 rounded-full border transition ${
-                statusFilter === f.value
-                  ? 'bg-primary-600 border-primary-600 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+              className={`text-xs font-black uppercase px-3 py-1.5 rounded-full border-[3px] border-ink transition-transform duration-100 hover:translate-x-0.5 hover:translate-y-0.5 ${
+                statusFilter === f.value ? 'bg-crimson text-ink shadow-[3px_3px_0px_#111111]' : 'bg-white text-navy hover:bg-cream'
               }`}
             >
               {f.label}
@@ -61,26 +61,22 @@ export function JudgeDashboardPage() {
 
       <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {teams.data?.map((team) => (
-          <div
-            key={team.id}
-            className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3"
-            data-testid={`judge-team-card-${team.id}`}
-          >
+          <div key={team.id} className="comic-panel p-5 flex flex-col gap-3" data-testid={`judge-team-card-${team.id}`}>
             <div>
-              <p className="font-bold text-slate-100">{team.name ?? '(unnamed)'}</p>
-              <p className="text-accent-400 text-xs font-semibold">{team.category}</p>
+              <p className="font-black text-ink">{team.name ?? '(unnamed)'}</p>
+              <p className="text-crimson text-xs font-black uppercase">{team.category}</p>
             </div>
-            <p className="text-xs text-slate-500">{team.memberCount} / 5 MEMBERS</p>
-            <p className="text-xs text-slate-500">CEO: {team.ceo.name}</p>
+            <p className="text-xs font-bold text-navy">{team.memberCount} / 5 MEMBERS</p>
+            <p className="text-xs font-bold text-navy">CEO: {team.ceo.name}</p>
             <div className="flex items-center justify-between mt-auto pt-2">
               <div>
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Evaluation</p>
+                <p className="text-[10px] text-forest uppercase font-black">Evaluation</p>
                 <Badge tone={STATUS_TONE[team.evaluationStatus]}>{team.evaluationStatus.replace('_', ' ')}</Badge>
               </div>
               <Link
                 to={`/judge/teams/${team.id}`}
                 data-testid={team.evaluationStatus === 'SUBMITTED' ? `judge-view-button-${team.id}` : `judge-evaluate-button-${team.id}`}
-                className="text-sm px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold"
+                className="text-sm px-3 py-1.5 rounded-lg border-[3px] border-ink bg-forest text-cream font-black uppercase shadow-[3px_3px_0px_#111111] transition-transform duration-100 hover:translate-x-0.5 hover:translate-y-0.5"
               >
                 {team.evaluationStatus === 'SUBMITTED' ? 'VIEW' : 'EVALUATE'}
               </Link>
@@ -88,7 +84,7 @@ export function JudgeDashboardPage() {
           </div>
         ))}
         {teams.data?.length === 0 && (
-          <p className="text-sm text-slate-500 col-span-full" data-testid="judge-empty-state">
+          <p className="text-sm font-bold text-navy col-span-full" data-testid="judge-empty-state">
             No teams match your search/filter.
           </p>
         )}
