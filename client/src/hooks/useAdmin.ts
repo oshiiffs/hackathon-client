@@ -9,6 +9,7 @@ import type {
   CeoQuestion,
   Department,
   LiveAnswerAggregate,
+  QrIdentity,
   StaffAccount,
   Team,
   TeamDeliverableStatus,
@@ -266,6 +267,26 @@ export function useRegenerateAccessCode() {
     },
     onSuccess: invalidate,
     onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+/** A participant's own QR badge (see /participant/qr, used by the participant
+ * themselves), fetched here for an arbitrary participant by an admin — e.g.
+ * to reprint/redisplay a lost or damaged physical badge. Requires a matching
+ * `GET /admin/participants/:id/qr` route on the server returning the same
+ * `{ qrToken, qrPayload }` shape as the participant-facing endpoint; this
+ * client only calls it; it doesn't mint tokens itself (qrPayload is a
+ * server-signed token, see QR_TOKEN_SECRET in the server's .env.example). */
+export function useAdminParticipantQr(participantId: string | null) {
+  return useQuery({
+    queryKey: ['admin-participant-qr', participantId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<QrIdentity>(`/admin/participants/${participantId}/qr`);
+      return data;
+    },
+    enabled: Boolean(participantId),
+    retry: false,
+    staleTime: 1000 * 60 * 10,
   });
 }
 

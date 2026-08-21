@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { EditableNameField } from '../../components/EditableNameField';
 import { PhaseProgress } from '../../components/PhaseProgress';
 import { ProfileEditor } from '../../components/ProfileEditor';
 import { LoadingState } from '../../components/StateViews';
+import { ParticipantDirectoryList } from './ParticipantDirectoryList';
 import { useHackathonState } from '../../hooks/useHackathon';
 import { useMyTeam } from '../../hooks/useTeam';
 import { useAuthStore } from '../../store/authStore';
@@ -16,6 +17,7 @@ export function ParticipantDashboardPage() {
   const setUser = useAuthStore((s) => s.setUser);
   const { data: state, isLoading: stateLoading } = useHackathonState();
   const { data: team } = useMyTeam(Boolean(user?.drafted));
+  const [showDirectory, setShowDirectory] = useState(false);
 
   // Poll /auth/me right after a challenge round resolves, so a winning candidate
   // gets redirected to the CEO flow the moment the server promotes their role.
@@ -60,9 +62,13 @@ export function ParticipantDashboardPage() {
         <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
         <div className="flex items-center justify-between mb-4">
           <h2 className={`text-lg ${comicHeading}`}>My status</h2>
-          <Link to="/participant/directory" className="text-xs font-black uppercase text-forest hover:text-crimson transition">
+          <button
+            data-testid="open-directory-button"
+            onClick={() => setShowDirectory(true)}
+            className="text-xs font-black uppercase text-forest hover:text-crimson transition"
+          >
             View all participants →
-          </Link>
+          </button>
         </div>
         <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           <div>
@@ -126,6 +132,40 @@ export function ParticipantDashboardPage() {
           </div>
         )}
       </section>
+
+      {showDirectory && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-ink/70 px-4 py-8"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowDirectory(false)}
+        >
+          <div
+            className="comic-panel w-full max-w-3xl max-h-full flex flex-col p-6"
+            style={{ boxShadow: '8px 8px 0px #111111' }}
+            onClick={(e) => e.stopPropagation()}
+            data-testid="participant-directory-modal"
+          >
+            <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <div>
+                <h2 className={`text-lg ${comicHeading}`}>Participants</h2>
+                <p className="text-xs font-bold text-navy/60">Everyone competing today.</p>
+              </div>
+              <button
+                onClick={() => setShowDirectory(false)}
+                aria-label="Close"
+                className="w-8 h-8 shrink-0 rounded-lg border-[3px] border-ink bg-white hover:bg-cream font-black text-ink"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ParticipantDirectoryList />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

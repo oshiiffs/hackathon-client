@@ -22,9 +22,6 @@ const CeoFinalizePage = lazy(() =>
 const ParticipantQrPage = lazy(() =>
   import('./pages/participant/ParticipantQrPage').then((m) => ({ default: m.ParticipantQrPage })),
 );
-const ParticipantDirectoryPage = lazy(() =>
-  import('./pages/participant/ParticipantDirectoryPage').then((m) => ({ default: m.ParticipantDirectoryPage })),
-);
 const AdminLayout = lazy(() => import('./components/layouts/AdminLayout').then((m) => ({ default: m.AdminLayout })));
 const AdminDashboardPage = lazy(() =>
   import('./pages/admin/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })),
@@ -65,7 +62,6 @@ export function AppRoutes() {
               <Route index element={<ParticipantDashboardPage />} />
               <Route path="challenge" element={<ParticipantChallengePage />} />
               <Route path="qr" element={<ParticipantQrPage />} />
-              <Route path="directory" element={<ParticipantDirectoryPage />} />
             </Route>
           </Route>
 

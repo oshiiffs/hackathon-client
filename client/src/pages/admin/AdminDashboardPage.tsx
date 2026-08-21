@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { Badge } from '../../components/Badge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CeoQuestionsPanel } from './CeoQuestionsPanel';
 import { comicButton, comicHeading, comicHeadingSm, comicLink } from '../../lib/comic';
+import { DEPARTMENT_COLORS } from '../../lib/departmentColors';
 import {
   useAdminDeletePitchDeckVersion,
   useAdminDeleteTeamFile,
@@ -11,6 +13,7 @@ import {
   useAdminHackathonState,
   useAdminOverview,
   useAdminParticipants,
+  useAdminParticipantQr,
   useAdminStaff,
   useAdminTeamResources,
   useAdminTeams,
@@ -49,6 +52,90 @@ function downloadJson(data: unknown, filename: string) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadCanvasPng(canvas: HTMLCanvasElement | null, filename: string) {
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = filename;
+  link.click();
+}
+
+/** A participant's QR badge, viewable/downloadable from the admin's
+ * participant list — e.g. to reprint a lost or damaged physical badge.
+ * Layered over the participant-list pop-up rather than its own dialog,
+ * matching the nested-modal pattern used for the participant directory's
+ * own detail view. */
+function ParticipantQrModal({
+  participant,
+  onClose,
+}: {
+  participant: { id: string; fullName: string; homeDepartment: Department };
+  onClose: () => void;
+}) {
+  const qr = useAdminParticipantQr(participant.id);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const accent = DEPARTMENT_COLORS[participant.homeDepartment] ?? '#0E1D3E';
+
+  return (
+    <div
+      className="absolute inset-0 z-10 flex items-center justify-center bg-ink/70 px-4 py-6 rounded-[inherit]"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="comic-panel w-full max-w-xs max-h-full overflow-y-auto p-6 flex flex-col items-center gap-4 text-center"
+        style={{ boxShadow: '6px 6px 0px #111111' }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="admin-participant-qr-modal"
+      >
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+        <div className="w-full flex items-center justify-between">
+          <p className="text-xs font-black uppercase text-forest">Participant QR</p>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="w-8 h-8 shrink-0 rounded-lg border-[3px] border-ink bg-white hover:bg-cream font-black text-ink"
+          >
+            ✕
+          </button>
+        </div>
+
+        {qr.isLoading && <p className="text-sm font-bold text-navy py-8">Loading…</p>}
+        {qr.isError && (
+          <div className="py-6 flex flex-col items-center gap-2">
+            <p className="text-sm font-bold text-crimson">Couldn&apos;t load this QR code.</p>
+            <p className="text-xs text-navy/60">{getApiErrorMessage(qr.error)}</p>
+            <button onClick={() => qr.refetch()} className={comicButton('white', 'xs')}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {qr.data && (
+          <>
+            <div className="p-3 bg-white border-[3px] border-ink rounded-lg">
+              <QRCodeCanvas ref={canvasRef} value={qr.data.qrPayload} size={200} level="M" fgColor="#111111" />
+            </div>
+            <div>
+              <p className="text-ink font-black">{participant.fullName}</p>
+              <p className="text-sm font-black mt-0.5" style={{ color: accent }}>
+                {participant.homeDepartment}
+              </p>
+            </div>
+            <button
+              onClick={() => downloadCanvasPng(canvasRef.current, `${participant.fullName.replace(/\s+/g, '-').toLowerCase()}-qr.png`)}
+              className={comicButton('forest', 'sm')}
+            >
+              Download PNG
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function AdminDashboardPage() {
@@ -93,6 +180,7 @@ export function AdminDashboardPage() {
   const [lastCreated, setLastCreated] = useState<{ fullName: string; accessCode: string } | null>(null);
   const [revealedCode, setRevealedCode] = useState<{ id: string; fullName: string; accessCode: string } | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [qrTarget, setQrTarget] = useState<{ id: string; fullName: string; homeDepartment: Department } | null>(null);
 
   const [staffName, setStaffName] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
@@ -108,6 +196,8 @@ export function AdminDashboardPage() {
   const [editStaffEmail, setEditStaffEmail] = useState('');
   const [editStaffRole, setEditStaffRole] = useState<'ADMIN' | 'JUDGE'>('JUDGE');
   const [deleteStaffTarget, setDeleteStaffTarget] = useState<{ id: string; fullName: string } | null>(null);
+
+  const [showParticipantList, setShowParticipantList] = useState(false);
 
   const phase: HackathonPhase | undefined = state?.phase;
   // Mirrors the backend's transition table for UX only — the server is the
@@ -578,109 +668,163 @@ export function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t-[3px] border-ink">
-          <h3 className={`text-sm mb-3 ${comicHeadingSm}`}>All participants</h3>
-          <div className="max-h-72 overflow-y-auto border-[3px] border-ink rounded-lg">
-            <table className="w-full text-sm text-left">
-              <thead className="text-forest text-xs uppercase font-black bg-cream/60">
-                <tr>
-                  <th className="py-1 pl-2">Name</th>
-                  <th>Dept</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th className="text-right pr-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {participants.data?.map((p) => {
-                  const isEditing = editingId === p.id;
-                  return (
-                    <tr key={p.id} className="border-t-2 border-ink/15 text-ink">
-                      {isEditing ? (
-                        <>
-                          <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
-                          <td className="pr-2">
-                            <select autoFocus value={editDept} onChange={(e) => setEditDept(e.target.value as Department)} className={tableInput}>
-                              {ALL_DEPARTMENTS.map((d) => (
-                                <option key={d} value={d}>
-                                  {d}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>{p.role}</td>
-                          <td>undrafted</td>
-                          <td className="text-right whitespace-nowrap pr-2">
-                            <button
-                              disabled={updateParticipant.isPending}
-                              onClick={() =>
-                                updateParticipant.mutate({ id: p.id, homeDepartment: editDept }, { onSuccess: () => setEditingId(null) })
-                              }
-                              className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
-                            >
-                              Save
-                            </button>
-                            <button onClick={() => setEditingId(null)} className="text-navy hover:text-crimson font-bold text-xs">
-                              Cancel
-                            </button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
-                          <td>{p.homeDepartment}</td>
-                          <td>{p.role}</td>
-                          <td>{p.drafted ? `on team (${p.slotDepartment})` : 'undrafted'}</td>
-                          <td className="text-right whitespace-nowrap pr-2">
-                            <button
-                              disabled={regenerateCode.isPending}
-                              onClick={() => regenerateCode.mutate(p.id, { onSuccess: (data) => setRevealedCode(data) })}
-                              className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
-                            >
-                              Get code
-                            </button>
-                            {p.drafted ? (
-                              <span className="text-navy/40 text-xs font-bold">locked</span>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setEditingId(p.id);
-                                    setEditDept(p.homeDepartment);
-                                  }}
-                                  className={`${comicLink} text-xs mr-3`}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => setDeleteTarget({ id: p.id, fullName: p.fullName })}
-                                  className="text-crimson hover:text-ink font-black uppercase text-xs"
-                                >
-                                  Delete
-                                </button>
-                              </>
-                            )}
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="mt-6 pt-6 border-t-[3px] border-ink flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h3 className={`text-sm ${comicHeadingSm}`}>All participants</h3>
+            <p className="text-xs font-bold text-navy/60 mt-0.5">{participants.data?.length ?? 0} registered</p>
           </div>
-          {updateParticipant.isError && <p className="text-sm font-bold text-crimson mt-2">{getApiErrorMessage(updateParticipant.error)}</p>}
-          {revealedCode && (
-            <p className="mt-3 text-sm font-bold text-forest flex items-center gap-2 flex-wrap">
-              {revealedCode.fullName}&apos;s login code:{' '}
-              <span className="font-mono font-black bg-cream border-2 border-ink rounded px-1.5 py-0.5">{revealedCode.accessCode}</span>
-              <button onClick={() => setRevealedCode(null)} className="text-navy/50 hover:text-crimson text-xs font-bold">
-                dismiss
-              </button>
-            </p>
-          )}
+          <button
+            data-testid="open-participant-list-button"
+            onClick={() => setShowParticipantList(true)}
+            className={comicButton('forest', 'sm')}
+          >
+            View all participants
+          </button>
         </div>
       </section>
+
+      {showParticipantList && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-ink/70 px-4 py-8"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowParticipantList(false)}
+        >
+          <div
+            className="comic-panel w-full max-w-2xl max-h-full flex flex-col p-6"
+            style={{ boxShadow: '8px 8px 0px #111111' }}
+            onClick={(e) => e.stopPropagation()}
+            data-testid="participant-list-modal"
+          >
+            <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-forest" aria-hidden="true" />
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <h2 className={`text-lg ${comicHeading}`}>All Participants</h2>
+              <button
+                onClick={() => setShowParticipantList(false)}
+                aria-label="Close"
+                className="w-8 h-8 shrink-0 rounded-lg border-[3px] border-ink bg-white hover:bg-cream font-black text-ink"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto border-[3px] border-ink rounded-lg">
+              <table className="w-full text-sm text-left">
+                <thead className="text-forest text-xs uppercase font-black bg-cream/60 sticky top-0">
+                  <tr>
+                    <th className="py-1 pl-2">Name</th>
+                    <th>Dept</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th className="text-right pr-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {participants.data?.map((p) => {
+                    const isEditing = editingId === p.id;
+                    return (
+                      <tr key={p.id} className="border-t-2 border-ink/15 text-ink">
+                        {isEditing ? (
+                          <>
+                            <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
+                            <td className="pr-2">
+                              <select autoFocus value={editDept} onChange={(e) => setEditDept(e.target.value as Department)} className={tableInput}>
+                                {ALL_DEPARTMENTS.map((d) => (
+                                  <option key={d} value={d}>
+                                    {d}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>{p.role}</td>
+                            <td>undrafted</td>
+                            <td className="text-right whitespace-nowrap pr-2">
+                              <button
+                                disabled={updateParticipant.isPending}
+                                onClick={() =>
+                                  updateParticipant.mutate({ id: p.id, homeDepartment: editDept }, { onSuccess: () => setEditingId(null) })
+                                }
+                                className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
+                              >
+                                Save
+                              </button>
+                              <button onClick={() => setEditingId(null)} className="text-navy hover:text-crimson font-bold text-xs">
+                                Cancel
+                              </button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
+                            <td>{p.homeDepartment}</td>
+                            <td>{p.role}</td>
+                            <td>{p.drafted ? `on team (${p.slotDepartment})` : 'undrafted'}</td>
+                            <td className="text-right whitespace-nowrap pr-2">
+                              <button
+                                disabled={regenerateCode.isPending}
+                                onClick={() => regenerateCode.mutate(p.id, { onSuccess: (data) => setRevealedCode(data) })}
+                                className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
+                              >
+                                Get code
+                              </button>
+                              <button
+                                onClick={() => setQrTarget({ id: p.id, fullName: p.fullName, homeDepartment: p.homeDepartment })}
+                                className={`${comicLink} text-xs mr-3`}
+                              >
+                                QR
+                              </button>
+                              {p.drafted ? (
+                                <span className="text-navy/40 text-xs font-bold">locked</span>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingId(p.id);
+                                      setEditDept(p.homeDepartment);
+                                    }}
+                                    className={`${comicLink} text-xs mr-3`}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => setDeleteTarget({ id: p.id, fullName: p.fullName })}
+                                    className="text-crimson hover:text-ink font-black uppercase text-xs"
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  {participants.data?.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-3 text-navy/40 text-center">
+                        No participants registered yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {updateParticipant.isError && <p className="text-sm font-bold text-crimson mt-2 shrink-0">{getApiErrorMessage(updateParticipant.error)}</p>}
+            {revealedCode && (
+              <p className="mt-3 text-sm font-bold text-forest flex items-center gap-2 flex-wrap shrink-0">
+                {revealedCode.fullName}&apos;s login code:{' '}
+                <span className="font-mono font-black bg-cream border-2 border-ink rounded px-1.5 py-0.5">{revealedCode.accessCode}</span>
+                <button onClick={() => setRevealedCode(null)} className="text-navy/50 hover:text-crimson text-xs font-bold">
+                  dismiss
+                </button>
+              </p>
+            )}
+
+            {qrTarget && <ParticipantQrModal participant={qrTarget} onClose={() => setQrTarget(null)} />}
+          </div>
+        </div>
+      )}
 
       <section className="comic-panel p-6">
         <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-crimson" aria-hidden="true" />
