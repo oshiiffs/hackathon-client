@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
-import type { CeoTopicReveal, MyCeoChallengeResult, SubmitCeoAnswerResult } from '../types/api';
+import type { CeoOverallLeaderboardEntry, CeoTopicReveal, MyCeoChallengeResult, SubmitCeoAnswerResult } from '../types/api';
 
 /** The active topic set for the CEO Selection Competition (req. 48-49) —
  * never includes acceptedAnswers. Who becomes CEO isn't decided by this
@@ -58,6 +58,29 @@ export function useCeoTopicReveal(questionId: string | undefined, enabled: boole
     retryDelay: 400, // 4 retries * 400ms comfortably covers ordinary clock skew within the 5s reveal window
     staleTime: 0,
     refetchInterval: 1200, // stops on its own once the reveal card unmounts at the next topic
+  });
+}
+
+/** The running top-5 scorers for the whole round so far — unlike
+ * useCeoTopicReveal's leaderboard (who got ONE topic right), this is the
+ * cumulative running score and stays relevant for the entire challenge, not
+ * just one topic's 5s reveal window. `enabled` should track the round
+ * actually being active (e.g. `roundActive` in ParticipantChallengePage) so
+ * polling stops the instant the round ends, same as the component that
+ * shows it disappearing. Polled less aggressively than the per-topic reveal
+ * (every 3s, not 1.2s) — this has the whole multi-minute round to catch up,
+ * not just a 5s window. */
+export function useCeoOverallLeaderboard(enabled: boolean) {
+  return useQuery({
+    queryKey: ['ceo-challenge-leaderboard'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<CeoOverallLeaderboardEntry[]>('/participant/ceo/challenge/leaderboard');
+      return data;
+    },
+    enabled,
+    staleTime: 0,
+    refetchInterval: 3000,
+    retry: 2,
   });
 }
 

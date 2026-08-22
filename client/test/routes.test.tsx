@@ -43,10 +43,9 @@ describe('Protected frontend routes', () => {
   it('redirects an unauthenticated visitor away from a protected route, to /login', () => {
     useAuthStore.setState({ user: null, status: 'unauthenticated' });
     renderAt('/admin/dashboard');
-    // The heading's "Nexus"/"Multiverse"/"2026" segments are separately-colored
-    // spans (see LoginPage.tsx), so match on the h1's aggregate text rather
-    // than a single text node.
-    expect(screen.getByRole('heading', { name: /nexus\s*multiverse\s*2026/i })).toBeInTheDocument();
+    // LoginPage has no text heading (just the Nexus mark + tagline), so
+    // confirm the redirect landed there via the logo's alt text instead.
+    expect(screen.getByAltText('Nexus Multiverse')).toBeInTheDocument();
   });
 
   it('renders the admin dashboard shell for an authenticated ADMIN', async () => {

@@ -4,7 +4,7 @@ import { CountdownTimer } from '../../components/CountdownTimer';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { useSyncedTopic } from '../../hooks/useSyncedTopic';
 import { useHackathonState } from '../../hooks/useHackathon';
-import { useCeoTopicReveal, useMyCeoChallenge, useSubmitCeoAnswer } from '../../hooks/useCeoChallenge';
+import { useCeoOverallLeaderboard, useCeoTopicReveal, useMyCeoChallenge, useSubmitCeoAnswer } from '../../hooks/useCeoChallenge';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { comicButton } from '../../lib/comic';
@@ -81,6 +81,43 @@ function TopicReveal({
             </ol>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** The running top-5 scorers for the whole round so far — stays mounted (and
+ * polling) for as long as `enabled` (== the round being active) is true,
+ * covering every topic's answering AND reveal phases, not just one topic's
+ * 5s reveal window like TopicReveal's own leaderboard. Unmounts once the
+ * round ends, which is what stops it polling. */
+function OverallLeaderboard({ enabled }: { enabled: boolean }) {
+  const leaderboardQuery = useCeoOverallLeaderboard(enabled);
+  const entries = leaderboardQuery.data ?? [];
+  return (
+    <div className="w-full rounded-xl border-[3px] border-ink bg-white px-5 py-4 shadow-[4px_4px_0px_#111111]" data-testid="overall-leaderboard">
+      <p className="text-xs font-black uppercase tracking-wide text-navy/60 mb-2 text-center">Top 5 Scorers</p>
+      {entries.length === 0 ? (
+        <p className="text-sm font-bold text-navy/50 text-center">No scores yet.</p>
+      ) : (
+        <ol className="flex flex-col gap-1.5">
+          {entries.map((p, i) => (
+            <li key={p.userId} className="flex items-center gap-2 text-sm font-bold text-ink">
+              <span className="w-5 shrink-0 text-xs font-black text-navy/50">{i + 1}.</span>
+              {p.avatarUrl ? (
+                <img src={p.avatarUrl} alt="" className="w-6 h-6 shrink-0 rounded-full object-cover border-2 border-ink" />
+              ) : (
+                <span className="w-6 h-6 shrink-0 rounded-full bg-gold border-2 border-ink flex items-center justify-center text-[10px] font-black text-ink">
+                  {p.fullName.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className="truncate flex-1">{p.fullName}</span>
+              <span className="text-xs font-black text-forest shrink-0" data-testid="overall-leaderboard-score">
+                {p.score} pts
+              </span>
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );
@@ -306,6 +343,10 @@ export function ParticipantChallengePage() {
               serverNow={serverNowIso}
             />
           )}
+
+          {/* Visible for the whole round, not just one topic's reveal window —
+              disappears the instant roundActive flips false (challenge done). */}
+          {roundActive && <OverallLeaderboard enabled={roundActive} />}
         </div>
       )}
     </div>

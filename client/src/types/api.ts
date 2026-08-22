@@ -89,6 +89,15 @@ export type CeoTopicReveal = {
   leaderboard: { userId: string; fullName: string; avatarUrl: string | null }[];
 };
 
+// The running top-5 scorers for the whole round so far (not per-topic like
+// CeoTopicReveal's leaderboard) — see the backend's getCeoOverallLeaderboard.
+export type CeoOverallLeaderboardEntry = {
+  userId: string;
+  fullName: string;
+  avatarUrl: string | null;
+  score: number;
+};
+
 // Admin-only — includes acceptedAnswers, since question management needs it.
 export type CeoQuestion = {
   id: string;

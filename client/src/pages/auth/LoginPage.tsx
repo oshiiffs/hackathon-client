@@ -29,21 +29,13 @@ export function LoginPage() {
 
         <div className="flex flex-col items-center gap-3 mb-1">
           <div className="relative">
-            <img
-              src="/nexus-icon.png"
-              alt="Nexus Multiverse"
-              className="relative w-20 h-20 rounded-2xl border-[3px] border-ink shadow-[4px_4px_0px_#111111]"
-            />
+            <img src="/nexus-icon-v2.png" alt="Nexus Multiverse" className="relative w-36 h-36 object-contain" />
             {/* A small spark orbiting the mark, echoing the logo's own ring-and-globe motif. */}
             <div
               className="pointer-events-none absolute left-1/2 top-1/2 -ml-1.5 -mt-1.5 w-3 h-3 rounded-full bg-crimson border-2 border-ink animate-orbit"
-              style={{ '--orbit-radius': '46px' } as CSSProperties}
+              style={{ '--orbit-radius': '80px' } as CSSProperties}
             />
           </div>
-          <h1 className="text-3xl font-black text-center tracking-tight uppercase">
-            <span className="text-crimson">Nexus</span>{' '}
-            <span className="text-forest">Multiverse</span> <span className="text-navy">2026</span>
-          </h1>
         </div>
         <p className="text-center text-navy font-bold text-xs uppercase tracking-[0.2em] mb-7">Team Building &amp; Pitch</p>
 
