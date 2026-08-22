@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLogout } from '../hooks/useAuth';
 import { AmbientBackground } from './AmbientBackground';
 import { Badge } from './Badge';
+import { Footer } from './Footer';
 import { comicButton } from '../lib/comic';
 
 export function AppShell({ title, nav, children }: { title: string; nav?: ReactNode; children: ReactNode }) {
@@ -15,11 +16,7 @@ export function AppShell({ title, nav, children }: { title: string; nav?: ReactN
       <header className="border-b-[3px] border-ink bg-white/95 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <img
-              src="/nexus-icon-v2.png"
-              alt="Nexus Multiverse"
-              className="w-9 h-9 rounded-lg object-cover border-[3px] border-ink shadow-[2px_2px_0px_#111111]"
-            />
+            <img src="/nexus-logo-full.png" alt="Nexus Multiverse" className="h-12 w-auto object-contain" />
             <h1 className="text-lg font-black uppercase tracking-wide text-ink">{title}</h1>
           </div>
           {user && (
@@ -39,6 +36,7 @@ export function AppShell({ title, nav, children }: { title: string; nav?: ReactN
         {nav && <div className="max-w-5xl mx-auto px-4 pb-2 flex gap-1 flex-wrap">{nav}</div>}
       </header>
       <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+      <Footer />
     </div>
   );
 }

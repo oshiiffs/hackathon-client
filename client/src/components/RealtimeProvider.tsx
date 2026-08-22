@@ -73,10 +73,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       // the standalone ['categories'] query — keep both in sync.
       queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
     };
-    // The finalizing CEO's own view updates from the REST response (see
-    // useFinalizeTeam) — this is for their team's other members, admin, and
-    // judges. Team name/category aren't sensitive, so this is safe to send to
-    // everyone already scoped into this team's room.
+    // Finalization is always automatic now (the HEAT Category Selection
+    // timer expiring — see team.service.ts's autoFinalizeTeam), so the CEO's
+    // own CeoFinalizePage learns about it from this same socket event too,
+    // not a REST response. Team name/category aren't sensitive, so this is
+    // safe to send to everyone already scoped into this team's room.
     const onTeamFinalized = (_payload: TeamFinalizedPayload) => {
       queryClient.invalidateQueries({ queryKey: ['my-team'] });
       queryClient.invalidateQueries({ queryKey: ['finalization-status'] });

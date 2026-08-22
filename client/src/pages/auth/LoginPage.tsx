@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AmbientBackground } from '../../components/AmbientBackground';
+import { Footer } from '../../components/Footer';
 import { useLogin } from '../../hooks/useAuth';
 import { useAuthStore } from '../../store/authStore';
 import { getHomePathForUser } from '../../lib/roleRouting';
@@ -20,9 +21,10 @@ export function LoginPage() {
   if (status === 'authenticated' && user) return <Navigate to={getHomePathForUser(user)} replace />;
 
   return (
-    <div className="relative min-h-screen bg-canvas flex items-center justify-center px-4 isolate">
+    <div className="relative min-h-screen bg-canvas flex flex-col isolate">
       <AmbientBackground />
 
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
       <div className="comic-panel relative w-full max-w-sm px-6 py-8" style={{ boxShadow: '8px 8px 0px #111111' }}>
         <span className="absolute -top-3 -left-3 w-7 h-7 border-[3px] border-ink bg-gold" aria-hidden="true" />
         <span className="absolute -bottom-3 -right-3 w-7 h-7 border-[3px] border-ink bg-lime" aria-hidden="true" />
@@ -115,6 +117,9 @@ export function LoginPage() {
 
         {login.isError && <p className="mt-3 text-sm font-bold text-crimson text-center">{getApiErrorMessage(login.error)}</p>}
       </div>
+      </div>
+
+      <Footer />
     </div>
   );
 }

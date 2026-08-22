@@ -10,9 +10,11 @@ import type { HeatCategory } from '../types/api';
  * (full rounded card + shadow + glyph, nothing chopped off) then padded to a
  * square canvas.
  *
- * The second HEAT category is EDUCATION (previously modeled as ENVIRONMENT —
- * renamed to match the brand kit's own "EDUCATION" icon caption, so there's
- * no more label mismatch to work around).
+ * The second HEAT category is ENVIRONMENT (briefly modeled as EDUCATION —
+ * reverted back). Icon #2's own source file in the brand kit ("2 (E).png")
+ * currently reads "ENVIRONMENT" as its caption, so no label-mismatch
+ * workaround (blanking/whitening the caption) is needed — same clean
+ * full-card crop as the other three icons.
  *
  * Filenames carry a version suffix deliberately: files under public/ are
  * served by Vite/the CDN as-is (no content-hash fingerprinting like
@@ -23,7 +25,7 @@ import type { HeatCategory } from '../types/api';
  */
 export const HEAT_CATEGORY_ICONS: Record<HeatCategory, string> = {
   HEALTH: '/heat-icons/health-v3.png',
-  EDUCATION: '/heat-icons/education-v1.png',
+  ENVIRONMENT: '/heat-icons/environment-v6.png',
   AGRICULTURE: '/heat-icons/agriculture-v3.png',
   TOURISM: '/heat-icons/tourism-v3.png',
 };
@@ -33,7 +35,7 @@ export const HEAT_CATEGORY_ICONS: Record<HeatCategory, string> = {
  * provided (not a shared/generic clip for all four). */
 export const HEAT_CATEGORY_VIDEOS: Record<HeatCategory, string> = {
   HEALTH: '/videos/heat-health.mp4',
-  EDUCATION: '/videos/heat-education.mp4',
+  ENVIRONMENT: '/videos/heat-environment.mp4',
   AGRICULTURE: '/videos/heat-agriculture.mp4',
   TOURISM: '/videos/heat-tourism.mp4',
 };

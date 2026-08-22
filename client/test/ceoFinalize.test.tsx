@@ -1,9 +1,8 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AxiosError, AxiosHeaders } from 'axios';
 import { CeoFinalizePage } from '../src/pages/ceo/CeoFinalizePage';
 import { CeoDashboardPage } from '../src/pages/ceo/CeoDashboardPage';
 import { AppRoutes } from '../src/AppRoutes';
@@ -63,14 +62,27 @@ function mockTeam(overrides: Partial<Team> = {}): Team {
 function mockCategories(overrides: Partial<Record<string, Partial<CategoryUsage>>> = {}): CategoryUsage[] {
   const base: CategoryUsage[] = [
     { category: 'HEALTH', used: 1, capacity: 3, available: 2, full: false, teams: [] },
-    { category: 'EDUCATION', used: 2, capacity: 3, available: 1, full: false, teams: [] },
+    { category: 'ENVIRONMENT', used: 2, capacity: 3, available: 1, full: false, teams: [] },
     { category: 'AGRICULTURE', used: 3, capacity: 3, available: 0, full: true, teams: [] },
     { category: 'TOURISM', used: 0, capacity: 3, available: 3, full: false, teams: [] },
   ];
   return base.map((c) => ({ ...c, ...overrides[c.category] }));
 }
 
-function mockStatus(overrides: Partial<FinalizationStatus> = {}): FinalizationStatus {
+// Every deadline is relative to THIS, not Date.now() at call time — keeps a
+// whole test's set of timestamps internally consistent even if a little
+// wall-clock time passes while building the mock.
+const NOW = Date.now();
+
+/** Deadlines default to "not started yet" (both null == still recruiting).
+ * Pass `nameEndsInMs`/`categoryEndsInMs` (negative = already in the past) to
+ * land on a specific step without waiting out a real countdown — the page
+ * derives its step purely from these vs. a server-clock-corrected "now", so
+ * this is the same trick a real page refresh mid-countdown relies on. */
+function mockStatus(
+  overrides: Partial<FinalizationStatus> & { nameEndsInMs?: number; categoryEndsInMs?: number } = {},
+): FinalizationStatus {
+  const { nameEndsInMs, categoryEndsInMs, ...rest } = overrides;
   const departmentComplete = {} as Record<Department, boolean>;
   for (const d of ['COE', 'CCS', 'CHS', 'CBM', 'CAF'] as Department[]) departmentComplete[d] = true;
   return {
@@ -81,18 +93,35 @@ function mockStatus(overrides: Partial<FinalizationStatus> = {}): FinalizationSt
     reason: null,
     categories: mockCategories(),
     allowIncompleteTeams: false,
-    ...overrides,
+    nameSelectionEndsAt: nameEndsInMs !== undefined ? new Date(NOW + nameEndsInMs).toISOString() : null,
+    categorySelectionEndsAt: categoryEndsInMs !== undefined ? new Date(NOW + categoryEndsInMs).toISOString() : null,
+    serverNow: new Date(NOW).toISOString(),
+    ...rest,
   };
 }
 
-function axiosErrorWithCode(code: string) {
-  return new AxiosError(
-    'Request failed',
-    '409',
-    { headers: new AxiosHeaders(), method: 'post', url: '/participant/ceo/finalize' },
-    {},
-    { status: 409, statusText: 'Conflict', headers: {}, config: { headers: new AxiosHeaders() }, data: { error: { code, message: 'nope' } } },
-  );
+/** Shorthand for a team mid-CEO-Name-Selection: timer running, category
+ * timer not started yet. */
+function nameStepStatus(overrides: Partial<FinalizationStatus> = {}) {
+  return mockStatus({ nameEndsInMs: 45_000, ...overrides });
+}
+
+/** Shorthand for a team past its name deadline but before the transition
+ * video has reported done (categorySelectionEndsAt still null) — the video
+ * step. */
+function videoStepStatus(overrides: Partial<FinalizationStatus> = {}) {
+  return mockStatus({ nameEndsInMs: -1000, team: mockTeam({ name: 'Jade Innovators', members: fullRoster(), isComplete: true }), ...overrides });
+}
+
+/** Shorthand for a team mid-HEAT-Category-Selection: name timer closed,
+ * category timer running. */
+function categoryStepStatus(overrides: Partial<FinalizationStatus> = {}) {
+  return mockStatus({
+    nameEndsInMs: -60_000,
+    categoryEndsInMs: 30_000,
+    team: mockTeam({ name: 'Jade Innovators', members: fullRoster(), isComplete: true }),
+    ...overrides,
+  });
 }
 
 function renderFinalizePage(status: FinalizationStatus = mockStatus(), user = mockUser()) {
@@ -114,30 +143,13 @@ function renderFinalizePage(status: FinalizationStatus = mockStatus(), user = mo
   return queryClient;
 }
 
-// Category selection is gated behind the required HEAT-category briefing
-// video (see HeatCategoryVideoGate) — every test that needs to reach the
-// category buttons has to "finish" it first, same as a real CEO would.
-function watchVideo() {
-  fireEvent.ended(screen.getByTestId('heat-category-video'));
-}
-
-// The form is now two visually separate steps (Team Ready -> Select HEAT
-// Category) — every test that needs to reach the category step has to name
-// the team and click Continue first, same as a real CEO would. Plain
-// fireEvent (not userEvent) so this stays usable from both sync and async
-// tests without forcing every caller to be async just for this step.
-function goToCategoryStep(name = 'Jade Innovators') {
-  fireEvent.change(screen.getByTestId('team-name-input'), { target: { value: name } });
-  fireEvent.click(screen.getByTestId('continue-to-category-button'));
-}
-
-describe('Team finalization (frontend)', () => {
+describe('Team finalization (frontend, timer-driven)', () => {
   afterEach(() => {
     useAuthStore.setState({ user: null, status: 'idle' });
     vi.restoreAllMocks();
   });
 
-  it('1. requires 5/5 members before finalization is allowed', () => {
+  it('1. still recruiting: shows the not-ready panel, no timer, no name input, no leftover buttons', () => {
     renderFinalizePage(
       mockStatus({
         memberCount: 4,
@@ -146,143 +158,171 @@ describe('Team finalization (frontend)', () => {
         team: mockTeam({ members: fullRoster().slice(0, 4) }),
       }),
     );
+    expect(screen.getByTestId('not-ready-step')).toBeInTheDocument();
     expect(screen.getByTestId('finalize-not-ready')).toBeInTheDocument();
-    // FINALIZE TEAM lives on step 2 now, which an unready team can't reach —
-    // the gate showing on step 1 is the Continue button instead.
-    expect(screen.getByTestId('continue-to-category-button')).toBeDisabled();
-    expect(screen.queryByTestId('finalize-team-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('team-name-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('name-selection-timer')).not.toBeInTheDocument();
+    expect(screen.queryByText(/continue to heat selection/i)).not.toBeInTheDocument();
   });
 
-  it('2. all five departments are displayed with their completion state', () => {
+  it('2. all five departments render with their completion state', () => {
     renderFinalizePage();
     for (const dept of ['COE', 'CCS', 'CHS', 'CBM', 'CAF']) {
-      expect(screen.getByText(new RegExp(dept))).toBeInTheDocument();
+      expect(screen.getAllByText(new RegExp(dept)).length).toBeGreaterThan(0);
     }
   });
 
-  it('3. the team name input accepts typed text', async () => {
+  it('3. once ready, the CEO Name Selection timer and name input show — with no Continue button anywhere', () => {
+    renderFinalizePage(nameStepStatus());
+    expect(screen.getByTestId('team-ready-step')).toBeInTheDocument();
+    expect(screen.getByTestId('name-selection-timer')).toBeInTheDocument();
+    expect(screen.getByTestId('team-name-input')).toBeInTheDocument();
+    expect(screen.queryByTestId('continue-to-category-button')).not.toBeInTheDocument();
+    expect(screen.queryByText(/continue to heat selection/i)).not.toBeInTheDocument();
+  });
+
+  it('4. the team name input accepts typed text immediately', async () => {
     const user = userEvent.setup();
-    renderFinalizePage();
+    renderFinalizePage(nameStepStatus());
     const input = screen.getByTestId('team-name-input') as HTMLInputElement;
     await user.type(input, 'Jade Innovators');
     expect(input.value).toBe('Jade Innovators');
   });
 
-  it('4. HEAT capacities render for all four categories', () => {
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
-    expect(screen.getByTestId('category-button-HEALTH')).toHaveTextContent('1 / 3');
-    expect(screen.getByTestId('category-button-EDUCATION')).toHaveTextContent('2 / 3');
-    expect(screen.getByTestId('category-button-AGRICULTURE')).toHaveTextContent('3 / 3');
-    expect(screen.getByTestId('category-button-TOURISM')).toHaveTextContent('0 / 3');
+  it('5. the typed name autosaves (debounced) without any submit button', async () => {
+    const patchSpy = vi.spyOn(apiClient, 'patch').mockResolvedValue({ data: nameStepStatus() } as never);
+    renderFinalizePage(nameStepStatus());
+    fireEvent.change(screen.getByTestId('team-name-input'), { target: { value: 'Jade Innovators' } });
+
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    expect(patchSpy).toHaveBeenCalledWith('/participant/ceo/finalize/draft', { name: 'Jade Innovators' });
   });
 
-  it('5. a full category button is disabled', () => {
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
+  it('6. once the name timer closes, the transition video plays automatically — no button required', () => {
+    renderFinalizePage(videoStepStatus());
+    expect(screen.getByTestId('video-step')).toBeInTheDocument();
+    expect(screen.getByTestId('heat-category-video')).toBeInTheDocument();
+    expect(screen.queryByTestId('team-ready-step')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('category-step')).not.toBeInTheDocument();
+  });
+
+  it('7. the video ending starts the HEAT Category Selection timer server-side', async () => {
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: categoryStepStatus() } as never);
+    renderFinalizePage(videoStepStatus());
+
+    fireEvent.ended(screen.getByTestId('heat-category-video'));
+
+    await vi.waitFor(() => expect(postSpy).toHaveBeenCalledWith('/participant/ceo/finalize/start-category-timer'));
+  });
+
+  it('8. a broken video still starts the category timer instead of leaving the team stuck', async () => {
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: categoryStepStatus() } as never);
+    renderFinalizePage(videoStepStatus());
+
+    fireEvent.error(screen.getByTestId('heat-category-video'));
+
+    expect(screen.getByTestId('heat-category-video-error')).toBeInTheDocument();
+    await vi.waitFor(() => expect(postSpy).toHaveBeenCalledWith('/participant/ceo/finalize/start-category-timer'));
+  });
+
+  it('9. HEAT capacities render for all four categories once the category timer is running — no Finalize button anywhere', () => {
+    renderFinalizePage(categoryStepStatus());
+    expect(screen.getByTestId('category-step')).toBeInTheDocument();
+    expect(screen.getByTestId('category-selection-timer')).toBeInTheDocument();
+    expect(screen.getByTestId('category-button-HEALTH')).toHaveTextContent('1 / 3');
+    expect(screen.getByTestId('category-button-ENVIRONMENT')).toHaveTextContent('2 / 3');
+    expect(screen.getByTestId('category-button-AGRICULTURE')).toHaveTextContent('3 / 3');
+    expect(screen.getByTestId('category-button-TOURISM')).toHaveTextContent('0 / 3');
+    expect(screen.queryByTestId('finalize-team-button')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^finalize team$/i)).not.toBeInTheDocument();
+  });
+
+  it('10. a full category button is disabled', () => {
+    renderFinalizePage(categoryStepStatus());
     expect(screen.getByTestId('category-button-AGRICULTURE')).toBeDisabled();
     expect(screen.getByTestId('category-button-HEALTH')).not.toBeDisabled();
   });
 
-  it('6. clicking FINALIZE TEAM opens the confirmation dialog with the exact copy', async () => {
+  it('11. clicking a category autosaves the tentative pick — no confirmation dialog', async () => {
     const user = userEvent.setup();
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
+    const patchSpy = vi.spyOn(apiClient, 'patch').mockResolvedValue({ data: categoryStepStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) }) } as never);
+    renderFinalizePage(categoryStepStatus());
+
     await user.click(screen.getByTestId('category-button-TOURISM'));
-    await user.click(screen.getByTestId('finalize-team-button'));
 
-    const dialog = await screen.findByTestId('finalize-confirm-dialog');
-    expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText('FINALIZE TEAM?')).toBeInTheDocument();
-    expect(within(dialog).getByText('Jade Innovators')).toBeInTheDocument();
-    expect(within(dialog).getByText('TOURISM')).toBeInTheDocument();
-    expect(within(dialog).getByText('Once finalized, normal recruitment will be closed.')).toBeInTheDocument();
-  });
-
-  it('7. CANCEL closes the dialog without finalizing', async () => {
-    const user = userEvent.setup();
-    const postSpy = vi.spyOn(apiClient, 'post');
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
-    await user.click(screen.getByTestId('category-button-TOURISM'));
-    await user.click(screen.getByTestId('finalize-team-button'));
-    await screen.findByTestId('finalize-confirm-dialog');
-
-    await user.click(screen.getByTestId('cancel-finalize-button'));
-
+    expect(patchSpy).toHaveBeenCalledWith('/participant/ceo/finalize/draft', { category: 'TOURISM' });
     expect(screen.queryByTestId('finalize-confirm-dialog')).not.toBeInTheDocument();
-    expect(postSpy).not.toHaveBeenCalled();
   });
 
-  it('8. a successful finalization shows the success state with the category-matched reveal video', async () => {
-    const user = userEvent.setup();
-    const finalized = mockTeam({ name: 'Jade Innovators', category: 'TOURISM', finalizedAt: new Date().toISOString(), members: fullRoster(), isComplete: true });
-    vi.spyOn(apiClient, 'post').mockResolvedValueOnce({ data: finalized } as never);
-    vi.spyOn(apiClient, 'get').mockResolvedValue({ data: mockStatus({ team: finalized }) } as never);
+  it('12. the selected category is visually highlighted from server state', () => {
+    renderFinalizePage(categoryStepStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) }));
+    expect(screen.getByTestId('category-icon-TOURISM').className).toMatch(/ring-crimson/);
+    expect(screen.getByTestId('category-icon-HEALTH').className).not.toMatch(/ring-crimson/);
+  });
 
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
-    await user.click(screen.getByTestId('category-button-TOURISM'));
-    await user.click(screen.getByTestId('finalize-team-button'));
-    await screen.findByTestId('finalize-confirm-dialog');
-    await user.click(screen.getByTestId('confirm-finalize-button'));
+  it('13. once the category timer has closed and the team is not yet finalized, shows a locking-in state', () => {
+    renderFinalizePage(mockStatus({ nameEndsInMs: -60_000, categoryEndsInMs: -1000, team: mockTeam({ name: 'Jade Innovators', members: fullRoster(), isComplete: true }) }));
+    expect(screen.getByTestId('locking-in')).toBeInTheDocument();
+  });
 
-    expect(await screen.findByTestId('finalize-success')).toBeInTheDocument();
+  it('14. a finalized team shows the success state with its category-matched reveal video', () => {
+    renderFinalizePage(
+      mockStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', finalizedAt: new Date().toISOString(), members: fullRoster(), isComplete: true }) }),
+    );
+    expect(screen.getByTestId('finalize-success')).toBeInTheDocument();
     const video = screen.getByTestId('heat-category-reveal-video') as HTMLVideoElement;
     expect(video.querySelector('source')).toHaveAttribute('src', '/videos/heat-tourism.mp4');
     expect(screen.getByText('OPEN TEAM HUB')).toBeInTheDocument();
   });
 
-  it('9. a TEAM_NAME_TAKEN rejection is displayed', async () => {
+  it('15. "OPEN TEAM HUB" navigates to the Team Hub', async () => {
     const user = userEvent.setup();
-    vi.spyOn(apiClient, 'post').mockRejectedValueOnce(axiosErrorWithCode('TEAM_NAME_TAKEN'));
-
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
-    await user.click(screen.getByTestId('category-button-TOURISM'));
-    await user.click(screen.getByTestId('finalize-team-button'));
-    await screen.findByTestId('finalize-confirm-dialog');
-    await user.click(screen.getByTestId('confirm-finalize-button'));
-
-    expect(await screen.findByTestId('finalize-error')).toHaveTextContent('TEAM_NAME_TAKEN');
+    renderFinalizePage(
+      mockStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', finalizedAt: new Date().toISOString(), members: fullRoster(), isComplete: true }) }),
+    );
+    await user.click(screen.getByText('OPEN TEAM HUB'));
+    expect(await screen.findByTestId('team-hub-landing')).toBeInTheDocument();
   });
 
-  it('10. a CATEGORY_FULL rejection is displayed', async () => {
-    const user = userEvent.setup();
-    vi.spyOn(apiClient, 'post').mockRejectedValueOnce(axiosErrorWithCode('CATEGORY_FULL'));
+  it('16. a normal participant cannot reach the CEO finalization page (403)', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    useAuthStore.setState({ user: mockUser({ role: 'PARTICIPANT' }), status: 'authenticated' });
 
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
-    await user.click(screen.getByTestId('category-button-TOURISM'));
-    await user.click(screen.getByTestId('finalize-team-button'));
-    await screen.findByTestId('finalize-confirm-dialog');
-    await user.click(screen.getByTestId('confirm-finalize-button'));
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/ceo/team/finalize']}>
+          <AppRoutes />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
 
-    expect(await screen.findByTestId('finalize-error')).toHaveTextContent('CATEGORY_FULL');
+    expect(screen.getByText('403')).toBeInTheDocument();
   });
 
-  it('11. a realtime capacity update (the same mechanism the socket handler uses) is reflected live', async () => {
-    const queryClient = renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
+  it('17. a fresh render (simulating a page refresh) lands on the correct step directly from the server deadlines alone', () => {
+    // Name timer long closed, category timer freshly started — a refresh
+    // mid-HEAT-Category-Selection must land right back on that step, not
+    // replay the video or reset to team-ready.
+    renderFinalizePage(categoryStepStatus());
+    expect(screen.getByTestId('category-step')).toBeInTheDocument();
+    expect(screen.queryByTestId('team-ready-step')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('video-step')).not.toBeInTheDocument();
+  });
+
+  it('18. a realtime capacity update (the same mechanism the socket handler uses) is reflected live', async () => {
+    const queryClient = renderFinalizePage(categoryStepStatus());
     expect(screen.getByTestId('category-button-TOURISM')).toHaveTextContent('0 / 3');
 
     act(() => {
-      queryClient.setQueryData(['finalization-status'], mockStatus({ categories: mockCategories({ TOURISM: { used: 3, available: 0, full: true } }) }));
+      queryClient.setQueryData(['finalization-status'], categoryStepStatus({ categories: mockCategories({ TOURISM: { used: 3, available: 0, full: true } }) }));
     });
 
     expect(await screen.findByTestId('category-button-TOURISM')).toHaveTextContent('3 / 3');
     expect(screen.getByTestId('category-button-TOURISM')).toBeDisabled();
   });
 
-  it('12. a complete-but-not-finalized team dashboard links to the finalization page', () => {
+  it('19. a complete-but-not-finalized team dashboard still links to the finalization page', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60000 } } });
     queryClient.setQueryData(['my-team'], mockTeam({ members: fullRoster(), isComplete: true }));
     useAuthStore.setState({ user: mockUser(), status: 'authenticated' });
@@ -299,104 +339,27 @@ describe('Team finalization (frontend)', () => {
     expect(link).toHaveAttribute('href', '/ceo/team/finalize');
   });
 
-  it('13. after a successful finalization, "OPEN TEAM HUB" navigates to the Team Hub', async () => {
-    const user = userEvent.setup();
-    const finalized = mockTeam({ name: 'Jade Innovators', category: 'TOURISM', finalizedAt: new Date().toISOString(), members: fullRoster(), isComplete: true });
-    vi.spyOn(apiClient, 'post').mockResolvedValueOnce({ data: finalized } as never);
-    // A successful finalize invalidates ['finalization-status'], which
-    // triggers a real background refetch — give it a controlled response.
-    vi.spyOn(apiClient, 'get').mockResolvedValue({ data: mockStatus({ team: finalized }) } as never);
-
-    renderFinalizePage();
-    goToCategoryStep();
-    watchVideo();
-    await user.click(screen.getByTestId('category-button-TOURISM'));
-    await user.click(screen.getByTestId('finalize-team-button'));
-    await screen.findByTestId('finalize-confirm-dialog');
-    await user.click(screen.getByTestId('confirm-finalize-button'));
-    await screen.findByTestId('finalize-success');
-
-    await user.click(screen.getByText('OPEN TEAM HUB'));
-    expect(await screen.findByTestId('team-hub-landing')).toBeInTheDocument();
-  });
-
-  it('14. a normal participant cannot reach the CEO finalization page (403)', () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    useAuthStore.setState({ user: mockUser({ role: 'PARTICIPANT' }), status: 'authenticated' });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/ceo/team/finalize']}>
-          <AppRoutes />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-
-    expect(screen.getByText('403')).toBeInTheDocument();
-  });
-
-  it('15. a fresh render (simulating a refresh) restores the finalized state directly from seeded server data', () => {
-    renderFinalizePage(mockStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', finalizedAt: new Date().toISOString(), members: fullRoster(), isComplete: true }) }));
-    expect(screen.getByTestId('finalize-success')).toBeInTheDocument();
-    const video = screen.getByTestId('heat-category-reveal-video') as HTMLVideoElement;
-    expect(video.querySelector('source')).toHaveAttribute('src', '/videos/heat-tourism.mp4');
-  });
-
-  it('16. HEAT category selection is hidden behind a required briefing video until it finishes playing', () => {
-    renderFinalizePage();
-    goToCategoryStep();
-    expect(screen.getByTestId('heat-category-video')).toBeInTheDocument();
-    expect(screen.queryByTestId('category-button-TOURISM')).not.toBeInTheDocument();
-
-    watchVideo();
-
-    expect(screen.queryByTestId('heat-category-video')).not.toBeInTheDocument();
-    expect(screen.getByTestId('category-button-TOURISM')).toBeInTheDocument();
-  });
-
-  it('17. a "Continue anyway" escape hatch unlocks category selection if the briefing video fails to load', () => {
-    renderFinalizePage();
-    goToCategoryStep();
-    expect(screen.queryByTestId('category-button-TOURISM')).not.toBeInTheDocument();
-
-    fireEvent.error(screen.getByTestId('heat-category-video'));
-    expect(screen.getByTestId('heat-category-video-error')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Continue anyway'));
-    expect(screen.getByTestId('category-button-TOURISM')).toBeInTheDocument();
-  });
-
-  it('18. Team Ready and Select HEAT Category render as two separate steps, never mixed together', () => {
-    renderFinalizePage();
-    // Step 1 only: no category-step content should exist yet.
-    expect(screen.getByTestId('team-ready-step')).toBeInTheDocument();
-    expect(screen.queryByTestId('category-step')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('heat-category-video')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('finalize-team-button')).not.toBeInTheDocument();
-
-    goToCategoryStep();
-
-    // Step 2 only: step-1-only content (name input, department checklist) is gone.
-    expect(screen.getByTestId('category-step')).toBeInTheDocument();
-    expect(screen.queryByTestId('team-ready-step')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('team-name-input')).not.toBeInTheDocument();
-  });
-
-  it("19. Continue is disabled until the team name is filled in, even once the roster is ready", () => {
-    renderFinalizePage();
-    expect(screen.getByTestId('continue-to-category-button')).toBeDisabled();
-    fireEvent.change(screen.getByTestId('team-name-input'), { target: { value: 'Jade Innovators' } });
-    expect(screen.getByTestId('continue-to-category-button')).not.toBeDisabled();
-  });
-
-  it('20. "← Team Ready" returns to step 1 without losing the team name already entered', () => {
-    renderFinalizePage();
-    goToCategoryStep('Jade Innovators');
-    expect(screen.getByTestId('category-step')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('back-to-team-ready-button'));
-
-    expect(screen.getByTestId('team-ready-step')).toBeInTheDocument();
-    expect(screen.getByTestId('team-name-input')).toHaveValue('Jade Innovators');
+  it('20. no step ever renders a Continue-to-HEAT-Selection or Finalize-Team button, disabled or otherwise', () => {
+    for (const status of [nameStepStatus(), videoStepStatus(), categoryStepStatus()]) {
+      const { unmount } = render(
+        <QueryClientProvider client={(() => {
+          const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60000 } } });
+          qc.setQueryData(['finalization-status'], status);
+          return qc;
+        })()}>
+          <MemoryRouter initialEntries={['/ceo/team/finalize']}>
+            <Routes>
+              <Route path="/ceo/team/finalize" element={<CeoFinalizePage />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+      useAuthStore.setState({ user: mockUser(), status: 'authenticated' });
+      expect(screen.queryByTestId('continue-to-category-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('finalize-team-button')).not.toBeInTheDocument();
+      expect(screen.queryByText(/continue to heat selection/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^finalize team$/i)).not.toBeInTheDocument();
+      unmount();
+    }
   });
 });

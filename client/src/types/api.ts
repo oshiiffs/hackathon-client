@@ -1,5 +1,5 @@
 export type Department = 'COE' | 'CCS' | 'CHS' | 'CBM' | 'CAF';
-export type HeatCategory = 'HEALTH' | 'EDUCATION' | 'AGRICULTURE' | 'TOURISM';
+export type HeatCategory = 'HEALTH' | 'ENVIRONMENT' | 'AGRICULTURE' | 'TOURISM';
 export type UserRole = 'PARTICIPANT' | 'CEO' | 'ADMIN' | 'JUDGE';
 export type HackathonPhase =
   | 'LOBBY'
@@ -11,7 +11,7 @@ export type HackathonPhase =
   | 'COMPLETE';
 
 export const ALL_DEPARTMENTS: Department[] = ['COE', 'CCS', 'CHS', 'CBM', 'CAF'];
-export const ALL_HEAT_CATEGORIES: HeatCategory[] = ['HEALTH', 'EDUCATION', 'AGRICULTURE', 'TOURISM'];
+export const ALL_HEAT_CATEGORIES: HeatCategory[] = ['HEALTH', 'ENVIRONMENT', 'AGRICULTURE', 'TOURISM'];
 
 export type PublicUser = {
   id: string;
@@ -39,6 +39,10 @@ export type HackathonStatePayload = {
   challengeEndsAt: string | null;
   submissionsLocked: boolean;
   allowIncompleteTeams: boolean;
+  // Admin-configurable durations (seconds) for the buttonless CEO Name
+  // Selection / HEAT Category Selection timers on CeoFinalizePage.
+  ceoNameSelectionSeconds: number;
+  heatCategorySelectionSeconds: number;
   serverNow: string;
 };
 
@@ -79,13 +83,12 @@ export type SubmitCeoAnswerResult = {
 
 // Fetched once per topic, only after that topic's answering window has
 // closed server-side (see the backend's getCeoTopicReveal). `leaderboard` is
-// everyone who earned partial-or-better credit on THIS topic (any of the
-// fixed 10/6/4/2/0 tiers), ranked by pointsAwarded descending — meant for
-// the 5s reveal window alongside `correctAnswer`.
+// everyone who answered THIS topic fully correctly, fastest-first — meant
+// for the 5s reveal window alongside `correctAnswer`.
 export type CeoTopicReveal = {
   questionId: string;
   correctAnswer: string;
-  leaderboard: { userId: string; fullName: string; avatarUrl: string | null; pointsAwarded: number }[];
+  leaderboard: { userId: string; fullName: string; avatarUrl: string | null }[];
 };
 
 // The running top-5 scorers for the whole round so far (not per-topic like
@@ -293,6 +296,13 @@ export type FinalizationStatus = {
   reason: string | null;
   categories: CategoryUsage[];
   allowIncompleteTeams: boolean;
+  // Server-authoritative deadlines for the buttonless CEO Name Selection /
+  // HEAT Category Selection timers — null until that step has actually
+  // started. `serverNow` corrects for client clock skew (same pattern as
+  // CountdownTimer/useSyncedTopic use elsewhere).
+  nameSelectionEndsAt: string | null;
+  categorySelectionEndsAt: string | null;
+  serverNow: string;
 };
 
 export type SubmissionStatus = 'DRAFT' | 'IN_PROGRESS' | 'READY_FOR_SUBMISSION' | 'SUBMITTED';

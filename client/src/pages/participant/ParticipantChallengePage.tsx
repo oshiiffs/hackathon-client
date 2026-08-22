@@ -11,12 +11,22 @@ import { comicButton } from '../../lib/comic';
 
 type Result = 'success' | 'ended' | null;
 
+/** Joins names into a natural-reading list: "Alice", "Alice and Bob", or
+ * "Alice, Bob and Carol" — used for the topic reveal's correct-answerers
+ * callout below. */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 /** Shown for the 5s reveal window after a topic's answering countdown runs
  * out — fetches that one topic's correct answer, which the server only
  * hands over once it has independently verified the window has closed (see
- * useCeoTopicReveal / the backend's getCeoTopicReveal). Also shows that
- * topic's leaderboard — everyone who earned partial-or-better credit (the
- * fixed 10/6/4/2/0 tiers), ranked by points, fastest-first as the tiebreak. */
+ * useCeoTopicReveal / the backend's getCeoTopicReveal). Also names everyone
+ * who answered THIS topic fully correctly (partial-credit answers earn
+ * points toward the overall round score — see OverallLeaderboard below —
+ * but aren't called out here, which is specifically "who nailed it"). */
 function TopicReveal({
   questionId,
   questionText,
@@ -60,24 +70,12 @@ function TopicReveal({
       {!reveal.isLoading && !reveal.isError && (
         <div className="w-full rounded-xl border-[3px] border-ink bg-white px-5 py-4 shadow-[4px_4px_0px_#111111]" data-testid="topic-leaderboard">
           {leaderboard.length === 0 ? (
-            <p className="text-sm font-bold text-navy/50 text-center">Nobody scored on this one yet.</p>
+            <p className="text-sm font-bold text-navy/50 text-center">Nobody answered this topic correctly yet.</p>
           ) : (
-            <ol className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-              {leaderboard.map((p, i) => (
-                <li key={p.userId} className="flex items-center gap-2 text-sm font-bold text-ink">
-                  <span className="w-5 shrink-0 text-xs font-black text-navy/50">{i + 1}.</span>
-                  {p.avatarUrl ? (
-                    <img src={p.avatarUrl} alt="" className="w-6 h-6 shrink-0 rounded-full object-cover border-2 border-ink" />
-                  ) : (
-                    <span className="w-6 h-6 shrink-0 rounded-full bg-gold border-2 border-ink flex items-center justify-center text-[10px] font-black text-ink">
-                      {p.fullName.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                  <span className="truncate flex-1">{p.fullName}</span>
-                  <span className="text-xs font-black text-forest shrink-0">{p.pointsAwarded} pts</span>
-                </li>
-              ))}
-            </ol>
+            <p className="text-sm font-bold text-ink text-center">
+              The people who answered the topic correctly are{' '}
+              <span className="text-forest">{joinNames(leaderboard.map((p) => p.fullName))}</span>.
+            </p>
           )}
         </div>
       )}

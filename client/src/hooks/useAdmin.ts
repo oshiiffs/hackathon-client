@@ -189,6 +189,24 @@ export function useSetAllowIncompleteTeams() {
   });
 }
 
+/** The two buttonless team-finalization timer durations (CEO Name Selection,
+ * HEAT Category Selection) — only affects timers not yet started for any
+ * given team (see team.service.ts's getFinalizationStatus). */
+export function useSetFinalizeTimers() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: async (input: { ceoNameSelectionSeconds: number; heatCategorySelectionSeconds: number }) => {
+      const { data } = await apiClient.post<AdminHackathonStatePayload>('/admin/hackathon/finalize-timers', input);
+      return data;
+    },
+    onSuccess: () => {
+      invalidate();
+      showSuccessToast('Team finalization timers updated.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
 /** Live "top 5 answers" for one topic, for the presenter/LCD view — poll
  * while that topic is on screen, not otherwise. */
 export function useLiveAnswerAggregate(questionId: string | null, enabled: boolean) {

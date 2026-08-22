@@ -28,6 +28,7 @@ import {
   useRegenerateAccessCode,
   useResetCompetition,
   useSetAllowIncompleteTeams,
+  useSetFinalizeTimers,
   useStartCeoChallenge,
   useStopCeoChallenge,
   useUnlockParticipants,
@@ -166,6 +167,7 @@ export function AdminDashboardPage() {
   const exportEventData = useExportEventData();
   const resetCompetition = useResetCompetition();
   const setAllowIncompleteTeams = useSetAllowIncompleteTeams();
+  const setFinalizeTimers = useSetFinalizeTimers();
 
   const [resourcesTeamId, setResourcesTeamId] = useState<string | null>(null);
   const teamResources = useAdminTeamResources(resourcesTeamId);
@@ -178,6 +180,8 @@ export function AdminDashboardPage() {
 
   const [duration, setDuration] = useState(30);
   const [ceoSlots, setCeoSlots] = useState(4);
+  const [ceoNameSeconds, setCeoNameSeconds] = useState(60);
+  const [heatCategorySeconds, setHeatCategorySeconds] = useState(30);
   const [newName, setNewName] = useState('');
   const [newDept, setNewDept] = useState<Department>('COE');
   const [newAccessCode, setNewAccessCode] = useState('');
@@ -230,7 +234,7 @@ export function AdminDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Stat label="Current phase" value={state?.phaseLabel ?? '—'} accent />
+        <Stat label="Current phase" value={state?.phaseLabel?.replace(/_/g, ' ') ?? '—'} accent />
         <Stat
           label="Participants"
           value={overview.data ? `${overview.data.draftedParticipants}/${overview.data.totalParticipants}` : '—'}
@@ -357,6 +361,53 @@ export function AdminDashboardPage() {
               className={comicButton('white')}
             >
               Stop CEO challenge
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-5 pb-5 border-b-[3px] border-ink">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <p className="text-sm font-bold text-navy">Team Finalization Timers</p>
+            <span className="text-xs text-navy/60">
+              · Currently active: {state?.ceoNameSelectionSeconds ?? '—'}s name · {state?.heatCategorySelectionSeconds ?? '—'}s
+              category
+            </span>
+          </div>
+          <p className="text-xs text-navy/60 mb-3 max-w-md">
+            Every CEO's finalize screen is buttonless — a team's name locks in and HEAT category auto-finalizes purely on these
+            countdowns. Changing a duration here only affects a team's timer that hasn't started yet.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="text-sm text-navy font-bold">
+              CEO Name Selection (seconds)
+              <input
+                type="number"
+                min={5}
+                max={600}
+                value={ceoNameSeconds}
+                onChange={(e) => setCeoNameSeconds(Number(e.target.value))}
+                className={`${fieldInput} w-28`}
+              />
+            </label>
+            <label className="text-sm text-navy font-bold">
+              HEAT Category Selection (seconds)
+              <input
+                type="number"
+                min={5}
+                max={600}
+                value={heatCategorySeconds}
+                onChange={(e) => setHeatCategorySeconds(Number(e.target.value))}
+                className={`${fieldInput} w-28`}
+              />
+            </label>
+            <button
+              disabled={setFinalizeTimers.isPending}
+              onClick={() =>
+                setFinalizeTimers.mutate({ ceoNameSelectionSeconds: ceoNameSeconds, heatCategorySelectionSeconds: heatCategorySeconds })
+              }
+              className={comicButton('crimson')}
+            >
+              Save timers
             </button>
           </div>
         </div>
@@ -966,9 +1017,12 @@ export function AdminDashboardPage() {
 
 function Stat({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: boolean }) {
   return (
-    <div className="comic-panel-sm p-4">
+    <div className="comic-panel-sm p-4 min-w-0">
       <p className="text-xs uppercase text-forest font-black">{label}</p>
-      <p className={`text-2xl font-black ${accent ? 'text-crimson' : 'text-ink'}`}>{value}</p>
+      {/* Phase labels are underscore-joined tokens (e.g. "SUBMISSIONS_LOCKED") with
+          no natural break point — break-words forces a wrap instead of overflowing
+          this fixed-width box on narrower grids (2-col on mobile). */}
+      <p className={`text-2xl font-black break-words ${accent ? 'text-crimson' : 'text-ink'}`}>{value}</p>
       {sub && <p className="text-[10px] text-navy/50 font-bold uppercase">{sub}</p>}
     </div>
   );
