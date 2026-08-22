@@ -49,7 +49,7 @@ function mockOverview(overrides: Partial<AdminOverview> = {}): AdminOverview {
     ceoCount: 2,
     categoryUsage: [
       { category: 'HEALTH', used: 1, capacity: 3, available: 2, full: false, teams: [] },
-      { category: 'ENVIRONMENT', used: 0, capacity: 3, available: 3, full: false, teams: [] },
+      { category: 'EDUCATION', used: 0, capacity: 3, available: 3, full: false, teams: [] },
       { category: 'AGRICULTURE', used: 0, capacity: 3, available: 3, full: false, teams: [] },
       { category: 'TOURISM', used: 0, capacity: 3, available: 3, full: false, teams: [] },
     ],

@@ -104,7 +104,7 @@ export function PresenterPage() {
       <AmbientBackground />
       <div className="flex items-center justify-between px-6 py-3 border-b-[3px] border-ink bg-white">
         <div className="flex items-center gap-2">
-          <img src="/hackverse-icon.png" alt="" className="w-7 h-7 rounded-md border-[3px] border-ink" />
+          <img src="/nexus-icon.png" alt="" className="w-7 h-7 rounded-md border-[3px] border-ink" />
           <Link to="/admin/dashboard" className="text-xs font-black uppercase text-navy hover:text-crimson transition">
             ← Exit presenter view
           </Link>
@@ -182,7 +182,7 @@ function IdleScreen() {
   return (
     <div className="text-center flex flex-col items-center gap-6">
       <img
-        src="/hackverse-logo-horizontal.png"
+        src="/nexus-logo.png"
         alt="Nexus Multiverse 2026"
         className="w-full max-w-xl rounded-2xl border-[3px] border-ink shadow-[8px_8px_0px_#111111]"
       />

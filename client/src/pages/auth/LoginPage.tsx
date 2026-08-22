@@ -30,7 +30,7 @@ export function LoginPage() {
         <div className="flex flex-col items-center gap-3 mb-1">
           <div className="relative">
             <img
-              src="/hackverse-icon.png"
+              src="/nexus-icon.png"
               alt="Nexus Multiverse"
               className="relative w-20 h-20 rounded-2xl border-[3px] border-ink shadow-[4px_4px_0px_#111111]"
             />

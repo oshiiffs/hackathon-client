@@ -1,5 +1,5 @@
 export type Department = 'COE' | 'CCS' | 'CHS' | 'CBM' | 'CAF';
-export type HeatCategory = 'HEALTH' | 'ENVIRONMENT' | 'AGRICULTURE' | 'TOURISM';
+export type HeatCategory = 'HEALTH' | 'EDUCATION' | 'AGRICULTURE' | 'TOURISM';
 export type UserRole = 'PARTICIPANT' | 'CEO' | 'ADMIN' | 'JUDGE';
 export type HackathonPhase =
   | 'LOBBY'
@@ -11,7 +11,7 @@ export type HackathonPhase =
   | 'COMPLETE';
 
 export const ALL_DEPARTMENTS: Department[] = ['COE', 'CCS', 'CHS', 'CBM', 'CAF'];
-export const ALL_HEAT_CATEGORIES: HeatCategory[] = ['HEALTH', 'ENVIRONMENT', 'AGRICULTURE', 'TOURISM'];
+export const ALL_HEAT_CATEGORIES: HeatCategory[] = ['HEALTH', 'EDUCATION', 'AGRICULTURE', 'TOURISM'];
 
 export type PublicUser = {
   id: string;

@@ -16,7 +16,7 @@ export function AppShell({ title, nav, children }: { title: string; nav?: ReactN
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <img
-              src="/hackverse-icon.png"
+              src="/nexus-icon.png"
               alt="Nexus Multiverse"
               className="w-9 h-9 rounded-lg object-cover border-[3px] border-ink shadow-[2px_2px_0px_#111111]"
             />
