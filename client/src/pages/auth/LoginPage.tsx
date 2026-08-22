@@ -29,7 +29,7 @@ export function LoginPage() {
 
         <div className="flex flex-col items-center gap-3 mb-1">
           <div className="relative">
-            <img src="/nexus-icon-v2.png" alt="Nexus Multiverse" className="relative w-36 h-36 object-contain" />
+            <img src="/nexus-badge-v1.png" alt="Nexus Multiverse" className="relative w-36 h-36 object-contain" />
             {/* A small spark orbiting the mark, echoing the logo's own ring-and-globe motif. */}
             <div
               className="pointer-events-none absolute left-1/2 top-1/2 -ml-1.5 -mt-1.5 w-3 h-3 rounded-full bg-crimson border-2 border-ink animate-orbit"

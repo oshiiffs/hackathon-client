@@ -79,14 +79,13 @@ export type SubmitCeoAnswerResult = {
 
 // Fetched once per topic, only after that topic's answering window has
 // closed server-side (see the backend's getCeoTopicReveal). `leaderboard` is
-// who answered THIS topic correctly, fastest-first — meant for the 5s reveal
-// window alongside `correctAnswer`.
+// everyone who earned partial-or-better credit on THIS topic (any of the
+// fixed 10/6/4/2/0 tiers), ranked by pointsAwarded descending — meant for
+// the 5s reveal window alongside `correctAnswer`.
 export type CeoTopicReveal = {
   questionId: string;
   correctAnswer: string;
-  correctCount: number;
-  totalAnswered: number;
-  leaderboard: { userId: string; fullName: string; avatarUrl: string | null }[];
+  leaderboard: { userId: string; fullName: string; avatarUrl: string | null; pointsAwarded: number }[];
 };
 
 // The running top-5 scorers for the whole round so far (not per-topic like

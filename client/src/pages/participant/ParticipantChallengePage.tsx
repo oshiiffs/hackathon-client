@@ -15,7 +15,8 @@ type Result = 'success' | 'ended' | null;
  * out — fetches that one topic's correct answer, which the server only
  * hands over once it has independently verified the window has closed (see
  * useCeoTopicReveal / the backend's getCeoTopicReveal). Also shows that
- * topic's leaderboard — who answered it correctly, fastest-first. */
+ * topic's leaderboard — everyone who earned partial-or-better credit (the
+ * fixed 10/6/4/2/0 tiers), ranked by points, fastest-first as the tiebreak. */
 function TopicReveal({
   questionId,
   questionText,
@@ -58,11 +59,8 @@ function TopicReveal({
 
       {!reveal.isLoading && !reveal.isError && (
         <div className="w-full rounded-xl border-[3px] border-ink bg-white px-5 py-4 shadow-[4px_4px_0px_#111111]" data-testid="topic-leaderboard">
-          <p className="text-xs font-black uppercase tracking-wide text-navy/60 mb-2 text-center">
-            Got it right · {reveal.data?.correctCount ?? 0}/{reveal.data?.totalAnswered ?? 0}
-          </p>
           {leaderboard.length === 0 ? (
-            <p className="text-sm font-bold text-navy/50 text-center">Nobody got this one yet.</p>
+            <p className="text-sm font-bold text-navy/50 text-center">Nobody scored on this one yet.</p>
           ) : (
             <ol className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
               {leaderboard.map((p, i) => (
@@ -75,7 +73,8 @@ function TopicReveal({
                       {p.fullName.charAt(0).toUpperCase()}
                     </span>
                   )}
-                  <span className="truncate">{p.fullName}</span>
+                  <span className="truncate flex-1">{p.fullName}</span>
+                  <span className="text-xs font-black text-forest shrink-0">{p.pointsAwarded} pts</span>
                 </li>
               ))}
             </ol>
