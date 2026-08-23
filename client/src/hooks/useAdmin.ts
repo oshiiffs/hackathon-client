@@ -55,7 +55,7 @@ type EventExport = {
 // every 4-8s each was overkill for that role and made the whole dashboard
 // re-render every couple of seconds even when nothing changed; widened to
 // stay comfortably ahead of any real staleness without the constant churn.
-export function useAdminOverview() {
+export function useAdminOverview(enabled = true) {
   return useQuery({
     queryKey: ['admin-overview'],
     queryFn: async () => {
@@ -63,6 +63,7 @@ export function useAdminOverview() {
       return data;
     },
     refetchInterval: 20000,
+    enabled,
   });
 }
 
@@ -88,7 +89,14 @@ export function useAdminTeams() {
   });
 }
 
-export function useAdminDeliverables() {
+// `enabled` (default true) lets a caller that stays mounted for hours —
+// PresenterPage's big-screen view, open on a projector for the whole event —
+// skip the network round trip and refetch timer entirely while its own
+// current phase has no use for this particular data, rather than polling
+// every consumer's queries unconditionally regardless of what's on screen.
+// AdminDashboardPage and other always-relevant callers are unaffected, since
+// they never pass anything other than the default.
+export function useAdminDeliverables(enabled = true) {
   return useQuery({
     queryKey: ['admin-deliverables'],
     queryFn: async () => {
@@ -96,10 +104,11 @@ export function useAdminDeliverables() {
       return data;
     },
     refetchInterval: 30000,
+    enabled,
   });
 }
 
-export function useAdminEvaluations() {
+export function useAdminEvaluations(enabled = true) {
   return useQuery({
     queryKey: ['admin-evaluations'],
     queryFn: async () => {
@@ -107,10 +116,11 @@ export function useAdminEvaluations() {
       return data;
     },
     refetchInterval: 30000,
+    enabled,
   });
 }
 
-export function useAdminParticipants() {
+export function useAdminParticipants(enabled = true) {
   return useQuery({
     queryKey: ['admin-participants'],
     queryFn: async () => {
@@ -118,6 +128,7 @@ export function useAdminParticipants() {
       return data;
     },
     refetchInterval: 20000,
+    enabled,
   });
 }
 
@@ -471,7 +482,7 @@ export function useResetCompetition() {
 
 // ---------- CEO Selection Competition question bank (req. 41-53) ----------
 
-export function useCeoQuestions() {
+export function useCeoQuestions(enabled = true) {
   return useQuery({
     queryKey: ['admin-ceo-questions'],
     queryFn: async () => {
@@ -479,6 +490,7 @@ export function useCeoQuestions() {
       return data;
     },
     refetchInterval: 20000,
+    enabled,
   });
 }
 

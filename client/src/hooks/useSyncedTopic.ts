@@ -55,10 +55,18 @@ export function useSyncedTopic(
     }
   }, [serverNow]);
 
+  // Only worth ticking while there's an actual round to sync against — both
+  // consumers (ParticipantChallengePage, PresenterPage) render the same
+  // fixed "no round" state below regardless of how often this re-renders
+  // when `startedAt` is null, so a 5x/sec forced re-render then is pure
+  // waste. Matters most for PresenterPage, which can sit mounted on a
+  // projector for the whole multi-hour event — most of that time with no
+  // CEO Challenge round active at all.
   useEffect(() => {
+    if (!startedAt) return;
     const interval = setInterval(() => forceTick((t) => t + 1), 200);
     return () => clearInterval(interval);
-  }, []);
+  }, [startedAt]);
 
   const offset = offsetRef.current ?? 0;
   const nowCorrected = Date.now() + offset;

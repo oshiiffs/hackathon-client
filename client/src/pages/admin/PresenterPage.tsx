@@ -3,12 +3,20 @@ import { Link } from 'react-router-dom';
 import { AmbientBackground } from '../../components/AmbientBackground';
 import { CountdownTimer } from '../../components/CountdownTimer';
 import { useSyncedTopic } from '../../hooks/useSyncedTopic';
-import { useAdminHackathonState, useAdminOverview, useAdminParticipants, useCeoQuestions, useLiveAnswerAggregate } from '../../hooks/useAdmin';
+import {
+  useAdminDeliverables,
+  useAdminEvaluations,
+  useAdminHackathonState,
+  useAdminOverview,
+  useAdminParticipants,
+  useCeoQuestions,
+  useLiveAnswerAggregate,
+} from '../../hooks/useAdmin';
 import { getSocket } from '../../lib/socket';
 import { comicButton } from '../../lib/comic';
 import { DEPARTMENT_COLORS } from '../../lib/departmentColors';
 import { HEAT_CATEGORY_ICONS, HEAT_DEFAULT_VIDEO } from '../../lib/heatCategoryAssets';
-import type { CategoryUsage, Department, HeatCategory } from '../../types/api';
+import type { AdminEvaluationOverview, CategoryUsage, Department, HackathonPhase, HeatCategory, TeamDeliverableStatus } from '../../types/api';
 import type { ChallengeAnswerSubmittedPayload, ChallengeEndPayload } from '../../types/realtime';
 
 const HEAT_CATEGORY_ORDER: HeatCategory[] = ['HEALTH', 'ENVIRONMENT', 'AGRICULTURE', 'TOURISM'];
@@ -24,22 +32,41 @@ const MANUAL_SCREENS: { id: ManualScreen; label: string }[] = [
 
 /**
  * The big-screen/LCD view for competition day — cast this tab, not the admin
- * dashboard. Auto-follows the event phase (CEO Challenge timer + live
- * "who's answered" board + top-5-answers recap + CEO reveal); the strip at
- * the bottom lets the operator cut to the other FLOW steps (scanning,
- * welcome video, category selection) that don't have a single piece of
- * server state driving them.
+ * dashboard. "Live (auto)" follows the event's own phase end to end (see
+ * renderAutoScreen below for the full LOBBY -> CEO_CHALLENGE_ACTIVE ->
+ * DRAFTING -> SUBMISSIONS_OPEN -> SUBMISSIONS_LOCKED -> JUDGING -> COMPLETE
+ * mapping) — normally the operator never needs to touch anything, since
+ * whatever's actually happening is what's on screen. The strip at the bottom
+ * is a manual OVERRIDE for the two moments that aren't tied to a single
+ * phase (a welcome video played at a moment of the operator's choosing, and
+ * the category board being useful to leave up across both DRAFTING and
+ * SUBMISSIONS), not something that needs to be driven every step.
+ *
+ * Each phase's own data query is only enabled while that phase (or its
+ * matching manual override) is actually on screen — this page can sit
+ * mounted on a projector for an entire multi-hour event, so polling every
+ * phase's data unconditionally the whole time would mean paying for CEO
+ * Challenge roster fetches during JUDGING, evaluation polls during LOBBY,
+ * etc. for no reason.
  */
 export function PresenterPage() {
   const { data: state } = useAdminHackathonState();
-  const questions = useCeoQuestions();
-  const participants = useAdminParticipants();
-  const overview = useAdminOverview();
+  const phase = state?.phase;
 
   const [manualScreen, setManualScreen] = useState<ManualScreen>('auto');
   const [answeredByQuestion, setAnsweredByQuestion] = useState<Record<string, Map<string, string>>>({});
   const [lastWinners, setLastWinners] = useState<ChallengeEndPayload['winners'] | null>(null);
   const [showReveal, setShowReveal] = useState(false);
+
+  const questions = useCeoQuestions(phase === 'CEO_CHALLENGE_ACTIVE');
+  const participants = useAdminParticipants(
+    manualScreen === 'recruiting' || (manualScreen === 'auto' && (phase === 'CEO_CHALLENGE_ACTIVE' || phase === 'DRAFTING')),
+  );
+  const overview = useAdminOverview(manualScreen === 'category');
+  const deliverables = useAdminDeliverables(
+    manualScreen === 'auto' && (phase === 'SUBMISSIONS_OPEN' || phase === 'SUBMISSIONS_LOCKED'),
+  );
+  const evaluations = useAdminEvaluations(manualScreen === 'auto' && (phase === 'JUDGING' || phase === 'COMPLETE'));
 
   const activeQuestions = (questions.data ?? [])
     .filter((q) => q.isActive)
@@ -103,6 +130,77 @@ export function PresenterPage() {
   const roster = (participants.data ?? []).filter((p) => p.role === 'PARTICIPANT' && !p.drafted);
   const answeredNow = currentQuestion ? (answeredByQuestion[currentQuestion.id] ?? new Map()) : new Map();
 
+  // "Live (auto)" — one screen per hackathon phase, so the operator never has
+  // to touch the manual override strip during normal running. A winners
+  // reveal always takes priority over whatever the phase itself would show
+  // (it's a brief, self-dismissing overlay moment triggered by the CEO
+  // Challenge round actually ending, not a phase of its own).
+  function renderAutoScreen() {
+    if (showReveal && lastWinners) {
+      return <RevealScreen winners={lastWinners} onDone={() => setShowReveal(false)} />;
+    }
+
+    switch (phase as HackathonPhase | undefined) {
+      case 'CEO_CHALLENGE_ACTIVE':
+        if (roundActive && currentQuestion && answerEndsAtMs > 0) {
+          return (
+            <div className="w-full max-w-5xl flex flex-col items-center gap-8">
+              <p className="text-lg font-black uppercase tracking-widest text-crimson">
+                Topic {topicIndex + 1} of {activeQuestions.length}
+              </p>
+              <CountdownTimer endsAt={new Date(answerEndsAtMs).toISOString()} serverNow={serverNowIso} />
+              <h1 className="text-5xl font-black text-center tracking-tight text-ink">{currentQuestion.question}</h1>
+
+              <div className="w-full grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2 mt-4">
+                {roster.map((p) => {
+                  const lit = answeredNow.has(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={`rounded-lg px-2 py-2 text-center text-xs font-bold truncate border-[3px] transition-all duration-300 ${
+                        lit
+                          ? 'bg-forest text-cream border-ink scale-105 shadow-[3px_3px_0px_#111111]'
+                          : 'bg-white border-ink text-navy/40'
+                      }`}
+                    >
+                      {p.fullName}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-sm font-bold text-navy">
+                {answeredNow.size} / {roster.length} answered
+              </p>
+
+              {recapQuestionId && recapAggregate.data && <TopAnswersOverlay aggregate={recapAggregate.data} />}
+            </div>
+          );
+        }
+        // Between rounds (challenge active but this round already ended and
+        // the next hasn't started) — same idle treatment as LOBBY.
+        return <IdleScreen />;
+
+      case 'DRAFTING':
+        return <ScanningMembersScreen participants={participants.data ?? []} />;
+
+      case 'SUBMISSIONS_OPEN':
+        return <SubmissionsScreen deliverables={deliverables.data ?? []} open />;
+
+      case 'SUBMISSIONS_LOCKED':
+        return <SubmissionsScreen deliverables={deliverables.data ?? []} open={false} />;
+
+      case 'JUDGING':
+        return <JudgingScreen evaluations={evaluations.data ?? []} />;
+
+      case 'COMPLETE':
+        return <CompleteScreen />;
+
+      case 'LOBBY':
+      default:
+        return <IdleScreen />;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-canvas text-ink flex flex-col isolate">
       <AmbientBackground />
@@ -135,48 +233,7 @@ export function PresenterPage() {
         {manualScreen === 'welcome' && <WelcomeScreen />}
         {manualScreen === 'category' && <CategorySelectionScreen categoryUsage={overview.data?.categoryUsage ?? []} />}
 
-        {manualScreen === 'auto' && (
-          <>
-            {showReveal && lastWinners && (
-              <RevealScreen winners={lastWinners} onDone={() => setShowReveal(false)} />
-            )}
-
-            {!showReveal && roundActive && currentQuestion && answerEndsAtMs > 0 && (
-              <div className="w-full max-w-5xl flex flex-col items-center gap-8">
-                <p className="text-lg font-black uppercase tracking-widest text-crimson">
-                  Topic {topicIndex + 1} of {activeQuestions.length}
-                </p>
-                <CountdownTimer endsAt={new Date(answerEndsAtMs).toISOString()} serverNow={serverNowIso} />
-                <h1 className="text-5xl font-black text-center tracking-tight text-ink">{currentQuestion.question}</h1>
-
-                <div className="w-full grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2 mt-4">
-                  {roster.map((p) => {
-                    const lit = answeredNow.has(p.id);
-                    return (
-                      <div
-                        key={p.id}
-                        className={`rounded-lg px-2 py-2 text-center text-xs font-bold truncate border-[3px] transition-all duration-300 ${
-                          lit
-                            ? 'bg-forest text-cream border-ink scale-105 shadow-[3px_3px_0px_#111111]'
-                            : 'bg-white border-ink text-navy/40'
-                        }`}
-                      >
-                        {p.fullName}
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-sm font-bold text-navy">{answeredNow.size} / {roster.length} answered</p>
-
-                {recapQuestionId && recapAggregate.data && (
-                  <TopAnswersOverlay aggregate={recapAggregate.data} />
-                )}
-              </div>
-            )}
-
-            {!showReveal && !roundActive && <IdleScreen />}
-          </>
-        )}
+        {manualScreen === 'auto' && renderAutoScreen()}
       </div>
     </div>
   );
@@ -266,6 +323,95 @@ function ScanningMembersScreen({ participants }: { participants: ScanningMember[
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** SUBMISSIONS_OPEN / SUBMISSIONS_LOCKED — reuses useAdminDeliverables, the
+ * same pitch-deck-status data the admin dashboard's own Teams panel already
+ * reads (see getDeliverableStatus). Names the teams still missing a pitch
+ * deck while submissions are open (actionable for the organizers watching
+ * this screen — who to go nudge); once locked, that list stops being useful
+ * to call out (nothing left to do about it), so just the tally remains. */
+function SubmissionsScreen({ deliverables, open }: { deliverables: TeamDeliverableStatus[]; open: boolean }) {
+  const submitted = deliverables.filter((d) => d.pitchDeck.status === 'UPLOADED').length;
+  const pending = deliverables.filter((d) => d.pitchDeck.status !== 'UPLOADED');
+
+  return (
+    <div className="w-full max-w-3xl flex flex-col items-center gap-6">
+      <div className="text-center flex flex-col items-center gap-2">
+        <div className="w-4 h-4 rounded-full bg-crimson border-2 border-ink animate-ping" />
+        <h1 className="text-4xl font-black tracking-tight text-ink">{open ? 'SUBMISSIONS OPEN' : 'SUBMISSIONS CLOSED'}</h1>
+        <p className="text-lg font-bold text-navy max-w-2xl">
+          {open ? 'Teams are uploading their pitch decks.' : 'Pitch decks are locked — judging starts soon.'}
+        </p>
+      </div>
+
+      <div className="text-center">
+        <p className="text-6xl font-black text-forest" data-testid="submissions-count">
+          {submitted} / {deliverables.length}
+        </p>
+        <p className="text-sm font-black uppercase tracking-widest text-navy/50">teams have submitted</p>
+      </div>
+
+      {open && pending.length > 0 && (
+        <div className="w-full flex flex-col items-center gap-2">
+          <p className="text-xs font-black uppercase tracking-widest text-crimson">Still waiting on</p>
+          <div className="flex flex-wrap justify-center gap-2 max-h-[30vh] overflow-y-auto">
+            {pending.map((d) => (
+              <span
+                key={d.teamId}
+                className="text-xs font-bold bg-white border-2 border-ink rounded-full px-3 py-1"
+              >
+                {d.teamName ?? '(unnamed)'}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** JUDGING — reuses useAdminEvaluations, the same per-team evaluation-
+ * progress data the admin dashboard's own Judging panel already reads (see
+ * getEvaluationOverview). One aggregate tally across every finalized team
+ * rather than a per-team breakdown — enough for a passive audience screen
+ * without turning it into a judge leaderboard. */
+function JudgingScreen({ evaluations }: { evaluations: AdminEvaluationOverview[] }) {
+  const submitted = evaluations.reduce((sum, e) => sum + e.evaluationsSubmitted, 0);
+  const possible = evaluations.reduce((sum, e) => sum + e.totalJudges, 0);
+
+  return (
+    <div className="text-center flex flex-col items-center gap-6">
+      <div className="w-4 h-4 rounded-full bg-crimson border-2 border-ink animate-ping" />
+      <h1 className="text-4xl font-black tracking-tight text-ink">JUDGING IN PROGRESS</h1>
+      <p className="text-lg font-bold text-navy max-w-2xl">Judges are scoring every finalized team.</p>
+      <div>
+        <p className="text-6xl font-black text-forest" data-testid="judging-count">
+          {submitted} / {possible}
+        </p>
+        <p className="text-sm font-black uppercase tracking-widest text-navy/50">evaluations submitted</p>
+      </div>
+    </div>
+  );
+}
+
+/** COMPLETE — no fabricated leaderboard here: there's no final-ranking
+ * computation anywhere in this codebase to draw one from (JudgeScore is
+ * per-judge-per-team, never aggregated into a ranked winner), so this stays a
+ * plain closing screen rather than inventing scoring logic that doesn't
+ * exist elsewhere. */
+function CompleteScreen() {
+  return (
+    <div className="text-center flex flex-col items-center gap-6">
+      <img
+        src="/nexus-logo-v2.png"
+        alt="Nexus Multiverse 2026"
+        className="w-full max-w-xl rounded-2xl border-[3px] border-ink shadow-[8px_8px_0px_#111111]"
+      />
+      <h1 className="text-4xl font-black tracking-tight text-ink">COMPETITION COMPLETE</h1>
+      <p className="text-lg font-bold text-navy">Thank you for building with us today.</p>
     </div>
   );
 }
