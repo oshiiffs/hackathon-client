@@ -73,18 +73,23 @@ function StepIndicator({ step }: { step: FinalizeStep }) {
   );
 }
 
-// heat-default.mp4 (1080x1920, 43.6s) has the literal placeholder text
-// "(STARTUP)" baked into its own pixels at two moments — it's a real
-// pre-rendered clip, not a template, so there's no way to substitute the
-// team's actual name inside the video itself. These windows (seconds) were
-// measured by frame-sampling the clip: [start, end] of each moment the
-// placeholder is on screen, with a little padding on either side to fully
-// cover its fade in/out. An HTML overlay (see NamePlaceholderOverlay below)
-// swaps in the real team name for exactly these windows; the video plays
-// untouched everywhere else, including its own separate "(SECTOR)" placeholder
-// later on — that one is intentionally left alone here, since the real
-// per-category reveal happens on a completely different, already-correct
-// video (see HEAT_CATEGORY_VIDEOS / HeatCategoryRevealVideo below).
+// Every HEAT video (heat-default.mp4 AND all four HEAT_CATEGORY_VIDEOS) is
+// cut from the same 43.6s/1080x1920/1310-frame template — verified by
+// frame-sampling each one — sharing frame-for-frame identical footage up
+// through the "(STARTUP)... HEAT" segment and only diverging afterward into
+// their own "WELCOME OUR ___ HERO" ending. That shared footage has the
+// literal placeholder text "(STARTUP)" baked into its own pixels at two
+// moments — it's real pre-rendered video, not a template, so there's no way
+// to substitute the team's actual name inside the file itself. These windows
+// (seconds) were measured by frame-sampling the clip: [start, end] of each
+// moment the placeholder is on screen, with a little padding on either side
+// to fully cover its fade in/out. An HTML overlay (see NamePlaceholderOverlay
+// below) swaps in the real team name for exactly these windows, on whichever
+// of the five videos is currently playing (see useNamePlaceholderPhase) — the
+// video plays untouched everywhere else, including its own separate
+// "(SECTOR)" placeholder in heat-default.mp4's ending, which is intentionally
+// left alone since the real per-category videos already fill that in
+// correctly ("WELCOME OUR HEALTH HERO", etc.) once they diverge.
 const GREETING_NAME_WINDOW = { start: 1.1, end: 3.5 } as const;
 const SECTOR_NAME_WINDOW = { start: 22.6, end: 33.3 } as const;
 
@@ -96,33 +101,54 @@ function phaseForVideoTime(t: number): NamePlaceholderPhase {
   return 'none';
 }
 
+/** Shared by every component that plays one of the five HEAT template videos
+ * (HeatCategoryVideoGate and HeatCategoryRevealVideo) — tracks which of the
+ * two "(STARTUP)" placeholder windows (if any) the video is currently in, off
+ * its own onTimeUpdate. */
+function useNamePlaceholderPhase() {
+  const [namePhase, setNamePhase] = useState<NamePlaceholderPhase>('none');
+  function handleTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
+    const phase = phaseForVideoTime(e.currentTarget.currentTime);
+    setNamePhase((prev) => (prev === phase ? prev : phase));
+  }
+  return { namePhase, handleTimeUpdate };
+}
+
 /**
  * An opaque comic-caption patch (matching the app's existing button/panel
  * language — white fill, thick ink border, hard offset shadow) placed over
- * wherever heat-default.mp4 shows its own baked "(STARTUP)" text, sized/
- * positioned from the same frame-sampling as the time windows above. Opaque
- * on purpose: the video's own placeholder text sits directly underneath, and
- * only a fully-covering patch guarantees it never shows through or
- * double-exposes with the real name drawn on top of it.
+ * wherever the shared HEAT template footage shows its own baked "(STARTUP)"
+ * text, sized/positioned from frame-sampling (see the time-window doc comment
+ * above). Opaque on purpose: the video's own placeholder text sits directly
+ * underneath, and only a fully-covering patch guarantees it never shows
+ * through or double-exposes with the real name drawn on top of it.
  *
- * `top`/`underline` were read off the sampled frames (percentages of the
- * video's own 1080x1920 frame) — safe to position as plain percentages here
- * because the wrapping video element is exactly a 9:16 box (`aspect-[9/16]
- * object-contain`), so container-relative percentages land on the same spot
- * as the source video's pixel percentages, with no letterboxing to account
- * for. Font size uses container query width units (`cqw`) so it scales with
- * the actual rendered video box, not the viewport — the wrapper opts into
- * that via `[container-type:size]`.
+ * Anchored from a single fixed edge (`edge`/`anchor`) rather than vertically
+ * centered: a longer team name that wraps to two lines must only grow AWAY
+ * from that edge, into the blank space it was measured against, never back
+ * toward the video's own neighboring (untouched) text on the other side —
+ * "GREETINGS!" sits right above the first window, and "THE PHILIPPINES NEEDS
+ * YOU." sits right below the second, so growing symmetrically around a
+ * center point would risk eating into one or the other for a longer name.
+ * `edge` is a plain percentage — safe to use directly (no letterboxing to
+ * account for) because the wrapping video element is exactly a 9:16 box
+ * (`aspect-[9/16] object-contain`), so container-relative percentages land on
+ * the same spot as the source video's pixel percentages. Font size uses
+ * container query width units (`cqw`) so it scales with the actual rendered
+ * video box, not the viewport — the wrapper opts into that via
+ * `[container-type:size]`.
  */
 function NamePlaceholderOverlay({
   teamName,
-  top,
+  anchor,
+  edge,
   minHeightCqh,
   underline,
   testId,
 }: {
   teamName: string;
-  top: string;
+  anchor: 'top' | 'bottom';
+  edge: string;
   minHeightCqh: number;
   underline?: boolean;
   testId: string;
@@ -130,7 +156,7 @@ function NamePlaceholderOverlay({
   const displayName = teamName.trim() ? teamName.trim().toUpperCase() : 'YOUR STARTUP';
   return (
     <div
-      className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center max-w-[85%] px-4 rounded-lg border-[3px] border-ink bg-white shadow-[3px_3px_0px_#111111]"
+      className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[85%] px-4 rounded-lg border-[3px] border-ink bg-white shadow-[3px_3px_0px_#111111]"
       // A percentage-of-container minHeight (rather than relying on padding
       // alone) is what guarantees this patch is always at least as tall as
       // the video's own baked placeholder text at this exact moment —
@@ -141,7 +167,10 @@ function NamePlaceholderOverlay({
       // per-window (not a shared constant) since the two moments have very
       // different vertical clearance before the next line of the video's own
       // (untouched) text — see the two call sites below.
-      style={{ top, minHeight: `clamp(24px, ${minHeightCqh}cqh, 64px)` }}
+      style={{
+        [anchor]: edge,
+        minHeight: `clamp(24px, ${minHeightCqh}cqh, 72px)`,
+      }}
       data-testid={testId}
     >
       <p
@@ -154,6 +183,35 @@ function NamePlaceholderOverlay({
   );
 }
 
+/** The two NamePlaceholderOverlay calls shared by every HEAT template video —
+ * see useNamePlaceholderPhase's doc comment for why this is identical across
+ * HeatCategoryVideoGate and HeatCategoryRevealVideo. */
+function NamePlaceholderOverlays({ namePhase, teamName }: { namePhase: NamePlaceholderPhase; teamName: string }) {
+  return (
+    <>
+      {namePhase === 'greeting' && (
+        // Measured "(STARTUP)" span (letters + parens + underline flourish):
+        // top 52.1%, bottom 59.7% of frame, with "GREETINGS!" ending at
+        // 48.3%. Anchored from the top edge (50%, just clear of
+        // "GREETINGS!") with enough min-height (10cqh) to comfortably cover
+        // a single line already — a wrapped two-line name only grows this
+        // box further downward, into the empty space below, never back up
+        // into "GREETINGS!".
+        <NamePlaceholderOverlay teamName={teamName} anchor="top" edge="50%" minHeightCqh={10} underline testId="heat-video-greeting-name" />
+      )}
+      {namePhase === 'sector' && (
+        // Measured "(STARTUP)" span: top 20.2%, bottom 25.5% of frame — "THE
+        // PHILIPPINES NEEDS YOU." starts right at 25.5%. Anchored from the
+        // BOTTOM edge (fixed just above that subtitle, at 25% from the top —
+        // i.e. `bottom: 75%`) so a wrapped two-line name grows upward into
+        // the clear space toward the top banner instead of down into that
+        // subtitle line.
+        <NamePlaceholderOverlay teamName={teamName} anchor="bottom" edge="75%" minHeightCqh={6} testId="heat-video-sector-name" />
+      )}
+    </>
+  );
+}
+
 /**
  * The CEO Name Selection -> HEAT Category Selection transition video —
  * plays automatically once the name timer closes, no user action required.
@@ -163,7 +221,7 @@ function NamePlaceholderOverlay({
  */
 function HeatCategoryVideoGate({ onDone, teamName }: { onDone: () => void; teamName: string }) {
   const [videoError, setVideoError] = useState(false);
-  const [namePhase, setNamePhase] = useState<NamePlaceholderPhase>('none');
+  const { namePhase, handleTimeUpdate } = useNamePlaceholderPhase();
 
   return (
     <div className="flex flex-col items-center">
@@ -175,10 +233,7 @@ function HeatCategoryVideoGate({ onDone, teamName }: { onDone: () => void; teamN
           controls
           controlsList="nodownload noplaybackrate"
           onEnded={onDone}
-          onTimeUpdate={(e) => {
-            const phase = phaseForVideoTime(e.currentTarget.currentTime);
-            setNamePhase((prev) => (prev === phase ? prev : phase));
-          }}
+          onTimeUpdate={handleTimeUpdate}
           onError={() => {
             setVideoError(true);
             onDone();
@@ -188,20 +243,7 @@ function HeatCategoryVideoGate({ onDone, teamName }: { onDone: () => void; teamN
           <source src={HEAT_DEFAULT_VIDEO} type="video/mp4" />
         </video>
 
-        {namePhase === 'greeting' && (
-          // Measured "(STARTUP)" span (letters + parens + underline flourish):
-          // top 52.1%, bottom 59.7% of frame — an 11cqh box centered at 56%
-          // (50.5%-61.5%) comfortably covers all of it, with "GREETINGS!"
-          // (ends 48.3%) still clear above and nothing below to collide with.
-          <NamePlaceholderOverlay teamName={teamName} top="56%" minHeightCqh={11} underline testId="heat-video-greeting-name" />
-        )}
-        {namePhase === 'sector' && (
-          // Measured "(STARTUP)" span: top 20.2%, bottom 25.5% of frame — the
-          // "THE PHILIPPINES NEEDS YOU." subtitle starts right at 25.5%, so
-          // this window is tighter: a 6cqh box centered at 22.5% (19.5%-25.5%)
-          // covers the placeholder without eating into that next line.
-          <NamePlaceholderOverlay teamName={teamName} top="22.5%" minHeightCqh={6} testId="heat-video-sector-name" />
-        )}
+        <NamePlaceholderOverlays namePhase={namePhase} teamName={teamName} />
       </div>
       {videoError ? (
         <p className="text-xs font-bold text-crimson mt-2" data-testid="heat-category-video-error">
@@ -217,22 +259,32 @@ function HeatCategoryVideoGate({ onDone, teamName }: { onDone: () => void; teamN
 /** Plays once the team is finalized, matching the HEAT category the CEO
  * selected — see HEAT_CATEGORY_VIDEOS. Not a shared/generic clip: each of
  * the four categories has its own real video (brand kit provided; no
- * re-encoding here). Autoplay muted (browsers block unmuted autoplay
- * regardless) with controls, so it plays immediately on reveal but the CEO
- * can also unmute, pause, or replay it afterward. */
-function HeatCategoryRevealVideo({ category }: { category: HeatCategory }) {
+ * re-encoding here) — though all four are cut from the same template as
+ * heat-default.mp4 and share its first ~34s frame-for-frame (verified by
+ * frame-sampling), including the same baked "(STARTUP)" placeholder at the
+ * same two moments before each diverges into its own "WELCOME OUR ___ HERO"
+ * ending — so this needs the identical name overlay treatment as
+ * HeatCategoryVideoGate (see useNamePlaceholderPhase). Autoplay muted
+ * (browsers block unmuted autoplay regardless) with controls, so it plays
+ * immediately on reveal but the CEO can also unmute, pause, or replay it
+ * afterward. */
+function HeatCategoryRevealVideo({ category, teamName }: { category: HeatCategory; teamName: string }) {
+  const { namePhase, handleTimeUpdate } = useNamePlaceholderPhase();
   return (
-    <div className="w-full max-w-xs aspect-[9/16] rounded-xl border-[3px] border-ink shadow-[4px_4px_0px_#111111] bg-ink overflow-hidden">
+    <div className="relative w-full max-w-xs aspect-[9/16] rounded-xl border-[3px] border-ink shadow-[4px_4px_0px_#111111] bg-ink overflow-hidden [container-type:size]">
       <video
         className="w-full h-full object-contain"
         autoPlay
         muted
         controls
         playsInline
+        onTimeUpdate={handleTimeUpdate}
         data-testid="heat-category-reveal-video"
       >
         <source src={HEAT_CATEGORY_VIDEOS[category]} type="video/mp4" />
       </video>
+
+      <NamePlaceholderOverlays namePhase={namePhase} teamName={teamName} />
     </div>
   );
 }
@@ -240,7 +292,7 @@ function HeatCategoryRevealVideo({ category }: { category: HeatCategory }) {
 function FinalizedView({ team }: { team: Team }) {
   return (
     <div className="flex flex-col items-center gap-6 py-10 text-center" data-testid="finalize-success">
-      {team.category && <HeatCategoryRevealVideo category={team.category} />}
+      {team.category && <HeatCategoryRevealVideo category={team.category} teamName={team.name ?? ''} />}
       <Link to="/team" className={comicButton('crimson')}>
         OPEN TEAM HUB
       </Link>
