@@ -44,7 +44,23 @@ export const API_BASE_URL = import.meta.env.PROD ? '' : rawApiUrl ? rawApiUrl.re
 // Auth is an httpOnly session cookie set by the server on login — this client
 // never sees or stores the raw JWT. `withCredentials` is what makes the browser
 // attach that cookie to every request (and accept the Set-Cookie on login).
-export const apiClient = axios.create({ baseURL: `${API_BASE_URL}/api`, withCredentials: true });
+//
+// The X-Hackathon-Client header is a CSRF guard, not an API key — see the
+// server's utils/csrf.ts requireAppHeader for the full reasoning. Short
+// version: this app's session cookie is SameSite=None (required for the
+// Vercel/Render origin split), and a couple of routes (multipart file
+// uploads specifically) are otherwise reachable by a plain cross-origin
+// HTML <form> without ever triggering a CORS preflight. Setting a header a
+// plain <form> can't set forces every real request through this client to
+// be a preflighted one, so the server's existing origin allowlist gets to
+// veto anything else before those routes ever run. Set as a default header
+// here (not per-call) so every request — uploads included — carries it
+// automatically; nothing upload-specific has to remember to add it.
+export const apiClient = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+  withCredentials: true,
+  headers: { 'X-Hackathon-Client': '1' },
+});
 
 // Render's free tier spins the backend process down after ~15min idle; the
 // next request(s) can hit a 502/503/504 while it cold-starts back up (can
