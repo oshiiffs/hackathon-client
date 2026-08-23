@@ -54,9 +54,16 @@ is the control room for the whole event. Logged in with email + password.
      device and starts the synchronized timer — every topic plays in lockstep
      for everyone.
    - The [Presenter view](client/src/pages/admin/PresenterPage.tsx) (a
-     separate big-screen page meant to be cast to a projector) shows the
-     current topic, a live "who's answered" grid of every participant, and
-     a top-5-answers recap between topics.
+     separate big-screen page meant to be cast to a projector) auto-follows
+     the event: the current topic + a live "who's answered" grid + a
+     top-5-answers recap between topics during the challenge, then a
+     "MEET YOUR NEW CEOs" reveal once it ends. An operator can also cut to
+     three other screens manually at any time (they don't follow a single
+     piece of server state, so they're not automatic): **Scanning members**
+     (every participant's name, photo, and live available/recruited status,
+     dimmed the instant a CEO recruits them), **Welcome video**, and
+     **Category selection** (the four HEAT categories with their icons, and
+     the team name(s) that have finalized into each — see step 3 below).
    - An Admin can **Stop CEO challenge** early — whoever's already saved an
      answer at that instant is ranked as-is.
    - When the round ends, the top scorers are auto-promoted to CEO and the
@@ -65,6 +72,12 @@ is the control room for the whole event. Logged in with email + password.
 3. **Team formation window**
    - Watch the **HEAT Category Capacity** panel (max 3 teams per category)
      and the **Teams** list fill in as CEOs recruit.
+   - **Team Finalization Timers**: two independent durations (seconds) —
+     **CEO Name Selection** and **HEAT Category Selection** — that drive the
+     buttonless finalize flow every CEO goes through (see the CEO flow
+     below). Changing either only affects a team whose corresponding timer
+     hasn't started yet; a team already mid-countdown keeps the deadline it
+     was given.
    - If recruitment is running short on people, toggle **Allow incomplete
      rosters** so CEOs can finalize with fewer than 5 members instead of
      getting stuck.
@@ -114,7 +127,12 @@ on event setup).
    - A brief "reveal" window shows the correct answer before the next topic.
    - After the last topic, there's a short "calculating results…" beat, then
      one of two outcomes:
-     - **Became CEO** → routed into the [CEO flow](#3-ceo-flow) below.
+     - **Became CEO** → a "YOU ARE THE CEO" congratulations message shows for
+       about 5 seconds, no button — then it automatically redirects straight
+       into **Startup Name Selection**, the first step of the
+       [CEO flow](#3-ceo-flow) below (recruiting still has to happen first if
+       the roster isn't full yet; that screen tells you so and links straight
+       to the QR scanner).
      - **Did not become CEO** → back to "Candidate Mode": show your QR badge
        and wait to be recruited.
 
@@ -148,16 +166,39 @@ the remaining 4 department slots.
      allowed incomplete rosters and the CEO chooses to move on early).
 
 2. **Finalizing the team** ([`CeoFinalizePage`](client/src/pages/ceo/CeoFinalizePage.tsx))
-   - Once the roster is ready, pick a **team name** and a **HEAT category**
-     (Health, Environment, Agriculture, Tourism — capped at 3 teams each; full
-     categories are disabled in the picker).
-   - Confirm in a dialog, then finalize. This is a one-way action — normal
-     recruitment closes for that team afterward.
+   — entirely timer-driven, no "Continue"/"Finalize" button anywhere. Every
+   step boundary is a deadline the server already decided, so refreshing
+   mid-countdown never resets it, and nothing here can be rushed or skipped
+   from the frontend — the server independently rejects a write once that
+   step's window has closed.
+   - **Not ready yet**: while the roster isn't complete, this page just shows
+     the department checklist and a **Scan member** link to the QR
+     recruiter — nothing starts until the roster qualifies (or, if the Admin
+     has allowed incomplete rosters, at least one member is recruited).
+   - **CEO Name Selection**: the instant the roster qualifies, a countdown
+     starts (admin-configured length — see the Admin flow above). Type a team
+     name any time before it runs out; it autosaves as you type. When the
+     timer hits 0, whatever's currently typed locks in automatically — leave
+     it blank and a name is generated for you, so this step can never get
+     stuck. The name is permanent from this point on; there's no rename
+     option anywhere afterward.
+   - **Video**: the moment the name timer closes, a transition video plays
+     automatically — no click needed. If it fails to load, it still moves on
+     on its own rather than blocking the team.
+   - **HEAT Category Selection**: once the video ends, a second countdown
+     starts (its own separately admin-configured length). Tap a category —
+     Health, Environment, Agriculture, or Tourism, each capped at 3 teams;
+     full ones are disabled — any time before it runs out; the pick autosaves
+     immediately, no confirmation dialog. When this timer hits 0, whichever
+     category is currently picked finalizes automatically and the team's
+     slot is claimed; pick nothing and an available category is chosen for
+     you. This is the point recruitment actually closes for the team.
+   - Once finalized, the CEO is dropped straight into the Team Hub below,
+     with that HEAT category's own reveal video playing.
 
 3. **Team Hub** — see the shared section below. As CEO specifically, the CEO
-   is the only one who can rename the team after finalization and the only
-   one who can hit **Submit** on the project (once a pitch deck is uploaded
-   and submissions are open).
+   is the only one who can hit **Submit** on the project (once a pitch deck
+   is uploaded and submissions are open).
 
 ### Team Hub (shared by every team member)
 

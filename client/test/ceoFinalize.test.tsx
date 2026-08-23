@@ -163,6 +163,16 @@ describe('Team finalization (frontend, timer-driven)', () => {
     expect(screen.queryByTestId('team-name-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('name-selection-timer')).not.toBeInTheDocument();
     expect(screen.queryByText(/continue to heat selection/i)).not.toBeInTheDocument();
+    // Regression: a freshly-promoted CEO now lands directly on THIS page
+    // (see ParticipantChallengePage's post-congratulations auto-redirect,
+    // which skips CeoDashboardPage entirely) — without this link, "still
+    // recruiting" was a dead end with no way to reach the QR scanner.
+    expect(screen.getByTestId('not-ready-scan-member-link')).toHaveAttribute('href', '/ceo/recruit');
+  });
+
+  it("1b. the not-ready panel's recruit link is absent once the roster is genuinely full (a different not-ready reason)", () => {
+    renderFinalizePage(mockStatus({ canFinalize: false, reason: 'PHASE_NOT_ALLOWED' }));
+    expect(screen.queryByTestId('not-ready-scan-member-link')).not.toBeInTheDocument();
   });
 
   it('2. all five departments render with their completion state', () => {

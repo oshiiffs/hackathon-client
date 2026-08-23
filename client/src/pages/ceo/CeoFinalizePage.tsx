@@ -264,6 +264,16 @@ export function CeoFinalizePage() {
                 : `Finalization isn't available right now (${status.reason}).`}
             </p>
           )}
+
+          {/* A freshly-promoted CEO lands directly on THIS page now (see
+              ParticipantChallengePage's post-congratulations auto-redirect) —
+              this page no longer routes through CeoDashboardPage first, so
+              this is the only way to actually reach the QR scanner from here. */}
+          {status.reason === 'TEAM_NOT_COMPLETE' && (
+            <Link to="/ceo/recruit" className={`mt-4 ${comicButton('crimson')}`} data-testid="not-ready-scan-member-link">
+              SCAN MEMBER
+            </Link>
+          )}
         </section>
       )}
 
