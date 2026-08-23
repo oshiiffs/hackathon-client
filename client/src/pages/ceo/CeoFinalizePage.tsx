@@ -299,6 +299,36 @@ export function CeoFinalizePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, step]);
 
+  // Flush any not-yet-autosaved name the instant the countdown crosses zero
+  // — the debounced save above waits up to 600ms after the last keystroke
+  // before firing at all, which can still be pending right as `step` flips
+  // away from 'team-ready' (that flip is purely time-based, synchronous, and
+  // doesn't wait for this). The "Get Ready" video that plays next starts
+  // immediately and shows the team name within about a second, so a save
+  // still in its debounce window at that exact instant can genuinely lose
+  // the race and show the placeholder for a team that DID type a name. This
+  // doesn't block or delay the step transition itself (nothing here touches
+  // `step`) — it just gets the save request out the door as early as
+  // possible instead of waiting on a keystroke pause first, shrinking that
+  // window as much as a synchronous step machine allows without a real
+  // network round trip in the way (see git history for why an earlier,
+  // stricter attempt at fully closing this — gating `step` on a fresh
+  // refetch landing — was reverted: it broke every test asserting the step
+  // machine synchronously).
+  const nameFlushedRef = useRef(false);
+  useEffect(() => {
+    nameFlushedRef.current = false;
+  }, [nameEndsAtMs]);
+  useEffect(() => {
+    if (nameEndsAtMs === null || nowMs < nameEndsAtMs || nameFlushedRef.current || !nameSeededRef.current) return;
+    nameFlushedRef.current = true;
+    const trimmed = name.trim();
+    if (trimmed !== (status?.team.name ?? '')) {
+      saveDraft.mutate({ name: trimmed });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nowMs, nameEndsAtMs]);
+
   // The instant either countdown reaches 0 client-side, refetch immediately
   // rather than waiting for the next 2s poll — getFinalizationStatus does
   // the actual server-side transition/self-heal synchronously on read, so
