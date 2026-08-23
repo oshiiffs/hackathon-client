@@ -84,19 +84,31 @@ export function PresenterPage() {
   // 15s recap of the topic that just ended, overlaid on the next topic —
   // see the module doc comment for why it's a non-blocking overlay rather
   // than a real pause between topics.
+  //
+  // `prevTopicIndexRef` MUST be advanced to the current `topicIndex` on
+  // every run of this effect, unconditionally, before anything below can
+  // early-return — the recap branch does exactly that (`return () =>
+  // clearTimeout(timer)`, the effect's own cleanup function). Advancing the
+  // ref only in the fallthrough path at the bottom (as this used to) meant
+  // that return skipped it every single time a recap actually fired, so
+  // after the very first topic transition the ref was permanently stuck at
+  // topic 0 — every later transition kept computing `endedQuestion` from
+  // that same stale index, showing topic 1's recap forever instead of
+  // advancing through each topic's own.
   const prevTopicIndexRef = useRef<number | null>(null);
   const [recapQuestionId, setRecapQuestionId] = useState<string | null>(null);
   useEffect(() => {
     if (!roundActive) return;
-    if (prevTopicIndexRef.current !== null && prevTopicIndexRef.current !== topicIndex) {
-      const endedQuestion = activeQuestions[prevTopicIndexRef.current];
+    const endedTopicIndex = prevTopicIndexRef.current;
+    prevTopicIndexRef.current = topicIndex;
+    if (endedTopicIndex !== null && endedTopicIndex !== topicIndex) {
+      const endedQuestion = activeQuestions[endedTopicIndex];
       if (endedQuestion) {
         setRecapQuestionId(endedQuestion.id);
         const timer = setTimeout(() => setRecapQuestionId(null), 15000);
         return () => clearTimeout(timer);
       }
     }
-    prevTopicIndexRef.current = topicIndex;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicIndex, roundActive]);
   const recapAggregate = useLiveAnswerAggregate(recapQuestionId, recapQuestionId !== null);
@@ -542,7 +554,17 @@ function TopAnswersOverlay({ aggregate }: { aggregate: { question: string; top5:
                 a.isCorrect ? 'bg-lime/40 text-ink shadow-[4px_4px_0px_#111111]' : 'bg-white text-navy'
               }`}
             >
-              <span>
+              <span className="flex items-center gap-2">
+                {/* A color tint alone (lime vs white) doesn't read clearly
+                    at a glance on a projector — an explicit
+                    correct/incorrect badge does. */}
+                <span
+                  className={`shrink-0 text-xs font-black uppercase tracking-wide px-2 py-0.5 rounded-full border-2 border-ink ${
+                    a.isCorrect ? 'bg-forest text-cream' : 'bg-white text-navy/50'
+                  }`}
+                >
+                  {a.isCorrect ? '✓ Correct' : '✗ Wrong'}
+                </span>
                 {i + 1}. {a.answer}
               </span>
               <span className="text-sm font-black text-navy/50">×{a.count}</span>
