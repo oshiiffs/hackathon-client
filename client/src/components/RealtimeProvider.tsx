@@ -9,6 +9,7 @@ import type {
   CeoDepartmentAssignedPayload,
   ChallengeEndPayload,
   ChallengeStartPayload,
+  EvaluationSubmittedPayload,
   FileDeletedPayload,
   FileReplacedPayload,
   FileUploadedPayload,
@@ -177,6 +178,12 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       else queryClient.invalidateQueries({ queryKey: ['team-files'] });
       queryClient.invalidateQueries({ queryKey: ['admin-deliverables'] });
     };
+    // Admin/presenter leaderboard and evaluation panels update the instant a
+    // judge submits, instead of waiting out their own poll interval.
+    const onEvaluationSubmitted = (_payload: EvaluationSubmittedPayload) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-evaluations'] });
+    };
 
     socket.on('hackathon:state', onState);
     socket.on('team:updated', onTeamUpdated);
@@ -195,6 +202,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     socket.on('file:uploaded', onFileUploaded);
     socket.on('file:replaced', onFileReplaced);
     socket.on('file:deleted', onFileDeleted);
+    socket.on('evaluation:submitted', onEvaluationSubmitted);
 
     return () => {
       socket.off('hackathon:state', onState);
@@ -214,6 +222,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       socket.off('file:uploaded', onFileUploaded);
       socket.off('file:replaced', onFileReplaced);
       socket.off('file:deleted', onFileDeleted);
+      socket.off('evaluation:submitted', onEvaluationSubmitted);
     };
   }, [status, queryClient, setHackathonState]);
 

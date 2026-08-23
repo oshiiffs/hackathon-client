@@ -93,3 +93,5 @@ export type FileMetadataPayload = {
 export type FileUploadedPayload = { teamId: string; file: FileMetadataPayload };
 export type FileReplacedPayload = { teamId: string; file: FileMetadataPayload; previousVersion: number };
 export type FileDeletedPayload = { teamId: string; fileId: string; type: FileMetadataPayload['type'] };
+
+export type EvaluationSubmittedPayload = { teamId: string };
