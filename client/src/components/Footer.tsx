@@ -12,14 +12,14 @@ import { comicHeading } from '../lib/comic';
 // vertical whitespace baked in — at the shared height it reads much smaller
 // than the others, so it gets a taller box (still object-contain, so the
 // wordmark itself just scales up within it — the file isn't touched).
-const SPONSOR_HEIGHT = 'h-6 sm:h-7';
+const SPONSOR_HEIGHT = 'h-9 sm:h-10';
 const SPONSORS: { src: string; alt: string; heightClass?: string }[] = [
   { src: '/sponsors/naga-city-seal.png', alt: 'City of Naga' },
   { src: '/sponsors/ncf.png', alt: 'Naga College Foundation' },
   { src: '/sponsors/dih.png', alt: 'Naga City Digital Innovation Hub' },
   { src: '/sponsors/naganext.png', alt: 'NagaNext' },
   { src: '/sponsors/tbi.png', alt: 'TBI' },
-  { src: '/sponsors/idea2startup.png', alt: 'Idea2Startup', heightClass: 'h-10 sm:h-12' },
+  { src: '/sponsors/idea2startup.png', alt: 'Idea2Startup', heightClass: 'h-14 sm:h-16' },
 ];
 
 const DEVELOPERS = [
