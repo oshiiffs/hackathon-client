@@ -6,6 +6,7 @@ import { ErrorState, LoadingState } from '../../components/StateViews';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { comicButton, comicHeading } from '../../lib/comic';
 import { useJudgeCriteria, useJudgeTeamDetail, useSaveDraftEvaluation, useSubmitEvaluation } from '../../hooks/useJudge';
+import { downloadFileAsBlob, isPdf, viewFileAsBlob } from '../../lib/fileViewer';
 import type { JudgeCriterion } from '../../types/api';
 
 function formatBytes(bytes: number): string {
@@ -14,27 +15,45 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Cloudinary serves every file at a plain viewable URL; inserting the
- * `fl_attachment` flag after `/upload/` is what makes the browser download it
- * instead of navigating to it — there's no separate "download" endpoint. */
-function toDownloadUrl(fileUrl: string): string {
-  return fileUrl.replace('/upload/', '/upload/fl_attachment/');
-}
-
-function isPdf(filename: string): boolean {
-  return filename.toLowerCase().endsWith('.pdf');
-}
-
-/** Inline PDF viewer + explicit download link, toggled per-file rather than
- * always-open so the judging form isn't crowded by default. */
+/**
+ * Inline PDF viewer + download, toggled per-file rather than always-open so
+ * the judging form isn't crowded by default. Both go through fileViewer.ts's
+ * blob helpers (fetch bytes, reconstruct with an explicit type/filename)
+ * rather than linking straight to the Cloudinary URL — see that module's doc
+ * comment for why a plain link doesn't reliably view or download correctly
+ * for files uploaded before raw Cloudinary uploads got a real extension in
+ * their URL (hackathon-server's files.service.ts, rawPublicId).
+ */
 function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string }) {
   const [viewing, setViewing] = useState(false);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  async function toggleView() {
+    if (viewing) {
+      setViewing(false);
+      return;
+    }
+    setViewing(true);
+    if (!viewUrl) {
+      setViewLoading(true);
+      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
+      setViewUrl(blobUrl ?? fileUrl); // fall back to the raw URL if the blob fetch itself failed
+      setViewLoading(false);
+    }
+  }
+
+  async function handleDownload() {
+    const ok = await downloadFileAsBlob(fileUrl, filename);
+    if (!ok) window.open(fileUrl, '_blank', 'noopener,noreferrer');
+  }
+
   return (
     <div className="flex flex-col gap-2 items-end">
       <div className="flex gap-2 shrink-0">
         {isPdf(filename) && (
           <button
-            onClick={() => setViewing((v) => !v)}
+            onClick={toggleView}
             className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
           >
             {viewing ? 'HIDE' : 'VIEW'}
@@ -50,15 +69,21 @@ function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string 
             VIEW
           </a>
         )}
-        <a
-          href={toDownloadUrl(fileUrl)}
+        <button
+          onClick={handleDownload}
           className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-crimson font-black uppercase"
         >
           DOWNLOAD
-        </a>
+        </button>
       </div>
       {viewing && isPdf(filename) && (
-        <iframe src={fileUrl} title={filename} className="w-full h-[70vh] rounded-lg border-[3px] border-ink bg-white" />
+        <div className="w-full h-[70vh] rounded-lg border-[3px] border-ink bg-white flex items-center justify-center">
+          {viewLoading ? (
+            <p className="text-sm font-bold text-navy/60">Loading preview…</p>
+          ) : (
+            <iframe src={viewUrl ?? fileUrl} title={filename} className="w-full h-full rounded-lg" />
+          )}
+        </div>
       )}
     </div>
   );

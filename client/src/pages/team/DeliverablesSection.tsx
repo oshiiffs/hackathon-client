@@ -13,6 +13,7 @@ import {
   useUploadPitchDeck,
   useUploadTeamFile,
 } from '../../hooks/useTeamFiles';
+import { downloadFileAsBlob, isPdf, viewFileAsBlob } from '../../lib/fileViewer';
 import type { FileCategory, FileMetadata } from '../../types/api';
 
 const PITCH_DECK_EXTENSIONS = ['pdf', 'ppt', 'pptx'];
@@ -50,9 +51,25 @@ const IDLE: UploadState = { status: 'idle', progress: 0, error: null };
 
 type FileRef = { fileUrl: string; filename: string };
 
+/**
+ * PDFs get the blob-with-forced-mimeType treatment (see fileViewer.ts) so
+ * they render inline even for a file uploaded before raw Cloudinary uploads
+ * got a real extension in their URL. Everything else (PPT/PPTX/DOC/DOCX,
+ * image assets) just opens the plain URL — browsers have no native inline
+ * viewer for office docs regardless, and images are a Cloudinary 'image'
+ * resource, which already gets a correct extension/Content-Type at upload
+ * time with no equivalent bug to work around.
+ */
 async function viewFile(fetchFile: () => Promise<FileRef>) {
   try {
-    const { fileUrl } = await fetchFile();
+    const { fileUrl, filename } = await fetchFile();
+    if (isPdf(filename)) {
+      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
+      if (blobUrl) {
+        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
     window.open(fileUrl, '_blank', 'noopener,noreferrer');
   } catch {
     // best-effort — a failed view doesn't need its own error UI, the user
@@ -60,35 +77,13 @@ async function viewFile(fetchFile: () => Promise<FileRef>) {
   }
 }
 
-/**
- * Fetches the file as a blob and saves it via a blob: URL with an explicit
- * `download` filename, rather than linking straight to the Cloudinary URL.
- * A plain `<a href={cloudinaryUrl} download="x.pdf">` doesn't reliably work:
- * browsers only honor the `download` attribute's filename for same-origin or
- * blob: URLs, and Cloudinary is a different origin — the browser falls back
- * to whatever name/extension it can infer from the URL itself, which used to
- * be a bare UUID with no extension at all for raw uploads (see
- * files.service.ts's rawPublicId doc comment). Fetching the bytes and
- * attaching them to a blob: URL sidesteps both problems: the saved filename
- * always comes from our own DB column, correct regardless of what the
- * Cloudinary URL looks like — including files uploaded before that fix.
- */
 async function downloadFile(fetchFile: () => Promise<FileRef>) {
   let fileUrl = '';
   try {
     const file = await fetchFile();
     fileUrl = file.fileUrl;
-    const response = await fetch(fileUrl);
-    if (!response.ok) throw new Error('download fetch failed');
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = file.filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(blobUrl);
+    const ok = await downloadFileAsBlob(fileUrl, file.filename);
+    if (!ok) window.open(fileUrl, '_blank', 'noopener,noreferrer');
   } catch {
     // Fallback: still get the user to the file, even if the saved
     // filename/extension can't be guaranteed this way (e.g. a CORS hiccup).
