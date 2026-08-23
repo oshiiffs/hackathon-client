@@ -419,9 +419,19 @@ function CompleteScreen() {
 /**
  * "Category selection" — a big 2×2 board of the four HEAT categories, each
  * showing its brand-kit icon (see heatCategoryAssets.ts — the same assets
- * CeoFinalizePage uses, untouched/un-stretched here too), centered in its
- * panel, and, once any team(s) have finalized into it, a gold pill per team
- * name stacked to its right.
+ * CeoFinalizePage uses, untouched/un-stretched here too) and, once any
+ * team(s) have finalized into it, a gold pill per team name to its right.
+ *
+ * The icon sits in a fixed-width first grid column (not just centered as a
+ * group with the pills) specifically so it lands at the same spot in every
+ * panel regardless of whether that panel has a team pill next to it yet — a
+ * flex `justify-center` on the icon+pills pair as a whole would shift the
+ * icon left in panels that DO have a pill and dead-center it in panels that
+ * don't, visibly misaligning the four icons against each other. Team names
+ * wrap (`break-words` + a capped width) rather than growing the pill
+ * horizontally without bound, so a long team name can't push past the
+ * panel's edge.
+ *
  * Sourced entirely from useAdminOverview's `categoryUsage` — the same
  * capacity data CeoFinalizePage and the admin dashboard's HEAT Category
  * Capacity panel already read (see team.service.ts's getCategoryCapacities)
@@ -453,21 +463,23 @@ function CategorySelectionScreen({ categoryUsage }: { categoryUsage: CategoryUsa
             <div
               key={category}
               data-testid={`presenter-category-panel-${category}`}
-              className="min-h-[220px] sm:min-h-[280px] rounded-xl border-[3px] border-ink p-6 flex items-center justify-center gap-6"
+              className="min-h-[240px] sm:min-h-[300px] rounded-xl border-[3px] border-ink p-6 grid grid-cols-[auto_1fr] items-center gap-4 sm:gap-6"
             >
-              <img
-                src={HEAT_CATEGORY_ICONS[category]}
-                alt={category}
-                className="w-28 h-28 sm:w-36 sm:h-36 object-contain shrink-0"
-                data-testid={`presenter-category-icon-${category}`}
-              />
+              <div className="w-32 sm:w-44 flex justify-center shrink-0">
+                <img
+                  src={HEAT_CATEGORY_ICONS[category]}
+                  alt={category}
+                  className="w-32 h-32 sm:w-44 sm:h-44 object-contain"
+                  data-testid={`presenter-category-icon-${category}`}
+                />
+              </div>
               {teams.length > 0 && (
-                <div className="flex flex-col items-start gap-2">
+                <div className="flex flex-col items-start gap-2 min-w-0">
                   {teams.map((t) => (
                     <span
                       key={t.id}
                       data-testid={`presenter-category-team-${category}`}
-                      className="inline-block bg-gold text-ink font-black uppercase text-sm px-4 py-2 rounded-xl border-[3px] border-ink shadow-[3px_3px_0px_#111111]"
+                      className="max-w-full bg-gold text-ink font-black uppercase text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-[3px] border-ink shadow-[3px_3px_0px_#111111] text-center break-words"
                     >
                       {t.name}
                     </span>

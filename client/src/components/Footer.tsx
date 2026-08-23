@@ -41,35 +41,36 @@ const DEVELOPERS = [
 export function Footer() {
   return (
     <footer className="border-t-[3px] border-ink bg-white mt-10" data-testid="site-footer">
-      <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <p className="text-xs font-black uppercase tracking-widest text-forest mb-3">Sponsors &amp; Partners</p>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          <p className="text-xs font-black uppercase tracking-widest text-forest mb-2">Sponsors &amp; Partners</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             {SPONSORS.map((s) => (
               <img key={s.src} src={s.src} alt={s.alt} className={`${s.heightClass ?? SPONSOR_HEIGHT} w-auto object-contain`} />
             ))}
           </div>
         </div>
 
-        <div className="md:border-l-[3px] md:border-ink md:pl-8">
-          <p className="text-xs font-black uppercase tracking-widest text-forest mb-1">Development Team</p>
-          <h2 className={`text-xl mb-3 ${comicHeading}`}>ANAYAG</h2>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm font-bold text-ink">
+        <div className="md:border-l-[3px] md:border-ink md:pl-6">
+          <p className="text-xs font-black uppercase tracking-widest text-forest mb-1">
+            Development Team <span className={`normal-case tracking-normal text-navy ${comicHeading}`}>· ANAYAG</span>
+          </p>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs font-bold text-ink mt-1.5">
             {DEVELOPERS.map((name) => (
               <li key={name} className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-crimson shrink-0" aria-hidden="true" />
+                <span className="w-1 h-1 rounded-full bg-crimson shrink-0" aria-hidden="true" />
                 {name}
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs font-bold text-navy/60">
+          <p className="mt-2 text-[11px] font-bold text-navy/60">
             Mentor · <span className="text-navy">John Roy Galves</span>
           </p>
         </div>
       </div>
 
-      <div className="border-t-[3px] border-ink bg-cream/40 py-3 text-center">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-navy/50">
+      <div className="border-t-[3px] border-ink bg-cream/40 py-2.5 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-navy/50">
           © {new Date().getFullYear()} Nexus Multiverse — Team Building &amp; Pitch App
         </p>
       </div>

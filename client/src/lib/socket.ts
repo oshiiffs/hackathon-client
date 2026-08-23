@@ -18,7 +18,18 @@ export function connectSocket(): Socket {
   // signal to connect to the page's current origin.
   socket = io(API_BASE_URL || undefined, {
     withCredentials: true,
-    transports: ['websocket', 'polling'],
+    // Polling first, then opportunistically upgrade to websocket — NOT
+    // websocket-first. In production this connection goes through
+    // vercel.json's /socket.io/* rewrite to the Render backend, and a raw
+    // websocket upgrade doesn't reliably tunnel through that rewrite (shows
+    // up as a hard "WebSocket connection failed" in the console, retried
+    // forever since `reconnection: true` keeps trying the same losing
+    // transport first). Polling is a plain HTTP request the rewrite proxies
+    // without issue, so starting there always works; the upgrade attempt
+    // after that is best-effort and fails silently (no error, no retry loop)
+    // if it can't complete, same as socket.io-client's own default order —
+    // this was previously overridden to the wrong order.
+    transports: ['polling', 'websocket'],
     reconnection: true,
   });
   return socket;
