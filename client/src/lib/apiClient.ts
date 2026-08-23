@@ -72,6 +72,23 @@ export const apiClient = axios.create({
 // "quietly waits a few seconds and just works," which is what a cold start
 // actually calls for — existing callers' own loading state already covers
 // the wait, no separate "retrying…" UI needed.
+//
+// That "the handler never ran" assumption is what makes blind retry safe —
+// and it's exactly what breaks for a route whose OWN code deliberately
+// throws a 502/503 after already doing real work. The AI mentor is the
+// concrete case: sendMessage persists the user's message to Postgres BEFORE
+// calling the xAI provider, and returns 502 AI_REQUEST_FAILED if that
+// provider call itself fails — a genuinely non-transient, non-Render
+// failure that retrying doesn't fix (xAI will just fail the same way
+// again), and worse, each blind retry POSTs the same message again,
+// silently duplicating it in the chat history, and stretches an already-
+// failed send out by up to ~9 extra seconds before the UI's own "Retry"
+// button (which exists for exactly this) ever gets a chance to run. The
+// distinguishing signal: a genuine Render/proxy-level 502 (the process is
+// down, nothing of ours ran) comes back as Render's own error page, not our
+// app's `{ error: { code, message } }` JSON shape — so only retry when that
+// shape is ABSENT, i.e. nothing here ever ran its own error-handling logic
+// at all.
 const MAX_TRANSIENT_RETRIES = 3;
 type RetryableConfig = NonNullable<AxiosError['config']> & { __retryCount?: number };
 
@@ -85,7 +102,8 @@ apiClient.interceptors.response.use(
 
     const status = error.response?.status;
     const config = error.config as RetryableConfig | undefined;
-    if (config && (status === 502 || status === 503 || status === 504)) {
+    const isOwnStructuredError = Boolean(error.response?.data?.error?.code);
+    if (config && !isOwnStructuredError && (status === 502 || status === 503 || status === 504)) {
       const attempt = (config.__retryCount ?? 0) + 1;
       if (attempt <= MAX_TRANSIENT_RETRIES) {
         config.__retryCount = attempt;
