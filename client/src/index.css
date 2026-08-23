@@ -177,6 +177,23 @@
   }
 }
 
+/* Every one of these (drift-a/b behind AmbientBackground's blurred glows,
+   twinkle, orbit) runs forever on whatever screen mounts it — pausing them
+   for anyone whose OS asks for reduced motion is both the correct
+   accessibility behavior and a real perf/battery win, since it's one less
+   permanent animation loop competing for the frame budget. Overriding the
+   `--animate-*` theme tokens (rather than targeting each `.animate-*`
+   utility class individually) means every current and future user of these
+   tokens is covered automatically. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animate-drift-a: none;
+    --animate-drift-b: none;
+    --animate-twinkle: none;
+    --animate-orbit: none;
+  }
+}
+
 html,
 body,
 #root {
