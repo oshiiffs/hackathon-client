@@ -100,6 +100,18 @@ export type CeoOverallLeaderboardEntry = {
   score: number;
 };
 
+// Admin/presenter's own version of the above (see the backend's
+// getCeoChallengeLeaderboard) — no eligibility gate, a longer cap, and
+// includes becameCeo for a post-round recap.
+export type CeoChallengeLeaderboardEntry = {
+  rank: number;
+  userId: string;
+  fullName: string;
+  avatarUrl: string | null;
+  score: number;
+  becameCeo: boolean;
+};
+
 // Admin-only — includes acceptedAnswers, since question management needs it.
 export type CeoQuestion = {
   id: string;

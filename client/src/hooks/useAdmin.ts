@@ -6,6 +6,7 @@ import type {
   AdminHackathonStatePayload,
   AdminOverview,
   AdminTeamResources,
+  CeoChallengeLeaderboardEntry,
   CeoQuestion,
   Department,
   LeaderboardEntry,
@@ -266,6 +267,19 @@ export function useLiveAnswerAggregate(questionId: string | null, enabled: boole
     },
     enabled: enabled && questionId !== null,
     refetchInterval: enabled ? 1500 : false,
+  });
+}
+
+/** Dedicated presenter tab — see the backend's getCeoChallengeLeaderboard. */
+export function useCeoChallengeLeaderboard(enabled: boolean) {
+  return useQuery({
+    queryKey: ['admin-ceo-challenge-leaderboard'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<CeoChallengeLeaderboardEntry[]>('/admin/hackathon/challenge/leaderboard');
+      return data;
+    },
+    enabled,
+    refetchInterval: enabled ? 3000 : false,
   });
 }
 

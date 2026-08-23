@@ -10,6 +10,7 @@ import {
   useAdminLeaderboard,
   useAdminOverview,
   useAdminParticipants,
+  useCeoChallengeLeaderboard,
   useCeoQuestions,
   useLiveAnswerAggregate,
 } from '../../hooks/useAdmin';
@@ -21,6 +22,7 @@ import type {
   AdminEvaluationOverview,
   CategoryUsage,
   Department,
+  CeoChallengeLeaderboardEntry,
   HackathonPhase,
   HeatCategory,
   LeaderboardEntry,
@@ -30,13 +32,14 @@ import type { ChallengeAnswerSubmittedPayload, ChallengeEndPayload } from '../..
 
 const HEAT_CATEGORY_ORDER: HeatCategory[] = ['HEALTH', 'ENVIRONMENT', 'AGRICULTURE', 'TOURISM'];
 
-type ManualScreen = 'auto' | 'recruiting' | 'welcome' | 'category';
+type ManualScreen = 'auto' | 'recruiting' | 'welcome' | 'category' | 'ceo-leaderboard';
 
 const MANUAL_SCREENS: { id: ManualScreen; label: string }[] = [
   { id: 'auto', label: 'Live (auto)' },
   { id: 'recruiting', label: 'Scanning members' },
   { id: 'welcome', label: 'Welcome video' },
   { id: 'category', label: 'Category selection' },
+  { id: 'ceo-leaderboard', label: 'CEO Challenge leaderboard' },
 ];
 
 /**
@@ -77,6 +80,7 @@ export function PresenterPage() {
   );
   const evaluations = useAdminEvaluations(manualScreen === 'auto' && (phase === 'JUDGING' || phase === 'COMPLETE'));
   const leaderboard = useAdminLeaderboard(manualScreen === 'auto' && (phase === 'JUDGING' || phase === 'COMPLETE'));
+  const ceoChallengeLeaderboard = useCeoChallengeLeaderboard(manualScreen === 'ceo-leaderboard');
 
   const activeQuestions = (questions.data ?? [])
     .filter((q) => q.isActive)
@@ -254,6 +258,7 @@ export function PresenterPage() {
         {manualScreen === 'recruiting' && <ScanningMembersScreen participants={participants.data ?? []} />}
         {manualScreen === 'welcome' && <WelcomeScreen />}
         {manualScreen === 'category' && <CategorySelectionScreen categoryUsage={overview.data?.categoryUsage ?? []} />}
+        {manualScreen === 'ceo-leaderboard' && <CeoChallengeLeaderboardScreen entries={ceoChallengeLeaderboard.data ?? []} />}
 
         {manualScreen === 'auto' && renderAutoScreen()}
       </div>
@@ -441,6 +446,55 @@ function LeaderboardTable({ leaderboard }: { leaderboard: LeaderboardEntry[] }) 
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Manual override tab — the CEO Selection Challenge's own running
+ * leaderboard (see useCeoChallengeLeaderboard), separate from the team
+ * judging leaderboard above. Meant to be pulled up on demand during/after
+ * the challenge, independent of the auto phase-driven screen.
+ */
+function CeoChallengeLeaderboardScreen({ entries }: { entries: CeoChallengeLeaderboardEntry[] }) {
+  return (
+    <div className="w-full max-w-3xl flex flex-col items-center gap-6">
+      <div className="text-center flex flex-col items-center gap-2">
+        <h1 className="text-4xl font-black tracking-tight text-ink">CEO CHALLENGE LEADERBOARD</h1>
+        <p className="text-lg font-bold text-navy">Top scorers so far — highest score wins a CEO seat.</p>
+      </div>
+
+      {entries.length === 0 && <p className="text-navy/50 font-bold">No submissions yet.</p>}
+      {entries.length > 0 && (
+        <div className="w-full flex flex-col gap-2" data-testid="ceo-challenge-leaderboard">
+          {entries.map((row) => (
+            <div
+              key={row.userId}
+              data-testid={`ceo-challenge-leaderboard-row-${row.userId}`}
+              className={`flex items-center gap-4 rounded-xl border-[3px] border-ink px-4 py-3 shadow-[3px_3px_0px_#111111] ${
+                row.becameCeo ? 'bg-gold/40' : 'bg-white'
+              }`}
+            >
+              <span className="text-2xl font-black text-navy/40 w-10 text-center shrink-0">#{row.rank}</span>
+              {row.avatarUrl ? (
+                <img src={row.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-ink shrink-0" />
+              ) : (
+                <div
+                  className="w-10 h-10 rounded-full border-2 border-ink flex items-center justify-center text-sm font-black text-white bg-navy shrink-0"
+                  aria-hidden="true"
+                >
+                  {row.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <p className="flex-1 text-left font-black text-ink truncate">
+                {row.fullName}
+                {row.becameCeo && <span className="ml-2 text-xs font-black uppercase text-crimson">★ CEO</span>}
+              </p>
+              <span className="text-xl font-black text-forest shrink-0">{row.score} pts</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
