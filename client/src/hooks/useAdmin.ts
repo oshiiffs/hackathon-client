@@ -24,6 +24,7 @@ type AdminParticipant = {
   drafted: boolean;
   teamId: string | null;
   isCeoWinner: boolean;
+  avatarUrl: string | null;
   createdAt: string;
 };
 

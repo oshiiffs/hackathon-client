@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { CountdownTimer } from '../../components/CountdownTimer';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { useSyncedTopic } from '../../hooks/useSyncedTopic';
@@ -141,6 +141,7 @@ function OverallLeaderboard({ enabled }: { enabled: boolean }) {
  */
 export function ParticipantChallengePage() {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const { data: state } = useHackathonState();
   const phase = state?.phase;
 
@@ -157,6 +158,7 @@ export function ParticipantChallengePage() {
   const lastCycleKeyRef = useRef<string | null>(null);
   const hasFlushedFinalRef = useRef(false);
   const revealTimerStartedRef = useRef(false);
+  const ceoRedirectStartedRef = useRef(false);
   const [inputValue, setInputValue] = useState('');
   const [score, setScore] = useState(0);
 
@@ -247,6 +249,21 @@ export function ParticipantChallengePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, result, user?.role]);
 
+  // Congratulations -> CEO Startup Name Selection is fully automatic: no
+  // button, just a ~5s beat on the congratulations message before handing
+  // off to CeoFinalizePage (which itself takes over the buttonless
+  // name-timer -> video -> category-timer -> auto-finalize flow from there —
+  // see that page's own doc comment). Ref-guarded the same way the reveal
+  // timer above is, so this can only ever fire once.
+  useEffect(() => {
+    if (result !== 'success' || ceoRedirectStartedRef.current) return;
+    ceoRedirectStartedRef.current = true;
+    const timer = setTimeout(() => {
+      navigate('/ceo/team/finalize', { replace: true });
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [result, navigate]);
+
   if (!user || !state) return <LoadingState label="Loading challenge…" />;
 
   if (result === null && !revealing && phase !== 'CEO_CHALLENGE_ACTIVE' && state.participantsLocked) {
@@ -268,10 +285,7 @@ export function ParticipantChallengePage() {
           <p className="text-5xl">🎉</p>
           <h2 className="text-2xl font-black text-forest uppercase">YOU ARE THE CEO</h2>
           <p className="text-ink font-bold">Your CEO role has been confirmed.</p>
-          <p className="text-navy text-sm">Continue to team formation.</p>
-          <Link to="/ceo" className={`mt-2 ${comicButton('forest', 'sm')}`}>
-            Go to CEO dashboard
-          </Link>
+          <p className="text-navy text-sm">Taking you to Startup Name Selection…</p>
         </div>
       )}
 

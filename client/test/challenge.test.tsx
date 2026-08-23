@@ -2,7 +2,7 @@ import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { ParticipantChallengePage } from '../src/pages/participant/ParticipantChallengePage';
@@ -253,4 +253,51 @@ describe('CEO selection flow', () => {
 
     expect(await screen.findByTestId('result-ceo-selected')).toBeInTheDocument();
   });
+});
+
+// Reaches the CEO congratulations screen via the page's own reveal effect
+// (phase transitions away from CEO_CHALLENGE_ACTIVE while role === CEO), not
+// via the "become CEO" click flow above — that flow's own fixture is stale
+// (see the file-level note these tests already fail against), but the
+// post-challenge congratulations -> redirect behavior below doesn't depend
+// on it at all.
+describe('Post-CEO-Challenge congratulations -> Startup Name Selection redirect', () => {
+  afterEach(() => {
+    useAuthStore.setState({ user: null, status: 'idle' });
+    vi.restoreAllMocks();
+  });
+
+  function renderPostChallenge(user = mockUser({ role: 'CEO' })) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60000 } } });
+    queryClient.setQueryData(['hackathon-state'], mockState({ phase: 'DRAFTING', phaseLabel: 'TEAM_FORMATION' }));
+    useAuthStore.setState({ user, status: 'authenticated' });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/participant/challenge']}>
+          <Routes>
+            <Route path="/participant/challenge" element={<ParticipantChallengePage />} />
+            <Route path="/ceo/team/finalize" element={<div data-testid="startup-name-selection-landing" />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it(
+    '6. shows the congratulations message with no button, then automatically redirects to Startup Name Selection after ~5s',
+    async () => {
+      renderPostChallenge();
+
+      const success = await screen.findByTestId('result-success', {}, { timeout: 3000 });
+      expect(success).toHaveTextContent('YOU ARE THE CEO');
+      // No manual "Go to CEO dashboard"/continue button — this step is
+      // buttonless, same as the rest of the post-challenge flow.
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+
+      expect(await screen.findByTestId('startup-name-selection-landing', {}, { timeout: 6000 })).toBeInTheDocument();
+    },
+    10000,
+  );
 });

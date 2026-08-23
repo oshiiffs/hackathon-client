@@ -3,10 +3,15 @@ import { Link } from 'react-router-dom';
 import { AmbientBackground } from '../../components/AmbientBackground';
 import { CountdownTimer } from '../../components/CountdownTimer';
 import { useSyncedTopic } from '../../hooks/useSyncedTopic';
-import { useAdminHackathonState, useAdminParticipants, useCeoQuestions, useLiveAnswerAggregate } from '../../hooks/useAdmin';
+import { useAdminHackathonState, useAdminOverview, useAdminParticipants, useCeoQuestions, useLiveAnswerAggregate } from '../../hooks/useAdmin';
 import { getSocket } from '../../lib/socket';
 import { comicButton } from '../../lib/comic';
+import { DEPARTMENT_COLORS } from '../../lib/departmentColors';
+import { HEAT_CATEGORY_ICONS } from '../../lib/heatCategoryAssets';
+import type { CategoryUsage, Department, HeatCategory } from '../../types/api';
 import type { ChallengeAnswerSubmittedPayload, ChallengeEndPayload } from '../../types/realtime';
+
+const HEAT_CATEGORY_ORDER: HeatCategory[] = ['HEALTH', 'ENVIRONMENT', 'AGRICULTURE', 'TOURISM'];
 
 type ManualScreen = 'auto' | 'recruiting' | 'welcome' | 'category';
 
@@ -31,6 +36,7 @@ export function PresenterPage() {
   const { data: state } = useAdminHackathonState();
   const questions = useCeoQuestions();
   const participants = useAdminParticipants();
+  const overview = useAdminOverview();
 
   const [manualScreen, setManualScreen] = useState<ManualScreen>('auto');
   const [answeredByQuestion, setAnsweredByQuestion] = useState<Record<string, Map<string, string>>>({});
@@ -127,9 +133,9 @@ export function PresenterPage() {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8">
-        {manualScreen === 'recruiting' && <MessageScreen title="TEAM FORMATION" subtitle="CEOs are scanning their new teammates' QR badges." />}
+        {manualScreen === 'recruiting' && <ScanningMembersScreen participants={participants.data ?? []} />}
         {manualScreen === 'welcome' && <WelcomeScreen />}
-        {manualScreen === 'category' && <MessageScreen title="SELECT YOUR HEAT CATEGORY" subtitle="Each CEO is choosing Health, Environment, Agriculture, or Tourism for their team." />}
+        {manualScreen === 'category' && <CategorySelectionScreen categoryUsage={overview.data?.categoryUsage ?? []} />}
 
         {manualScreen === 'auto' && (
           <>
@@ -191,12 +197,142 @@ function IdleScreen() {
   );
 }
 
-function MessageScreen({ title, subtitle }: { title: string; subtitle: string }) {
+type ScanningMember = {
+  id: string;
+  fullName: string;
+  homeDepartment: Department;
+  avatarUrl: string | null;
+  drafted: boolean;
+  role: string;
+};
+
+/**
+ * "Scanning members" — the big-screen roster of every participant CEOs can
+ * recruit, live during TEAM_FORMATION. Sourced entirely from
+ * useAdminParticipants (the same data the admin dashboard's own participant
+ * list uses) — no separate/hardcoded roster. `drafted` is the existing
+ * recruitment flag (see recruitCandidate/recruitParticipantByQr in
+ * team.service.ts, which is what actually flips it) — a participant dims out
+ * here the instant that happens, via the same socket-driven refetch the rest
+ * of the admin views already rely on (see RealtimeProvider's
+ * onUserDrafted/onMemberRecruited handlers, which invalidate
+ * ['admin-participants']).
+ */
+function ScanningMembersScreen({ participants }: { participants: ScanningMember[] }) {
+  // CEOs already have a team by definition — the recruitable roster is
+  // participants only, same scope QR recruitment itself is restricted to.
+  const roster = participants.filter((p) => p.role === 'PARTICIPANT');
+  const available = roster.filter((p) => !p.drafted).length;
+
   return (
-    <div className="text-center flex flex-col items-center gap-4">
-      <div className="w-4 h-4 rounded-full bg-crimson border-2 border-ink animate-ping" />
-      <h1 className="text-5xl font-black tracking-tight text-ink">{title}</h1>
-      <p className="text-xl font-bold text-navy max-w-2xl">{subtitle}</p>
+    <div className="w-full max-w-5xl flex flex-col items-center gap-6">
+      <div className="text-center flex flex-col items-center gap-2">
+        <div className="w-4 h-4 rounded-full bg-crimson border-2 border-ink animate-ping" />
+        <h1 className="text-4xl font-black tracking-tight text-ink">TEAM FORMATION</h1>
+        <p className="text-lg font-bold text-navy max-w-2xl">CEOs are scanning their new teammates&apos; QR badges.</p>
+      </div>
+
+      <p className="text-sm font-black uppercase tracking-widest text-forest" data-testid="scanning-members-count">
+        {available} / {roster.length} still available
+      </p>
+
+      <div className="w-full grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3 max-h-[55vh] overflow-y-auto pr-1">
+        {roster.map((p) => (
+          <div
+            key={p.id}
+            data-testid={`scanning-member-${p.id}`}
+            data-recruited={p.drafted}
+            className={`flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 text-center border-[3px] border-ink transition-all duration-300 ${
+              p.drafted ? 'bg-white/70 grayscale opacity-50' : 'bg-white shadow-[3px_3px_0px_#111111]'
+            }`}
+          >
+            {p.avatarUrl ? (
+              <img src={p.avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-ink" />
+            ) : (
+              <div
+                className="w-12 h-12 rounded-full border-2 border-ink flex items-center justify-center text-sm font-black text-white"
+                style={{ backgroundColor: DEPARTMENT_COLORS[p.homeDepartment] }}
+                aria-hidden="true"
+              >
+                {p.fullName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <p className="text-xs font-bold truncate w-full">{p.fullName}</p>
+            <span
+              className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full border-2 ${
+                p.drafted ? 'border-navy/30 text-navy/40' : 'border-forest text-forest'
+              }`}
+            >
+              {p.drafted ? 'Recruited' : 'Available'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Category selection" — a big 2×2 board of the four HEAT categories, each
+ * showing its brand-kit icon (see heatCategoryAssets.ts — the same assets
+ * CeoFinalizePage uses, untouched/un-stretched here too) and, once any
+ * team(s) have finalized into it, a gold pill per team name underneath.
+ * Sourced entirely from useAdminOverview's `categoryUsage` — the same
+ * capacity data CeoFinalizePage and the admin dashboard's HEAT Category
+ * Capacity panel already read (see team.service.ts's getCategoryCapacities)
+ * — no separate/new query, no separate/hardcoded roster. A category with no
+ * teams yet just shows its icon, no placeholder pill — same "stay clean when
+ * empty" rule ScanningMembersScreen follows for an unrecruited roster.
+ * Already-live: categoryUsage updates via useAdminOverview's own poll plus
+ * RealtimeProvider's onCategoryUpdated/onTeamFinalized socket handlers
+ * (which invalidate ['admin-overview']), so a team finalizing into a
+ * category — or a "New Competition" reset freeing one back up — shows up
+ * here automatically, same as everywhere else that reads this data.
+ */
+function CategorySelectionScreen({ categoryUsage }: { categoryUsage: CategoryUsage[] }) {
+  const byCategory = new Map(categoryUsage.map((c) => [c.category, c]));
+
+  return (
+    <div className="w-full max-w-5xl">
+      <div className="relative grid grid-cols-2 gap-x-10 gap-y-8 sm:gap-x-16 sm:gap-y-10">
+        {/* Where all four panels meet — purely decorative, echoes the same
+            small dot accent used on the other manual screens. */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gold border-2 border-ink z-10"
+          aria-hidden="true"
+        />
+
+        {HEAT_CATEGORY_ORDER.map((category) => {
+          const teams = byCategory.get(category)?.teams ?? [];
+          return (
+            <div
+              key={category}
+              data-testid={`presenter-category-panel-${category}`}
+              className="min-h-[220px] sm:min-h-[280px] rounded-xl border-[3px] border-ink p-6 flex flex-col items-start gap-4"
+            >
+              <img
+                src={HEAT_CATEGORY_ICONS[category]}
+                alt={category}
+                className="w-28 h-28 sm:w-36 sm:h-36 object-contain"
+                data-testid={`presenter-category-icon-${category}`}
+              />
+              {teams.length > 0 && (
+                <div className="flex flex-col items-start gap-2">
+                  {teams.map((t) => (
+                    <span
+                      key={t.id}
+                      data-testid={`presenter-category-team-${category}`}
+                      className="inline-block bg-gold text-ink font-black uppercase text-sm px-4 py-2 rounded-xl border-[3px] border-ink shadow-[3px_3px_0px_#111111]"
+                    >
+                      {t.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

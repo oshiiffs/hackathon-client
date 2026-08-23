@@ -15,6 +15,7 @@ import type {
   HackathonStatePayload,
   MemberRecruitedPayload,
   ParticipantLockPayload,
+  ProfileUpdatedPayload,
   SubmissionLockPayload,
   TeamFinalizedPayload,
   TeamUpdatedPayload,
@@ -88,6 +89,17 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     };
     const onUserDrafted = (_payload: UserDraftedPayload) => {
       queryClient.invalidateQueries({ queryKey: ['my-team'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-participants'] });
+    };
+    // A participant/CEO's own name or photo changed — the fix for a
+    // not-yet-recruited participant's freshly-uploaded avatar never showing
+    // up on the Presenter's Scanning Members screen (that data comes from
+    // ['admin-participants'], which previously only refreshed on this app's
+    // 20s poll — easy to starve if the presenter tab is backgrounded, e.g.
+    // cast to a projector but not the focused window). Already-recruited
+    // members get their own refresh from onTeamUpdated (broadcastTeamState
+    // fires alongside this for anyone with a team); this covers the rest.
+    const onProfileUpdated = (_payload: ProfileUpdatedPayload) => {
       queryClient.invalidateQueries({ queryKey: ['admin-participants'] });
     };
     // The recruiting CEO's own view updates from the REST response (see
@@ -172,6 +184,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     socket.on('category:updated', onCategoryUpdated);
     socket.on('team:finalized', onTeamFinalized);
     socket.on('user:drafted', onUserDrafted);
+    socket.on('profile:updated', onProfileUpdated);
     socket.on('member:recruited', onMemberRecruited);
     socket.on('participant:locked', onParticipantLock);
     socket.on('participant:unlocked', onParticipantLock);
@@ -190,6 +203,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       socket.off('category:updated', onCategoryUpdated);
       socket.off('team:finalized', onTeamFinalized);
       socket.off('user:drafted', onUserDrafted);
+      socket.off('profile:updated', onProfileUpdated);
       socket.off('member:recruited', onMemberRecruited);
       socket.off('participant:locked', onParticipantLock);
       socket.off('participant:unlocked', onParticipantLock);

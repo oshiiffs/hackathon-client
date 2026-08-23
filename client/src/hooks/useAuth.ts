@@ -9,12 +9,27 @@ type LoginResponse = { user: PublicUser };
 
 export function useLogin() {
   const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: LoginPayload) => {
       const { data } = await apiClient.post<LoginResponse>('/auth/login', input);
       return data;
     },
-    onSuccess: (data) => setUser(data.user),
+    // This is a shared-kiosk app — the same browser/tab logs in as a
+    // different person all day (one participant's badge code, then the
+    // next). Every query is keyed WITHOUT a user id (['my-qr'], ['my-team'],
+    // etc. — see useQr.ts's useMyQr) on the assumption that a login always
+    // starts from a clean cache, same as useLogout's queryClient.clear()
+    // already guarantees on the way out. Without this, a query that errored
+    // (or a stale success) for whoever used this device last stays cached
+    // and gets served straight to the next person who logs in — e.g. a
+    // previous non-participant's "only participants have a recruitment QR
+    // code" 403, shown to a genuinely eligible participant who just signed
+    // in right after them.
+    onSuccess: (data) => {
+      queryClient.clear();
+      setUser(data.user);
+    },
   });
 }
 

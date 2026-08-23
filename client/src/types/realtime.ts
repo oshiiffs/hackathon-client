@@ -21,6 +21,16 @@ export type UserDraftedPayload = {
   slotDepartment: string;
 };
 
+// Admin-room-only, unconditional on team membership — see backend events.ts's
+// doc comment on PROFILE_UPDATED. Keeps the Presenter's Scanning Members
+// roster (and anywhere else admin shows a participant's photo/name) fresh
+// even for someone not yet recruited onto a team.
+export type ProfileUpdatedPayload = {
+  userId: string;
+  fullName: string;
+  avatarUrl: string | null;
+};
+
 export type ParticipantLockPayload = { locked: boolean };
 export type SubmissionLockPayload = { locked: boolean };
 
