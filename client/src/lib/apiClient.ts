@@ -46,12 +46,38 @@ export const API_BASE_URL = import.meta.env.PROD ? '' : rawApiUrl ? rawApiUrl.re
 // attach that cookie to every request (and accept the Set-Cookie on login).
 export const apiClient = axios.create({ baseURL: `${API_BASE_URL}/api`, withCredentials: true });
 
+// Render's free tier spins the backend process down after ~15min idle; the
+// next request(s) can hit a 502/503/504 while it cold-starts back up (can
+// take 30-60s). A 502 specifically means Render's own edge proxy couldn't
+// reach the app process at all, so the request handler almost certainly
+// never ran — safe to retry here even a POST/PATCH/DELETE, unlike a generic
+// timeout that might have landed mid-write. Bounded retries with a short,
+// increasing backoff turn "the whole app is broken, click Try Again" into
+// "quietly waits a few seconds and just works," which is what a cold start
+// actually calls for — existing callers' own loading state already covers
+// the wait, no separate "retrying…" UI needed.
+const MAX_TRANSIENT_RETRIES = 3;
+type RetryableConfig = NonNullable<AxiosError['config']> & { __retryCount?: number };
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorBody>) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().clear();
+      return Promise.reject(error);
     }
+
+    const status = error.response?.status;
+    const config = error.config as RetryableConfig | undefined;
+    if (config && (status === 502 || status === 503 || status === 504)) {
+      const attempt = (config.__retryCount ?? 0) + 1;
+      if (attempt <= MAX_TRANSIENT_RETRIES) {
+        config.__retryCount = attempt;
+        const delayMs = attempt * 1500; // 1.5s, 3s, 4.5s
+        return new Promise((resolve) => setTimeout(resolve, delayMs)).then(() => apiClient(config));
+      }
+    }
+
     return Promise.reject(error);
   },
 );
