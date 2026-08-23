@@ -32,15 +32,27 @@ export const HEAT_CATEGORY_ICONS: Record<HeatCategory, string> = {
 
 /** Played on the CEO's finalize screen once the team is finalized — see
  * FinalizedView in CeoFinalizePage.tsx. One real video per category, as
- * provided (not a shared/generic clip for all four). */
+ * provided (not a shared/generic clip for all four) — each is a short,
+ * standalone "WELCOME OUR ___ HERO" clip with no shared intro/placeholder
+ * text (unlike the older v1 set, which shared heat-default's full template
+ * and needed the name-overlay treatment — see CeoFinalizePage.tsx's git
+ * history if that's ever needed again for a future edit that reintroduces
+ * one). Cropped from a pillarboxed 1920x1080 export back down to true
+ * 1080x9:16-native (608x1080) portrait, which is also why these are a
+ * fraction of the v1 files' size. */
 export const HEAT_CATEGORY_VIDEOS: Record<HeatCategory, string> = {
-  HEALTH: '/videos/heat-health.mp4',
-  ENVIRONMENT: '/videos/heat-environment.mp4',
-  AGRICULTURE: '/videos/heat-agriculture.mp4',
-  TOURISM: '/videos/heat-tourism.mp4',
+  HEALTH: '/videos/heat-health-v2.mp4',
+  ENVIRONMENT: '/videos/heat-environment-v2.mp4',
+  AGRICULTURE: '/videos/heat-agriculture-v2.mp4',
+  TOURISM: '/videos/heat-tourism-v2.mp4',
 };
 
 /** The brand kit's catch-all clip — used for the pre-selection HEAT briefing
  * gate (see HeatCategoryVideoGate), which isn't category-specific since it
- * plays before a category is even chosen. */
-export const HEAT_DEFAULT_VIDEO = '/videos/heat-default.mp4';
+ * plays before a category is even chosen. v2: the "(STARTUP)" placeholder
+ * text baked into v1 was removed at the source (re-edited, not just cropped)
+ * — see GREETING_NAME_WINDOW/SECTOR_NAME_WINDOW in CeoFinalizePage.tsx for
+ * the current overlay timing/positioning measured against this file. Also
+ * trimmed to end right after the HEAT letters reveal (v1's now-unused
+ * "(SECTOR) HERO"/registration-CTA tail is gone). */
+export const HEAT_DEFAULT_VIDEO = '/videos/heat-default-v2.mp4';

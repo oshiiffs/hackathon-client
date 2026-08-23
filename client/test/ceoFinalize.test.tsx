@@ -318,7 +318,7 @@ describe('Team finalization (frontend, timer-driven)', () => {
     );
     expect(screen.getByTestId('finalize-success')).toBeInTheDocument();
     const video = screen.getByTestId('heat-category-reveal-video') as HTMLVideoElement;
-    expect(video.querySelector('source')).toHaveAttribute('src', '/videos/heat-tourism.mp4');
+    expect(video.querySelector('source')).toHaveAttribute('src', '/videos/heat-tourism-v2.mp4');
     expect(screen.getByText('OPEN TEAM HUB')).toBeInTheDocument();
   });
 
