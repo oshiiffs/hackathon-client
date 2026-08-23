@@ -73,6 +73,87 @@ function StepIndicator({ step }: { step: FinalizeStep }) {
   );
 }
 
+// heat-default.mp4 (1080x1920, 43.6s) has the literal placeholder text
+// "(STARTUP)" baked into its own pixels at two moments — it's a real
+// pre-rendered clip, not a template, so there's no way to substitute the
+// team's actual name inside the video itself. These windows (seconds) were
+// measured by frame-sampling the clip: [start, end] of each moment the
+// placeholder is on screen, with a little padding on either side to fully
+// cover its fade in/out. An HTML overlay (see NamePlaceholderOverlay below)
+// swaps in the real team name for exactly these windows; the video plays
+// untouched everywhere else, including its own separate "(SECTOR)" placeholder
+// later on — that one is intentionally left alone here, since the real
+// per-category reveal happens on a completely different, already-correct
+// video (see HEAT_CATEGORY_VIDEOS / HeatCategoryRevealVideo below).
+const GREETING_NAME_WINDOW = { start: 1.1, end: 3.5 } as const;
+const SECTOR_NAME_WINDOW = { start: 22.6, end: 33.3 } as const;
+
+type NamePlaceholderPhase = 'none' | 'greeting' | 'sector';
+
+function phaseForVideoTime(t: number): NamePlaceholderPhase {
+  if (t >= GREETING_NAME_WINDOW.start && t <= GREETING_NAME_WINDOW.end) return 'greeting';
+  if (t >= SECTOR_NAME_WINDOW.start && t <= SECTOR_NAME_WINDOW.end) return 'sector';
+  return 'none';
+}
+
+/**
+ * An opaque comic-caption patch (matching the app's existing button/panel
+ * language — white fill, thick ink border, hard offset shadow) placed over
+ * wherever heat-default.mp4 shows its own baked "(STARTUP)" text, sized/
+ * positioned from the same frame-sampling as the time windows above. Opaque
+ * on purpose: the video's own placeholder text sits directly underneath, and
+ * only a fully-covering patch guarantees it never shows through or
+ * double-exposes with the real name drawn on top of it.
+ *
+ * `top`/`underline` were read off the sampled frames (percentages of the
+ * video's own 1080x1920 frame) — safe to position as plain percentages here
+ * because the wrapping video element is exactly a 9:16 box (`aspect-[9/16]
+ * object-contain`), so container-relative percentages land on the same spot
+ * as the source video's pixel percentages, with no letterboxing to account
+ * for. Font size uses container query width units (`cqw`) so it scales with
+ * the actual rendered video box, not the viewport — the wrapper opts into
+ * that via `[container-type:size]`.
+ */
+function NamePlaceholderOverlay({
+  teamName,
+  top,
+  minHeightCqh,
+  underline,
+  testId,
+}: {
+  teamName: string;
+  top: string;
+  minHeightCqh: number;
+  underline?: boolean;
+  testId: string;
+}) {
+  const displayName = teamName.trim() ? teamName.trim().toUpperCase() : 'YOUR STARTUP';
+  return (
+    <div
+      className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center max-w-[85%] px-4 rounded-lg border-[3px] border-ink bg-white shadow-[3px_3px_0px_#111111]"
+      // A percentage-of-container minHeight (rather than relying on padding
+      // alone) is what guarantees this patch is always at least as tall as
+      // the video's own baked placeholder text at this exact moment —
+      // measured per-call below — regardless of how the real team name's
+      // length/wrapping changes the natural height of the text inside it;
+      // padding alone could come up short and leave the original text's
+      // underline/descenders peeking out past this patch's edge. Tuned
+      // per-window (not a shared constant) since the two moments have very
+      // different vertical clearance before the next line of the video's own
+      // (untouched) text — see the two call sites below.
+      style={{ top, minHeight: `clamp(24px, ${minHeightCqh}cqh, 64px)` }}
+      data-testid={testId}
+    >
+      <p
+        className={`font-black uppercase text-ink text-center leading-tight break-words py-1 ${underline ? 'underline decoration-4 underline-offset-4' : ''}`}
+        style={{ fontSize: 'clamp(12px, 8cqw, 32px)' }}
+      >
+        ({displayName})
+      </p>
+    </div>
+  );
+}
+
 /**
  * The CEO Name Selection -> HEAT Category Selection transition video —
  * plays automatically once the name timer closes, no user action required.
@@ -80,19 +161,24 @@ function StepIndicator({ step }: { step: FinalizeStep }) {
  * be able to permanently block a team from proceeding) and starts the HEAT
  * Category Selection timer server-side.
  */
-function HeatCategoryVideoGate({ onDone }: { onDone: () => void }) {
+function HeatCategoryVideoGate({ onDone, teamName }: { onDone: () => void; teamName: string }) {
   const [videoError, setVideoError] = useState(false);
+  const [namePhase, setNamePhase] = useState<NamePlaceholderPhase>('none');
 
   return (
     <div className="flex flex-col items-center">
       <p className="text-xs font-black uppercase text-forest mb-2 self-start">Get ready for HEAT Category Selection</p>
-      <div className="w-full max-w-xs aspect-[9/16] rounded-xl border-[3px] border-ink shadow-[4px_4px_0px_#111111] bg-ink overflow-hidden">
+      <div className="relative w-full max-w-xs aspect-[9/16] rounded-xl border-[3px] border-ink shadow-[4px_4px_0px_#111111] bg-ink overflow-hidden [container-type:size]">
         <video
           className="w-full h-full object-contain"
           autoPlay
           controls
           controlsList="nodownload noplaybackrate"
           onEnded={onDone}
+          onTimeUpdate={(e) => {
+            const phase = phaseForVideoTime(e.currentTarget.currentTime);
+            setNamePhase((prev) => (prev === phase ? prev : phase));
+          }}
           onError={() => {
             setVideoError(true);
             onDone();
@@ -101,6 +187,21 @@ function HeatCategoryVideoGate({ onDone }: { onDone: () => void }) {
         >
           <source src={HEAT_DEFAULT_VIDEO} type="video/mp4" />
         </video>
+
+        {namePhase === 'greeting' && (
+          // Measured "(STARTUP)" span (letters + parens + underline flourish):
+          // top 52.1%, bottom 59.7% of frame — an 11cqh box centered at 56%
+          // (50.5%-61.5%) comfortably covers all of it, with "GREETINGS!"
+          // (ends 48.3%) still clear above and nothing below to collide with.
+          <NamePlaceholderOverlay teamName={teamName} top="56%" minHeightCqh={11} underline testId="heat-video-greeting-name" />
+        )}
+        {namePhase === 'sector' && (
+          // Measured "(STARTUP)" span: top 20.2%, bottom 25.5% of frame — the
+          // "THE PHILIPPINES NEEDS YOU." subtitle starts right at 25.5%, so
+          // this window is tighter: a 6cqh box centered at 22.5% (19.5%-25.5%)
+          // covers the placeholder without eating into that next line.
+          <NamePlaceholderOverlay teamName={teamName} top="22.5%" minHeightCqh={6} testId="heat-video-sector-name" />
+        )}
       </div>
       {videoError ? (
         <p className="text-xs font-bold text-crimson mt-2" data-testid="heat-category-video-error">
@@ -317,7 +418,7 @@ export function CeoFinalizePage() {
         <section className="comic-panel w-full p-6" data-testid="video-step">
           <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
           <h2 className={`text-2xl mt-1 mb-4 ${comicHeading}`}>Get Ready</h2>
-          <HeatCategoryVideoGate onDone={handleVideoDone} />
+          <HeatCategoryVideoGate onDone={handleVideoDone} teamName={status.team.name ?? ''} />
         </section>
       )}
 

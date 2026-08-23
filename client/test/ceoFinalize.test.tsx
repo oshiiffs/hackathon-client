@@ -236,6 +236,42 @@ describe('Team finalization (frontend, timer-driven)', () => {
     await vi.waitFor(() => expect(postSpy).toHaveBeenCalledWith('/participant/ceo/finalize/start-category-timer'));
   });
 
+  it('8b. shows the real team name over heat-default.mp4\'s baked "(STARTUP)" placeholder during — and only during — those two windows', () => {
+    renderFinalizePage(videoStepStatus({ team: mockTeam({ name: 'Jade Innovators', members: fullRoster(), isComplete: true }) }));
+    const video = screen.getByTestId('heat-category-video') as HTMLVideoElement;
+
+    // Before either window: neither overlay renders.
+    expect(screen.queryByTestId('heat-video-greeting-name')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('heat-video-sector-name')).not.toBeInTheDocument();
+
+    // Inside the "GREETINGS! (STARTUP)" window.
+    video.currentTime = 2;
+    fireEvent.timeUpdate(video);
+    expect(screen.getByTestId('heat-video-greeting-name')).toHaveTextContent('(JADE INNOVATORS)');
+    expect(screen.queryByTestId('heat-video-sector-name')).not.toBeInTheDocument();
+
+    // Between the two windows: neither overlay renders.
+    video.currentTime = 10;
+    fireEvent.timeUpdate(video);
+    expect(screen.queryByTestId('heat-video-greeting-name')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('heat-video-sector-name')).not.toBeInTheDocument();
+
+    // Inside the "(STARTUP) THE PHILIPPINES NEEDS YOU..." window.
+    video.currentTime = 25;
+    fireEvent.timeUpdate(video);
+    expect(screen.queryByTestId('heat-video-greeting-name')).not.toBeInTheDocument();
+    expect(screen.getByTestId('heat-video-sector-name')).toHaveTextContent('(JADE INNOVATORS)');
+  });
+
+  it('8c. falls back to a generic placeholder if the CEO left the team name blank', () => {
+    renderFinalizePage(videoStepStatus({ team: mockTeam({ name: null, members: fullRoster(), isComplete: true }) }));
+    const video = screen.getByTestId('heat-category-video') as HTMLVideoElement;
+
+    video.currentTime = 2;
+    fireEvent.timeUpdate(video);
+    expect(screen.getByTestId('heat-video-greeting-name')).toHaveTextContent('(YOUR STARTUP)');
+  });
+
   it('9. HEAT capacities render for all four categories once the category timer is running — no Finalize button anywhere', () => {
     renderFinalizePage(categoryStepStatus());
     expect(screen.getByTestId('category-step')).toBeInTheDocument();
