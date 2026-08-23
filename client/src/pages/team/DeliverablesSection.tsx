@@ -4,8 +4,8 @@ import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { comicButton, comicHeading } from '../../lib/comic';
 import {
-  fetchPitchDeckVersionUrl,
-  fetchTeamFileUrl,
+  fetchPitchDeckVersionFile,
+  fetchTeamFileFile,
   useDeleteTeamFile,
   usePitchDeck,
   useReplacePitchDeck,
@@ -48,13 +48,51 @@ function validateClientSide(file: File, extensions: string[], maxBytes: number):
 type UploadState = { status: 'idle' | 'uploading' | 'error'; progress: number; error: string | null };
 const IDLE: UploadState = { status: 'idle', progress: 0, error: null };
 
-async function openFile(fetchUrl: () => Promise<string>) {
+type FileRef = { fileUrl: string; filename: string };
+
+async function viewFile(fetchFile: () => Promise<FileRef>) {
   try {
-    const url = await fetchUrl();
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const { fileUrl } = await fetchFile();
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
   } catch {
-    // best-effort — a failed view/download doesn't need its own error UI,
-    // the user can just retry the click.
+    // best-effort — a failed view doesn't need its own error UI, the user
+    // can just retry the click.
+  }
+}
+
+/**
+ * Fetches the file as a blob and saves it via a blob: URL with an explicit
+ * `download` filename, rather than linking straight to the Cloudinary URL.
+ * A plain `<a href={cloudinaryUrl} download="x.pdf">` doesn't reliably work:
+ * browsers only honor the `download` attribute's filename for same-origin or
+ * blob: URLs, and Cloudinary is a different origin — the browser falls back
+ * to whatever name/extension it can infer from the URL itself, which used to
+ * be a bare UUID with no extension at all for raw uploads (see
+ * files.service.ts's rawPublicId doc comment). Fetching the bytes and
+ * attaching them to a blob: URL sidesteps both problems: the saved filename
+ * always comes from our own DB column, correct regardless of what the
+ * Cloudinary URL looks like — including files uploaded before that fix.
+ */
+async function downloadFile(fetchFile: () => Promise<FileRef>) {
+  let fileUrl = '';
+  try {
+    const file = await fetchFile();
+    fileUrl = file.fileUrl;
+    const response = await fetch(fileUrl);
+    if (!response.ok) throw new Error('download fetch failed');
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = file.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    // Fallback: still get the user to the file, even if the saved
+    // filename/extension can't be guaranteed this way (e.g. a CORS hiccup).
+    if (fileUrl) window.open(fileUrl, '_blank', 'noopener,noreferrer');
   }
 }
 
@@ -168,13 +206,13 @@ function PitchDeckPanel() {
             </div>
             <div className="flex items-end gap-2">
               <button
-                onClick={() => openFile(() => fetchPitchDeckVersionUrl(data.current!.id))}
+                onClick={() => viewFile(() => fetchPitchDeckVersionFile(data.current!.id))}
                 className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
               >
                 VIEW
               </button>
               <button
-                onClick={() => openFile(() => fetchPitchDeckVersionUrl(data.current!.id))}
+                onClick={() => downloadFile(() => fetchPitchDeckVersionFile(data.current!.id))}
                 className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
               >
                 DOWNLOAD
@@ -193,9 +231,14 @@ function PitchDeckPanel() {
                 <span className="font-medium">
                   v{v.version} · {v.filename}
                 </span>
-                <button onClick={() => openFile(() => fetchPitchDeckVersionUrl(v.id))} className="text-forest font-black hover:text-crimson">
-                  VIEW
-                </button>
+                <span className="flex items-center gap-3">
+                  <button onClick={() => viewFile(() => fetchPitchDeckVersionFile(v.id))} className="text-forest font-black hover:text-crimson">
+                    VIEW
+                  </button>
+                  <button onClick={() => downloadFile(() => fetchPitchDeckVersionFile(v.id))} className="text-forest font-black hover:text-crimson">
+                    DOWNLOAD
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
@@ -322,13 +365,13 @@ function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete:
       </div>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => openFile(() => fetchTeamFileUrl(file.id))}
+          onClick={() => viewFile(() => fetchTeamFileFile(file.id))}
           className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
         >
           VIEW
         </button>
         <button
-          onClick={() => openFile(() => fetchTeamFileUrl(file.id))}
+          onClick={() => downloadFile(() => fetchTeamFileFile(file.id))}
           className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
         >
           DOWNLOAD

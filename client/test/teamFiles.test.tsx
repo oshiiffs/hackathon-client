@@ -239,7 +239,10 @@ describe('Phase 10 file management (frontend)', () => {
     await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://cloudinary.com/x.pdf', '_blank', 'noopener,noreferrer'));
   });
 
-  it('15. the DOWNLOAD action fetches the file URL and opens it', async () => {
+  it('15. the DOWNLOAD action falls back to opening the file URL if the blob fetch fails', async () => {
+    // jsdom has no real network, so downloadFile's own `fetch(fileUrl)` call
+    // fails here regardless — this test is exercising that exact fallback
+    // path (see downloadFile's catch block), not a mocked failure.
     const user = userEvent.setup();
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { ...mockDocument(), fileUrl: 'https://cloudinary.com/y.pdf' } } as never);
@@ -247,6 +250,44 @@ describe('Phase 10 file management (frontend)', () => {
     const buttons = screen.getByTestId('file-row-doc_1').querySelectorAll('button');
     await user.click(buttons[1]!);
     await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://cloudinary.com/y.pdf', '_blank', 'noopener,noreferrer'));
+  });
+
+  it('15b. the DOWNLOAD action saves the file under its real filename, not whatever the URL looks like', async () => {
+    // The whole point of downloadFile's blob approach: even a fileUrl with
+    // no recognizable extension (the old bug — see files.service.ts's
+    // rawPublicId doc comment) must still download as "requirements.pdf",
+    // because the saved name comes from the DB's filename column, not the URL.
+    const user = userEvent.setup();
+    vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+      data: { ...mockDocument(), fileUrl: 'https://res.cloudinary.com/demo/raw/upload/v1/some-uuid-no-extension' },
+    } as never);
+    const fakeBlob = new Blob(['file bytes'], { type: 'application/pdf' });
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(fakeBlob) } as never);
+
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const createObjectURLSpy = vi.fn().mockReturnValue('blob:mock-url');
+    const revokeObjectURLSpy = vi.fn();
+    URL.createObjectURL = createObjectURLSpy;
+    URL.revokeObjectURL = revokeObjectURLSpy;
+    let capturedDownloadName = '';
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      capturedDownloadName = this.download;
+    });
+
+    try {
+      renderSection({ files: [mockDocument()] });
+      const buttons = screen.getByTestId('file-row-doc_1').querySelectorAll('button');
+      await user.click(buttons[1]!); // VIEW, DOWNLOAD, (DELETE if CEO) — index 1 is DOWNLOAD
+
+      await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+      expect(fetchSpy).toHaveBeenCalledWith('https://res.cloudinary.com/demo/raw/upload/v1/some-uuid-no-extension');
+      expect(capturedDownloadName).toBe('requirements.pdf');
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock-url');
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 
   it('16. a realtime file list update (the same mechanism the socket handler uses) refreshes the documents list', async () => {

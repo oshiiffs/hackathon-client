@@ -22,14 +22,17 @@ export function usePitchDeck() {
   });
 }
 
-export async function fetchPitchDeckVersionUrl(id: string): Promise<string> {
+// Both callers need the real filename (not just the URL) so a download can
+// be saved with the correct name + extension regardless of what Cloudinary's
+// own URL looks like — see DeliverablesSection.tsx's downloadFile.
+export async function fetchPitchDeckVersionFile(id: string): Promise<Pick<FileDetail, 'fileUrl' | 'filename'>> {
   const { data } = await apiClient.get<FileDetail>(`/team/pitch-deck/${id}`);
-  return data.fileUrl;
+  return { fileUrl: data.fileUrl, filename: data.filename };
 }
 
-export async function fetchTeamFileUrl(id: string): Promise<string> {
+export async function fetchTeamFileFile(id: string): Promise<Pick<FileDetail, 'fileUrl' | 'filename'>> {
   const { data } = await apiClient.get<FileDetail>(`/team/files/${id}`);
-  return data.fileUrl;
+  return { fileUrl: data.fileUrl, filename: data.filename };
 }
 
 type UploadArgs = { file: File; onProgress?: (percent: number) => void };
