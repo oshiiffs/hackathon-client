@@ -463,23 +463,36 @@ function CategorySelectionScreen({ categoryUsage }: { categoryUsage: CategoryUsa
             <div
               key={category}
               data-testid={`presenter-category-panel-${category}`}
-              className="min-h-[240px] sm:min-h-[300px] rounded-xl border-[3px] border-ink p-6 grid grid-cols-[auto_1fr] items-center gap-4 sm:gap-6"
+              className="min-h-[280px] sm:min-h-[340px] rounded-xl border-[3px] border-ink p-6 grid grid-cols-[auto_1fr] items-center gap-4 sm:gap-6"
             >
-              <div className="w-32 sm:w-44 flex justify-center shrink-0">
+              {/* A fixed-width column (not just centering the icon+pill pair
+                  as a group) is what keeps every icon at the exact same spot
+                  regardless of whether its panel has a team pill next to it
+                  yet — sizing this off the icon's own w-36/sm:w-52 keeps the
+                  column exactly as wide as the (identically-sized, every
+                  category) icon, no wasted/uneven gutter. */}
+              <div className="w-36 sm:w-52 flex justify-center shrink-0">
                 <img
                   src={HEAT_CATEGORY_ICONS[category]}
                   alt={category}
-                  className="w-32 h-32 sm:w-44 sm:h-44 object-contain"
+                  className="w-36 h-36 sm:w-52 sm:h-52 object-contain"
                   data-testid={`presenter-category-icon-${category}`}
                 />
               </div>
               {teams.length > 0 && (
-                <div className="flex flex-col items-start gap-2 min-w-0">
+                // max-h + overflow-y-auto: a category can hold up to 3 teams
+                // (see CategorySlot's capacity), and 3 wrapped pills stacked
+                // with gap-2 could in principle run past the panel's own
+                // height on a short/narrow screen — scrolling this list
+                // specifically (rather than letting the panel grow and push
+                // the 2x2 grid out of alignment) is what actually guarantees
+                // pills never overlap each other or spill past the border.
+                <div className="flex flex-col items-start gap-2 min-w-0 max-h-full overflow-y-auto py-1">
                   {teams.map((t) => (
                     <span
                       key={t.id}
                       data-testid={`presenter-category-team-${category}`}
-                      className="max-w-full bg-gold text-ink font-black uppercase text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-[3px] border-ink shadow-[3px_3px_0px_#111111] text-center break-words"
+                      className="max-w-full bg-gold text-ink font-black uppercase text-sm sm:text-base px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-[3px] border-ink shadow-[3px_3px_0px_#111111] text-center break-words"
                     >
                       {t.name}
                     </span>
