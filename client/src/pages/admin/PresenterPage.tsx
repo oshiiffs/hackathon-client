@@ -184,7 +184,7 @@ export function PresenterPage() {
                 {answeredNow.size} / {roster.length} answered
               </p>
 
-              {recapQuestionId && recapAggregate.data && <TopAnswersOverlay aggregate={recapAggregate.data} />}
+              {recapQuestionId && <TopAnswersOverlay aggregate={recapAggregate.data} isLoading={recapAggregate.isLoading} />}
             </div>
           );
         }
@@ -540,11 +540,52 @@ function WelcomeScreen() {
   );
 }
 
-function TopAnswersOverlay({ aggregate }: { aggregate: { question: string; top5: { answer: string; count: number; isCorrect: boolean }[]; totalSubmitted: number } }) {
+/**
+ * `aggregate` is undefined for the brief gap between a topic closing and its
+ * first successful fetch landing (TanStack Query's `data` stays `undefined`
+ * until then) — rendered as a spinner + "Loading results…" rather than not
+ * rendering at all, so the screen never sits there looking frozen on a
+ * projector with no visible sign anything is happening. `isLoading` is only
+ * true for that very first fetch; every 1.5s poll after that keeps the
+ * previous `aggregate` on screen while it refetches, so live updates never
+ * flash back to this loading state.
+ */
+function TopAnswersOverlay({
+  aggregate,
+  isLoading,
+}: {
+  aggregate: { question: string; correctAnswer: string; top5: { answer: string; count: number; isCorrect: boolean }[]; totalSubmitted: number } | undefined;
+  isLoading: boolean;
+}) {
+  if (!aggregate) {
+    return (
+      <div className="fixed inset-0 bg-canvas/95 backdrop-blur-sm flex items-center justify-center z-10">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-[3px] border-ink border-t-transparent animate-spin" />
+          <p className="text-sm font-black uppercase tracking-widest text-navy/60">
+            {isLoading ? 'Loading results…' : 'Waiting for results…'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-canvas/95 backdrop-blur-sm flex items-center justify-center z-10">
       <div className="w-full max-w-2xl flex flex-col items-center gap-6 text-center">
         <p className="text-sm font-black uppercase tracking-widest text-crimson">Top answers · {aggregate.question}</p>
+
+        {/* Shown every time, regardless of whether/how many people got it
+            right — the room should always be told the actual answer, not
+            just left to infer it from which submitted answer (if any) got
+            the "✓ Correct" badge below. */}
+        {aggregate.correctAnswer && (
+          <div className="rounded-xl px-5 py-3 bg-forest text-cream border-[3px] border-ink shadow-[4px_4px_0px_#111111]">
+            <p className="text-xs font-black uppercase tracking-widest opacity-80">Correct answer</p>
+            <p className="text-2xl font-black">{aggregate.correctAnswer}</p>
+          </div>
+        )}
+
         <div className="w-full flex flex-col gap-2">
           {aggregate.top5.length === 0 && <p className="text-navy font-bold">No answers submitted.</p>}
           {aggregate.top5.map((a, i) => (

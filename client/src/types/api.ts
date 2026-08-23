@@ -412,6 +412,7 @@ export type LiveAnswerAggregate = {
   question: string;
   totalSubmitted: number;
   correctCount: number;
+  correctAnswer: string;
   top5: { answer: string; count: number; isCorrect: boolean }[];
 };
 
