@@ -7,6 +7,7 @@ import {
   useAdminDeliverables,
   useAdminEvaluations,
   useAdminHackathonState,
+  useAdminLeaderboard,
   useAdminOverview,
   useAdminParticipants,
   useCeoQuestions,
@@ -16,7 +17,15 @@ import { getSocket } from '../../lib/socket';
 import { comicButton } from '../../lib/comic';
 import { DEPARTMENT_COLORS } from '../../lib/departmentColors';
 import { HEAT_CATEGORY_ICONS, HEAT_DEFAULT_VIDEO } from '../../lib/heatCategoryAssets';
-import type { AdminEvaluationOverview, CategoryUsage, Department, HackathonPhase, HeatCategory, TeamDeliverableStatus } from '../../types/api';
+import type {
+  AdminEvaluationOverview,
+  CategoryUsage,
+  Department,
+  HackathonPhase,
+  HeatCategory,
+  LeaderboardEntry,
+  TeamDeliverableStatus,
+} from '../../types/api';
 import type { ChallengeAnswerSubmittedPayload, ChallengeEndPayload } from '../../types/realtime';
 
 const HEAT_CATEGORY_ORDER: HeatCategory[] = ['HEALTH', 'ENVIRONMENT', 'AGRICULTURE', 'TOURISM'];
@@ -67,6 +76,7 @@ export function PresenterPage() {
     manualScreen === 'auto' && (phase === 'SUBMISSIONS_OPEN' || phase === 'SUBMISSIONS_LOCKED'),
   );
   const evaluations = useAdminEvaluations(manualScreen === 'auto' && (phase === 'JUDGING' || phase === 'COMPLETE'));
+  const leaderboard = useAdminLeaderboard(manualScreen === 'auto' && (phase === 'JUDGING' || phase === 'COMPLETE'));
 
   const activeQuestions = (questions.data ?? [])
     .filter((q) => q.isActive)
@@ -202,10 +212,10 @@ export function PresenterPage() {
         return <SubmissionsScreen deliverables={deliverables.data ?? []} open={false} />;
 
       case 'JUDGING':
-        return <JudgingScreen evaluations={evaluations.data ?? []} />;
+        return <JudgingScreen evaluations={evaluations.data ?? []} leaderboard={leaderboard.data ?? []} />;
 
       case 'COMPLETE':
-        return <CompleteScreen />;
+        return <CompleteScreen leaderboard={leaderboard.data ?? []} />;
 
       case 'LOBBY':
       default:
@@ -397,38 +407,72 @@ function SubmissionsScreen({ deliverables, open }: { deliverables: TeamDeliverab
   );
 }
 
-/** JUDGING — reuses useAdminEvaluations, the same per-team evaluation-
- * progress data the admin dashboard's own Judging panel already reads (see
- * getEvaluationOverview). One aggregate tally across every finalized team
- * rather than a per-team breakdown — enough for a passive audience screen
- * without turning it into a judge leaderboard. */
-function JudgingScreen({ evaluations }: { evaluations: AdminEvaluationOverview[] }) {
-  const submitted = evaluations.reduce((sum, e) => sum + e.evaluationsSubmitted, 0);
-  const possible = evaluations.reduce((sum, e) => sum + e.totalJudges, 0);
-
+/**
+ * Ranked list — team name with the CEO's name right beside it (per request:
+ * "the ceo of team is shown besides the team name"), live average score,
+ * and rank. Shared between JudgingScreen (live, mid-scoring) and
+ * CompleteScreen (final) — same shape, only the heading differs. Teams with
+ * no submitted evaluations yet show "—" for rank/score rather than a
+ * misleading 0, and sort to the bottom (see admin.service.ts's getLeaderboard).
+ */
+function LeaderboardTable({ leaderboard }: { leaderboard: LeaderboardEntry[] }) {
+  if (leaderboard.length === 0) {
+    return <p className="text-navy/50 font-bold">No finalized teams yet.</p>;
+  }
   return (
-    <div className="text-center flex flex-col items-center gap-6">
-      <div className="w-4 h-4 rounded-full bg-crimson border-2 border-ink animate-ping" />
-      <h1 className="text-4xl font-black tracking-tight text-ink">JUDGING IN PROGRESS</h1>
-      <p className="text-lg font-bold text-navy max-w-2xl">Judges are scoring every finalized team.</p>
-      <div>
-        <p className="text-6xl font-black text-forest" data-testid="judging-count">
-          {submitted} / {possible}
-        </p>
-        <p className="text-sm font-black uppercase tracking-widest text-navy/50">evaluations submitted</p>
-      </div>
+    <div className="w-full max-w-3xl flex flex-col gap-2" data-testid="presenter-leaderboard">
+      {leaderboard.map((row) => (
+        <div
+          key={row.teamId}
+          data-testid={`presenter-leaderboard-row-${row.teamId}`}
+          className="flex items-center gap-4 rounded-xl border-[3px] border-ink bg-white px-4 py-3 shadow-[3px_3px_0px_#111111]"
+        >
+          <span className="text-2xl font-black text-navy/40 w-10 text-center shrink-0">
+            {row.evaluationsSubmitted > 0 ? `#${row.rank}` : '—'}
+          </span>
+          <div className="flex-1 text-left min-w-0">
+            <p className="font-black text-ink truncate">
+              {row.teamName ?? '(unnamed)'} <span className="font-bold text-navy/60">· CEO: {row.ceoName}</span>
+            </p>
+            <p className="text-xs text-navy/50 uppercase font-bold">{row.category ?? 'no category'}</p>
+          </div>
+          <span className="text-xl font-black text-forest shrink-0">
+            {row.evaluationsSubmitted > 0 ? `${row.averageScore.toFixed(1)} / ${row.maxPossibleScore}` : 'Not yet scored'}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
 
-/** COMPLETE — no fabricated leaderboard here: there's no final-ranking
- * computation anywhere in this codebase to draw one from (JudgeScore is
- * per-judge-per-team, never aggregated into a ranked winner), so this stays a
- * plain closing screen rather than inventing scoring logic that doesn't
- * exist elsewhere. */
-function CompleteScreen() {
+/** JUDGING — a live leaderboard (see LeaderboardTable) plus the same
+ * aggregate submitted/possible tally the admin dashboard's own Judging panel
+ * reads (getEvaluationOverview), so the room can see both "who's ahead right
+ * now" and "how much judging is left." */
+function JudgingScreen({ evaluations, leaderboard }: { evaluations: AdminEvaluationOverview[]; leaderboard: LeaderboardEntry[] }) {
+  const submitted = evaluations.reduce((sum, e) => sum + e.evaluationsSubmitted, 0);
+  const possible = evaluations.reduce((sum, e) => sum + e.totalJudges, 0);
+
   return (
-    <div className="text-center flex flex-col items-center gap-6">
+    <div className="w-full max-w-4xl flex flex-col items-center gap-6">
+      <div className="text-center flex flex-col items-center gap-2">
+        <div className="w-4 h-4 rounded-full bg-crimson border-2 border-ink animate-ping" />
+        <h1 className="text-4xl font-black tracking-tight text-ink">JUDGING IN PROGRESS</h1>
+        <p className="text-lg font-bold text-navy max-w-2xl">Judges are scoring every finalized team.</p>
+        <p className="text-sm font-black uppercase tracking-widest text-navy/50" data-testid="judging-count">
+          {submitted} / {possible} evaluations submitted
+        </p>
+      </div>
+      <LeaderboardTable leaderboard={leaderboard} />
+    </div>
+  );
+}
+
+/** COMPLETE — the final leaderboard (see LeaderboardTable), ranked by
+ * average submitted judge score. */
+function CompleteScreen({ leaderboard }: { leaderboard: LeaderboardEntry[] }) {
+  return (
+    <div className="w-full max-w-4xl flex flex-col items-center gap-6">
       <img
         src="/nexus-logo-v2.png"
         alt="Nexus Multiverse 2026"
@@ -436,6 +480,7 @@ function CompleteScreen() {
       />
       <h1 className="text-4xl font-black tracking-tight text-ink">COMPETITION COMPLETE</h1>
       <p className="text-lg font-bold text-navy">Thank you for building with us today.</p>
+      <LeaderboardTable leaderboard={leaderboard} />
     </div>
   );
 }

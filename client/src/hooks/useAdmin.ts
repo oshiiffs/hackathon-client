@@ -8,6 +8,7 @@ import type {
   AdminTeamResources,
   CeoQuestion,
   Department,
+  LeaderboardEntry,
   LiveAnswerAggregate,
   QrIdentity,
   StaffAccount,
@@ -116,6 +117,18 @@ export function useAdminEvaluations(enabled = true) {
       return data;
     },
     refetchInterval: 30000,
+    enabled,
+  });
+}
+
+export function useAdminLeaderboard(enabled = true) {
+  return useQuery({
+    queryKey: ['admin-leaderboard'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<LeaderboardEntry[]>('/admin/leaderboard');
+      return data;
+    },
+    refetchInterval: 15000,
     enabled,
   });
 }

@@ -12,6 +12,7 @@ import {
   useAdminDeliverables,
   useAdminEvaluations,
   useAdminHackathonState,
+  useAdminLeaderboard,
   useAdminOverview,
   useAdminParticipants,
   useAdminParticipantQr,
@@ -152,6 +153,7 @@ export function AdminDashboardPage() {
   const staff = useAdminStaff();
   const deliverables = useAdminDeliverables();
   const evaluations = useAdminEvaluations();
+  const leaderboard = useAdminLeaderboard();
 
   const lockParticipants = useLockParticipants();
   const unlockParticipants = useUnlockParticipants();
@@ -175,6 +177,7 @@ export function AdminDashboardPage() {
   const deleteTeamFile = useAdminDeleteTeamFile();
   const deletePitchDeckVersion = useAdminDeletePitchDeckVersion();
   const deleteTeam = useAdminDeleteTeam();
+  const [evaluationsTeamId, setEvaluationsTeamId] = useState<string | null>(null);
   const [deleteTeamTarget, setDeleteTeamTarget] = useState<{ id: string; name: string | null } | null>(null);
 
   const currentUser = useAuthStore((s) => s.user);
@@ -926,6 +929,15 @@ export function AdminDashboardPage() {
                   <button onClick={() => setResourcesTeamId(resourcesTeamId === team.id ? null : team.id)} className={`text-xs ${comicLink}`}>
                     {resourcesTeamId === team.id ? 'Hide resources' : 'View resources'}
                   </button>
+                  {evalStatus && evalStatus.judgeScores.length > 0 && (
+                    <button
+                      onClick={() => setEvaluationsTeamId(evaluationsTeamId === team.id ? null : team.id)}
+                      className={`text-xs ${comicLink}`}
+                      data-testid={`admin-team-${team.id}-toggle-scores`}
+                    >
+                      {evaluationsTeamId === team.id ? 'Hide scores' : 'View scores'}
+                    </button>
+                  )}
                   <button
                     onClick={() => setDeleteTeamTarget({ id: team.id, name: team.name })}
                     className="text-xs font-bold uppercase tracking-wide text-crimson hover:text-ink transition-colors"
@@ -934,6 +946,22 @@ export function AdminDashboardPage() {
                     Delete team
                   </button>
                 </div>
+
+                {evaluationsTeamId === team.id && evalStatus && (
+                  <div className="mt-2 pt-2 border-t-2 border-ink/20 flex flex-col gap-2" data-testid={`admin-team-${team.id}-scores`}>
+                    {evalStatus.judgeScores.map((judge, i) => (
+                      <div key={i} className="text-xs bg-cream/40 rounded-lg p-2 border-2 border-ink/10">
+                        <p className="font-black text-ink">
+                          {judge.judgeName} — {judge.total}/{evalStatus.maxTotal}
+                        </p>
+                        <p className="text-navy/70">
+                          {judge.scores.map((s) => `${s.label}: ${s.value}`).join(' · ')}
+                        </p>
+                        {judge.comments && <p className="text-navy mt-1 whitespace-pre-wrap">&ldquo;{judge.comments}&rdquo;</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {resourcesTeamId === team.id && (
                   <div className="mt-2 pt-2 border-t-2 border-ink/20 flex flex-col gap-1.5">
@@ -976,6 +1004,45 @@ export function AdminDashboardPage() {
             );
           })}
         </div>
+      </section>
+
+      <section className="comic-panel p-6" data-testid="admin-leaderboard-section">
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+        <h2 className={`text-lg mb-4 ${comicHeading}`}>Leaderboard</h2>
+        <p className="text-xs text-navy/60 mb-3">
+          Ranked by average submitted judge score — teams with no submitted evaluations yet sort to the bottom.
+        </p>
+        {leaderboard.data && leaderboard.data.length === 0 && <p className="text-sm text-navy/50">No finalized teams yet.</p>}
+        {leaderboard.data && leaderboard.data.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="text-forest text-xs uppercase font-black border-b-2 border-ink">
+                  <th className="py-2 pr-2">#</th>
+                  <th className="py-2 pr-2">Team</th>
+                  <th className="py-2 pr-2">CEO</th>
+                  <th className="py-2 pr-2">Category</th>
+                  <th className="py-2 pr-2">Score</th>
+                  <th className="py-2 pr-2">Judges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.data.map((row) => (
+                  <tr key={row.teamId} className="border-b border-ink/10" data-testid={`leaderboard-row-${row.teamId}`}>
+                    <td className="py-2 pr-2 font-black text-ink">{row.evaluationsSubmitted > 0 ? row.rank : '—'}</td>
+                    <td className="py-2 pr-2 font-bold text-ink">{row.teamName ?? '(unnamed)'}</td>
+                    <td className="py-2 pr-2 text-navy">{row.ceoName}</td>
+                    <td className="py-2 pr-2 text-navy">{row.category ?? '—'}</td>
+                    <td className="py-2 pr-2 font-black text-forest">
+                      {row.evaluationsSubmitted > 0 ? `${row.averageScore.toFixed(1)} / ${row.maxPossibleScore}` : '—'}
+                    </td>
+                    <td className="py-2 pr-2 text-navy/60">{row.evaluationsSubmitted}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <ConfirmDialog

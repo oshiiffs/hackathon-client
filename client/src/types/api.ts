@@ -434,4 +434,20 @@ export type AdminEvaluationOverview = {
   totalJudges: number;
   evaluationsSubmitted: number;
   evaluationsInProgress: number;
+  maxTotal: number;
+  // Submitted evaluations only — a DRAFT is still being edited and could
+  // change, so it's never surfaced here (same rule as the counts above
+  // already followed, extended to content now that this exists).
+  judgeScores: { judgeName: string; scores: { id: string; label: string; value: number }[]; total: number; comments: string | null }[];
+};
+
+export type LeaderboardEntry = {
+  rank: number;
+  teamId: string;
+  teamName: string | null;
+  category: HeatCategory | null;
+  ceoName: string;
+  evaluationsSubmitted: number;
+  averageScore: number;
+  maxPossibleScore: number;
 };
