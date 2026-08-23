@@ -7,7 +7,7 @@ import { useAdminHackathonState, useAdminOverview, useAdminParticipants, useCeoQ
 import { getSocket } from '../../lib/socket';
 import { comicButton } from '../../lib/comic';
 import { DEPARTMENT_COLORS } from '../../lib/departmentColors';
-import { HEAT_CATEGORY_ICONS } from '../../lib/heatCategoryAssets';
+import { HEAT_CATEGORY_ICONS, HEAT_DEFAULT_VIDEO } from '../../lib/heatCategoryAssets';
 import type { CategoryUsage, Department, HeatCategory } from '../../types/api';
 import type { ChallengeAnswerSubmittedPayload, ChallengeEndPayload } from '../../types/realtime';
 
@@ -28,9 +28,7 @@ const MANUAL_SCREENS: { id: ManualScreen; label: string }[] = [
  * "who's answered" board + top-5-answers recap + CEO reveal); the strip at
  * the bottom lets the operator cut to the other FLOW steps (scanning,
  * welcome video, category selection) that don't have a single piece of
- * server state driving them. There's no bundled welcome-video asset — the
- * "Welcome video" screen is a placeholder slot for whatever file the event
- * team supplies; see the comment on WelcomeScreen below for where to point it.
+ * server state driving them.
  */
 export function PresenterPage() {
   const { data: state } = useAdminHackathonState();
@@ -275,8 +273,9 @@ function ScanningMembersScreen({ participants }: { participants: ScanningMember[
 /**
  * "Category selection" — a big 2×2 board of the four HEAT categories, each
  * showing its brand-kit icon (see heatCategoryAssets.ts — the same assets
- * CeoFinalizePage uses, untouched/un-stretched here too) and, once any
- * team(s) have finalized into it, a gold pill per team name underneath.
+ * CeoFinalizePage uses, untouched/un-stretched here too), centered in its
+ * panel, and, once any team(s) have finalized into it, a gold pill per team
+ * name stacked to its right.
  * Sourced entirely from useAdminOverview's `categoryUsage` — the same
  * capacity data CeoFinalizePage and the admin dashboard's HEAT Category
  * Capacity panel already read (see team.service.ts's getCategoryCapacities)
@@ -308,12 +307,12 @@ function CategorySelectionScreen({ categoryUsage }: { categoryUsage: CategoryUsa
             <div
               key={category}
               data-testid={`presenter-category-panel-${category}`}
-              className="min-h-[220px] sm:min-h-[280px] rounded-xl border-[3px] border-ink p-6 flex flex-col items-start gap-4"
+              className="min-h-[220px] sm:min-h-[280px] rounded-xl border-[3px] border-ink p-6 flex items-center justify-center gap-6"
             >
               <img
                 src={HEAT_CATEGORY_ICONS[category]}
                 alt={category}
-                className="w-28 h-28 sm:w-36 sm:h-36 object-contain"
+                className="w-28 h-28 sm:w-36 sm:h-36 object-contain shrink-0"
                 data-testid={`presenter-category-icon-${category}`}
               />
               {teams.length > 0 && (
@@ -337,14 +336,22 @@ function CategorySelectionScreen({ categoryUsage }: { categoryUsage: CategoryUsa
   );
 }
 
+/** The same "Get Ready" brand-kit clip CeoFinalizePage plays (see
+ * HEAT_DEFAULT_VIDEO) — reused here as-is for the big-screen welcome moment.
+ * Not muted: the operator switches to this tab deliberately (a real user
+ * gesture, so autoplay-with-sound isn't blocked), and this is a live
+ * audience-facing screen where the audio is the point; `controls` lets them
+ * replay/pause manually regardless. No team-name overlay here (unlike
+ * CeoFinalizePage) — this is a generic broadcast, not tied to any one team,
+ * so the moments that would carry a name just play through blank. */
 function WelcomeScreen() {
   return (
     <div className="text-center flex flex-col items-center gap-4">
       <h1 className="text-5xl font-black tracking-tight text-ink">WELCOME</h1>
-      {/* Drop a real welcome video/animation here once the event team supplies
-          one, e.g. <video src="/welcome.mp4" autoPlay muted className="max-h-[70vh]" /> */}
-      <div className="w-full max-w-3xl aspect-video rounded-2xl border-[3px] border-dashed border-ink flex items-center justify-center bg-white">
-        <p className="text-navy/50 text-sm font-bold uppercase">Welcome video plays here</p>
+      <div className="w-full max-w-md aspect-[9/16] rounded-2xl border-[3px] border-ink shadow-[8px_8px_0px_#111111] bg-ink overflow-hidden">
+        <video className="w-full h-full object-contain" autoPlay controls data-testid="presenter-welcome-video">
+          <source src={HEAT_DEFAULT_VIDEO} type="video/mp4" />
+        </video>
       </div>
     </div>
   );
