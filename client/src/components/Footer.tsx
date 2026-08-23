@@ -64,7 +64,7 @@ export function Footer() {
             ))}
           </ul>
           <p className="mt-2 text-[11px] font-bold text-navy/60">
-            Mentor · <span className="text-navy">John Roy Galves</span>
+            Mentor · <span className="text-navy">John Roy Galvez</span>
           </p>
         </div>
       </div>
