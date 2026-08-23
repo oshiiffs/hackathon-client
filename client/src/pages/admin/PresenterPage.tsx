@@ -313,17 +313,29 @@ function ScanningMembersScreen({ participants }: { participants: ScanningMember[
               p.drafted ? 'bg-white/70 grayscale opacity-50' : 'bg-white shadow-[3px_3px_0px_#111111]'
             }`}
           >
-            {p.avatarUrl ? (
-              <img src={p.avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-ink" />
-            ) : (
-              <div
-                className="w-12 h-12 rounded-full border-2 border-ink flex items-center justify-center text-sm font-black text-white"
-                style={{ backgroundColor: DEPARTMENT_COLORS[p.homeDepartment] }}
+            {/* Status dot on the photo itself (green = available, gray =
+                recruited) — readable at a glance from across the room,
+                rather than relying on people close enough to read the text
+                badge below. */}
+            <div className="relative">
+              {p.avatarUrl ? (
+                <img src={p.avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-ink" />
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-full border-2 border-ink flex items-center justify-center text-sm font-black text-white"
+                  style={{ backgroundColor: DEPARTMENT_COLORS[p.homeDepartment] }}
+                  aria-hidden="true"
+                >
+                  {p.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${
+                  p.drafted ? 'bg-navy/40' : 'bg-forest'
+                }`}
                 aria-hidden="true"
-              >
-                {p.fullName.charAt(0).toUpperCase()}
-              </div>
-            )}
+              />
+            </div>
             <p className="text-xs font-bold truncate w-full">{p.fullName}</p>
             <span
               className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full border-2 ${
