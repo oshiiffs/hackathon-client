@@ -173,6 +173,29 @@ export function useAdminDeletePitchDeckVersion() {
   });
 }
 
+/** Admin's "undo this team" cleanup tool — deletes it outright, frees its
+ * HEAT category slot, and returns every member (CEO included) to a fresh,
+ * undrafted PARTICIPANT (see the server's deleteTeam doc comment). Uses the
+ * shared invalidate helper since this touches the roster, category capacity,
+ * AND overview counts all at once. */
+export function useAdminDeleteTeam() {
+  const invalidate = useInvalidateAdmin();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (teamId: string) => {
+      await apiClient.delete(`/admin/teams/${teamId}`);
+    },
+    onSuccess: (_, teamId) => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['admin-deliverables'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-evaluations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-team-resources', teamId] });
+      showSuccessToast('Team deleted.');
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
 /** Worst-case-headcount escape hatch — lets CEOs finalize with fewer than 5
  * members once the admin flips this on (still capped at one per department). */
 export function useSetAllowIncompleteTeams() {

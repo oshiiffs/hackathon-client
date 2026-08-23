@@ -7,6 +7,7 @@ import { comicButton, comicHeading, comicHeadingSm, comicLink } from '../../lib/
 import { DEPARTMENT_COLORS } from '../../lib/departmentColors';
 import {
   useAdminDeletePitchDeckVersion,
+  useAdminDeleteTeam,
   useAdminDeleteTeamFile,
   useAdminDeliverables,
   useAdminEvaluations,
@@ -173,6 +174,8 @@ export function AdminDashboardPage() {
   const teamResources = useAdminTeamResources(resourcesTeamId);
   const deleteTeamFile = useAdminDeleteTeamFile();
   const deletePitchDeckVersion = useAdminDeletePitchDeckVersion();
+  const deleteTeam = useAdminDeleteTeam();
+  const [deleteTeamTarget, setDeleteTeamTarget] = useState<{ id: string; name: string | null } | null>(null);
 
   const currentUser = useAuthStore((s) => s.user);
   const updateStaff = useUpdateStaff();
@@ -919,9 +922,18 @@ export function AdminDashboardPage() {
                   </p>
                 )}
 
-                <button onClick={() => setResourcesTeamId(resourcesTeamId === team.id ? null : team.id)} className={`mt-2 text-xs ${comicLink}`}>
-                  {resourcesTeamId === team.id ? 'Hide resources' : 'View resources'}
-                </button>
+                <div className="flex items-center gap-3 mt-2">
+                  <button onClick={() => setResourcesTeamId(resourcesTeamId === team.id ? null : team.id)} className={`text-xs ${comicLink}`}>
+                    {resourcesTeamId === team.id ? 'Hide resources' : 'View resources'}
+                  </button>
+                  <button
+                    onClick={() => setDeleteTeamTarget({ id: team.id, name: team.name })}
+                    className="text-xs font-bold uppercase tracking-wide text-crimson hover:text-ink transition-colors"
+                    data-testid={`admin-team-${team.id}-delete`}
+                  >
+                    Delete team
+                  </button>
+                </div>
 
                 {resourcesTeamId === team.id && (
                   <div className="mt-2 pt-2 border-t-2 border-ink/20 flex flex-col gap-1.5">
@@ -991,6 +1003,24 @@ export function AdminDashboardPage() {
         onConfirm={() => {
           if (deleteTarget) deleteParticipant.mutate(deleteTarget.id);
           setDeleteTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteTeamTarget !== null}
+        title="Delete this team?"
+        description={
+          deleteTeamTarget
+            ? `${deleteTeamTarget.name ?? '(unnamed draft)'} will be permanently deleted — its HEAT category slot is freed, and every member (including the CEO) returns to undrafted. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        tone="danger"
+        pending={deleteTeam.isPending}
+        onCancel={() => setDeleteTeamTarget(null)}
+        onConfirm={() => {
+          if (deleteTeamTarget) deleteTeam.mutate(deleteTeamTarget.id);
+          setDeleteTeamTarget(null);
         }}
       />
 
