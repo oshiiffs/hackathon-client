@@ -260,6 +260,17 @@ export function CeoFinalizePage() {
   const [name, setName] = useState('');
   const nameSeededRef = useRef(false);
   const videoDoneRef = useRef(false);
+  // Optimistic-only: the category ring highlight was driven purely by
+  // `status.team.category`, i.e. the server's OWN echo of the save — so a
+  // tap produced zero visible feedback until that full round trip completed,
+  // reading as "nothing happened" on anything slower than an instant
+  // connection. Shows the tapped category immediately; once its save
+  // settles (success or failure), falls back to the authoritative
+  // `status.team.category` either way — but only if THIS tap is still the
+  // most recent one, so a fast second tap while the first is still in
+  // flight doesn't have its own optimistic state clobbered by the first
+  // one's late-arriving response.
+  const [pendingCategory, setPendingCategory] = useState<HeatCategory | null>(null);
 
   const nowMs = useTickingNow(status?.serverNow);
   const nameEndsAtMs = status?.nameSelectionEndsAt ? new Date(status.nameSelectionEndsAt).getTime() : null;
@@ -459,14 +470,20 @@ export function CeoFinalizePage() {
                 key={c.category}
                 data-testid={`category-button-${c.category}`}
                 disabled={c.full}
-                onClick={() => saveDraft.mutate({ category: c.category })}
+                onClick={() => {
+                  setPendingCategory(c.category);
+                  saveDraft.mutate(
+                    { category: c.category },
+                    { onSettled: () => setPendingCategory((prev) => (prev === c.category ? null : prev)) },
+                  );
+                }}
                 className="flex flex-col items-center gap-1.5 transition-transform duration-100 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <img
                   src={HEAT_CATEGORY_ICONS[c.category]}
                   alt={CATEGORY_LABELS[c.category]}
                   className={`w-32 h-32 object-contain rounded-2xl transition-shadow ${
-                    status.team.category === c.category ? 'ring-4 ring-crimson' : ''
+                    (pendingCategory ?? status.team.category) === c.category ? 'ring-4 ring-crimson' : ''
                   }`}
                   data-testid={`category-icon-${c.category}`}
                 />
@@ -479,8 +496,8 @@ export function CeoFinalizePage() {
           </div>
 
           <p className="text-xs font-bold text-navy/60 mt-4">
-            {status.team.category
-              ? `${CATEGORY_LABELS[status.team.category]} selected — locks in automatically when the timer ends.`
+            {(pendingCategory ?? status.team.category)
+              ? `${CATEGORY_LABELS[(pendingCategory ?? status.team.category)!]} selected — locks in automatically when the timer ends.`
               : "Pick a category before the timer ends, or one will be chosen for you."}
           </p>
 

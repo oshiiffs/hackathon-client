@@ -301,6 +301,34 @@ describe('Team finalization (frontend, timer-driven)', () => {
     expect(screen.queryByTestId('finalize-confirm-dialog')).not.toBeInTheDocument();
   });
 
+  it('11b. the tapped category highlights immediately, before the save round-trip resolves', async () => {
+    const user = userEvent.setup();
+    // Held open (not resolved) for the duration of the two assertions below
+    // — simulates a slow/cold-starting backend. If the ring only ever came
+    // from the server's own echo (the bug this guards against), it would
+    // never appear here at all. Resolved at the end (not left dangling
+    // forever) so this test doesn't leave a stray pending promise/timer that
+    // could bleed into whichever test runs next.
+    let resolvePatch!: (value: unknown) => void;
+    vi.spyOn(apiClient, 'patch').mockReturnValue(new Promise((resolve) => (resolvePatch = resolve)));
+    // Also mock GET: useFinalizationStatus's staleTime: 0 means a background
+    // refetch is fair game at any point this component stays mounted, and
+    // this test deliberately keeps it mounted a bit longer than most
+    // (holding the patch open across two assertions with a click in
+    // between). Left unmocked, that refetch is a real, unmocked network call
+    // in jsdom — which fails, and the page treats ANY error from it as fatal
+    // (renders the full ErrorState) even with perfectly good cached data
+    // still in hand, wiping out the very buttons this test is asserting on.
+    vi.spyOn(apiClient, 'get').mockResolvedValue({ data: categoryStepStatus() } as never);
+    renderFinalizePage(categoryStepStatus());
+
+    expect(screen.getByTestId('category-icon-TOURISM').className).not.toMatch(/ring-crimson/);
+    await user.click(screen.getByTestId('category-button-TOURISM'));
+    expect(screen.getByTestId('category-icon-TOURISM').className).toMatch(/ring-crimson/);
+
+    resolvePatch({ data: categoryStepStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) }) });
+  });
+
   it('12. the selected category is visually highlighted from server state', () => {
     renderFinalizePage(categoryStepStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) }));
     expect(screen.getByTestId('category-icon-TOURISM').className).toMatch(/ring-crimson/);
