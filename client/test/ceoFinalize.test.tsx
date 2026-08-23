@@ -273,10 +273,10 @@ describe('Team finalization (frontend, timer-driven)', () => {
     expect(screen.getByTestId('heat-video-greeting-name')).toHaveTextContent('(YOUR STARTUP)');
   });
 
-  it('9. HEAT capacities render for all four categories once the category timer is running — no Finalize button anywhere', () => {
+  it('9. HEAT capacities render for all four categories — no countdown, no Finalize button anywhere (a tap finalizes immediately)', () => {
     renderFinalizePage(categoryStepStatus());
     expect(screen.getByTestId('category-step')).toBeInTheDocument();
-    expect(screen.getByTestId('category-selection-timer')).toBeInTheDocument();
+    expect(screen.queryByTestId('category-selection-timer')).not.toBeInTheDocument();
     expect(screen.getByTestId('category-button-HEALTH')).toHaveTextContent('1 / 3');
     expect(screen.getByTestId('category-button-ENVIRONMENT')).toHaveTextContent('2 / 3');
     expect(screen.getByTestId('category-button-AGRICULTURE')).toHaveTextContent('3 / 3');
@@ -291,18 +291,18 @@ describe('Team finalization (frontend, timer-driven)', () => {
     expect(screen.getByTestId('category-button-HEALTH')).not.toBeDisabled();
   });
 
-  it('11. clicking a category autosaves the tentative pick — no confirmation dialog', async () => {
+  it('11. clicking a category finalizes the team for real, immediately — no confirmation dialog', async () => {
     const user = userEvent.setup();
-    const patchSpy = vi.spyOn(apiClient, 'patch').mockResolvedValue({ data: categoryStepStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) }) } as never);
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) } as never);
     renderFinalizePage(categoryStepStatus());
 
     await user.click(screen.getByTestId('category-button-TOURISM'));
 
-    expect(patchSpy).toHaveBeenCalledWith('/participant/ceo/finalize/draft', { category: 'TOURISM' });
+    expect(postSpy).toHaveBeenCalledWith('/participant/ceo/finalize', { name: 'Jade Innovators', category: 'TOURISM' });
     expect(screen.queryByTestId('finalize-confirm-dialog')).not.toBeInTheDocument();
   });
 
-  it('11b. the tapped category highlights immediately, before the save round-trip resolves', async () => {
+  it('11b. the tapped category highlights immediately, before the finalize round-trip resolves', async () => {
     const user = userEvent.setup();
     // Held open (not resolved) for the duration of the two assertions below
     // — simulates a slow/cold-starting backend. If the ring only ever came
@@ -310,12 +310,12 @@ describe('Team finalization (frontend, timer-driven)', () => {
     // never appear here at all. Resolved at the end (not left dangling
     // forever) so this test doesn't leave a stray pending promise/timer that
     // could bleed into whichever test runs next.
-    let resolvePatch!: (value: unknown) => void;
-    vi.spyOn(apiClient, 'patch').mockReturnValue(new Promise((resolve) => (resolvePatch = resolve)));
+    let resolvePost!: (value: unknown) => void;
+    vi.spyOn(apiClient, 'post').mockReturnValue(new Promise((resolve) => (resolvePost = resolve)));
     // Also mock GET: useFinalizationStatus's staleTime: 0 means a background
     // refetch is fair game at any point this component stays mounted, and
     // this test deliberately keeps it mounted a bit longer than most
-    // (holding the patch open across two assertions with a click in
+    // (holding the request open across two assertions with a click in
     // between). Left unmocked, that refetch is a real, unmocked network call
     // in jsdom — which fails, and the page treats ANY error from it as fatal
     // (renders the full ErrorState) even with perfectly good cached data
@@ -327,7 +327,7 @@ describe('Team finalization (frontend, timer-driven)', () => {
     await user.click(screen.getByTestId('category-button-TOURISM'));
     expect(screen.getByTestId('category-icon-TOURISM').className).toMatch(/ring-crimson/);
 
-    resolvePatch({ data: categoryStepStatus({ team: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) }) });
+    resolvePost({ data: mockTeam({ name: 'Jade Innovators', category: 'TOURISM', members: fullRoster(), isComplete: true }) });
   });
 
   it('12. the selected category is visually highlighted from server state', () => {

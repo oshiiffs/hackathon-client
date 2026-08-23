@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { CountdownTimer } from '../../components/CountdownTimer';
 import { LoadingState, ErrorState } from '../../components/StateViews';
-import { useFinalizationStatus, useSaveFinalizeDraft, useStartCategoryTimer } from '../../hooks/useFinalization';
+import { useFinalizationStatus, useFinalizeTeam, useSaveFinalizeDraft, useStartCategoryTimer } from '../../hooks/useFinalization';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { comicButton, comicHeading } from '../../lib/comic';
 import { HEAT_CATEGORY_ICONS, HEAT_CATEGORY_VIDEOS, HEAT_DEFAULT_VIDEO } from '../../lib/heatCategoryAssets';
@@ -256,6 +256,7 @@ export function CeoFinalizePage() {
   const { data: status, isLoading, error, refetch } = useFinalizationStatus();
   const saveDraft = useSaveFinalizeDraft();
   const startCategoryTimer = useStartCategoryTimer();
+  const finalizeTeam = useFinalizeTeam();
 
   const [name, setName] = useState('');
   const nameSeededRef = useRef(false);
@@ -492,20 +493,23 @@ export function CeoFinalizePage() {
           <h2 className={`text-2xl mt-1 ${comicHeading}`}>Select HEAT Category</h2>
           <p className="text-navy/60 text-xs font-bold mt-1 mb-2">{status.team.name}</p>
 
-          <div data-testid="category-selection-timer">
-            <CountdownTimer endsAt={status.categorySelectionEndsAt!} serverNow={status.serverNow} onExpire={handleExpire} />
-          </div>
-
+          {/* No countdown here on purpose — tapping a category finalizes
+              the team for real, immediately (useFinalizeTeam), rather than
+              only staging a draft pick that waits for a timer to actually
+              lock it in. A silent server-side safety net still exists for a
+              CEO who never taps anything at all (team.service.ts's
+              getFinalizationStatus self-heal, on categorySelectionEndsAt),
+              it's just never shown here as a visible countdown anymore. */}
           <div className="grid grid-cols-2 gap-4 mt-4">
             {status.categories.map((c) => (
               <button
                 key={c.category}
                 data-testid={`category-button-${c.category}`}
-                disabled={c.full}
+                disabled={c.full || finalizeTeam.isPending}
                 onClick={() => {
                   setPendingCategory(c.category);
-                  saveDraft.mutate(
-                    { category: c.category },
+                  finalizeTeam.mutate(
+                    { name: status.team.name ?? '', category: c.category },
                     { onSettled: () => setPendingCategory((prev) => (prev === c.category ? null : prev)) },
                   );
                 }}
@@ -528,14 +532,12 @@ export function CeoFinalizePage() {
           </div>
 
           <p className="text-xs font-bold text-navy/60 mt-4">
-            {(pendingCategory ?? status.team.category)
-              ? `${CATEGORY_LABELS[(pendingCategory ?? status.team.category)!]} selected — locks in automatically when the timer ends.`
-              : "Pick a category before the timer ends, or one will be chosen for you."}
+            {finalizeTeam.isPending ? 'Locking in your team…' : 'Tap a category to lock it in — final, right away.'}
           </p>
 
-          {saveDraft.isError && (
-            <p className="text-crimson font-bold text-sm mt-3" data-testid="draft-save-error">
-              {getApiErrorMessage(saveDraft.error)}
+          {finalizeTeam.isError && (
+            <p className="text-crimson font-bold text-sm mt-3" data-testid="finalize-error">
+              {getApiErrorMessage(finalizeTeam.error)}
             </p>
           )}
         </section>

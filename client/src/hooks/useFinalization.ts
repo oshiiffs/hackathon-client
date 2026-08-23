@@ -57,3 +57,30 @@ export function useStartCategoryTimer() {
     },
   });
 }
+
+/**
+ * Real, immediate finalize — tapping a HEAT category calls this directly
+ * instead of only draft-saving the pick and waiting for the category
+ * timer to run out. This is the same POST /participant/ceo/finalize
+ * endpoint the (removed) timer-driven flow always relied on eventually
+ * happening automatically server-side (see team.service.ts's
+ * getFinalizationStatus self-heal, which still exists as the fallback for a
+ * CEO who never taps anything at all) — nothing new on the server, just
+ * called explicitly and immediately now instead of implicitly and only once
+ * the deadline passes. Invalidates (rather than setQueryData-ing) the
+ * status query on success: this endpoint returns the Team, not the full
+ * FinalizationStatus shape saveFinalizeDraft/useStartCategoryTimer return,
+ * so a refetch is simpler and just as fast for a one-off click.
+ */
+export function useFinalizeTeam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { name: string; category: HeatCategory }) => {
+      const { data } = await apiClient.post('/participant/ceo/finalize', input);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finalization-status'] });
+    },
+  });
+}
