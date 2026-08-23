@@ -147,6 +147,7 @@ describe('Team finalization (frontend, timer-driven)', () => {
   afterEach(() => {
     useAuthStore.setState({ user: null, status: 'idle' });
     vi.restoreAllMocks();
+    localStorage.clear();
   });
 
   it('1. still recruiting: shows the not-ready panel, no timer, no name input, no leftover buttons', () => {

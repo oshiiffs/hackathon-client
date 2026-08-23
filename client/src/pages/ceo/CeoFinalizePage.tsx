@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { CountdownTimer } from '../../components/CountdownTimer';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { useFinalizationStatus, useSaveFinalizeDraft, useStartCategoryTimer } from '../../hooks/useFinalization';
@@ -260,6 +260,19 @@ export function CeoFinalizePage() {
   const [name, setName] = useState('');
   const nameSeededRef = useRef(false);
   const videoDoneRef = useRef(false);
+  // Distinguishes "the CEO just finished the finalize flow" (show the
+  // category reveal video — it's the payoff of the flow they just did) from
+  // "arriving at an already-finalized team" (a refresh, a re-login, browser
+  // back) — WITHOUT this, FinalizedView replayed the reveal video on every
+  // single visit to this route, not just the first. `finalizedAt` alone
+  // can't tell those apart (both look identical: "finalizedAt is already
+  // true when this component first sees status"), so this persists across
+  // reloads/re-logins via localStorage, keyed per-team. Computed once per
+  // mount (ref-guarded) rather than read fresh on every render, so a
+  // background poll landing seconds later — status.team hasn't changed,
+  // just refetched — can't flip the decision mid-viewing and yank the CEO
+  // away from a video they're actively watching.
+  const shouldShowRevealRef = useRef<boolean | null>(null);
   // Optimistic-only: the category ring highlight was driven purely by
   // `status.team.category`, i.e. the server's OWN echo of the save — so a
   // tap produced zero visible feedback until that full round trip completed,
@@ -285,6 +298,19 @@ export function CeoFinalizePage() {
         : nowMs < categoryEndsAtMs
           ? 'category'
           : 'locking-in';
+
+  if (status?.team.finalizedAt && shouldShowRevealRef.current === null) {
+    const storageKey = `ceo-reveal-shown:${status.team.id}`;
+    let alreadyShown = false;
+    try {
+      alreadyShown = localStorage.getItem(storageKey) === '1';
+      if (!alreadyShown) localStorage.setItem(storageKey, '1');
+    } catch {
+      // Private browsing / storage blocked — fail open (show it); worst
+      // case is one extra replay, not a crash.
+    }
+    shouldShowRevealRef.current = !alreadyShown;
+  }
 
   // Seed the name input from the server exactly once (the first time the
   // team-ready step is actually shown) — never again afterward, so the
@@ -358,6 +384,12 @@ export function CeoFinalizePage() {
   if (error || !status) return <ErrorState message={getApiErrorMessage(error)} onRetry={() => refetch()} />;
 
   if (status.team.finalizedAt) {
+    // The reveal already played once on this device — don't replay it.
+    // Straight to the team hub instead (see shouldShowRevealRef's doc
+    // comment).
+    if (!shouldShowRevealRef.current) {
+      return <Navigate to="/team" replace />;
+    }
     return <FinalizedView team={status.team} />;
   }
 

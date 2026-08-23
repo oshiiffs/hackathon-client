@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { LoadingState, ErrorState } from '../../components/StateViews';
 import { Badge } from '../../components/Badge';
 import { EditableNameField } from '../../components/EditableNameField';
@@ -23,6 +23,18 @@ export function CeoDashboardPage() {
 
   if (isLoading) return <LoadingState label="Loading your team…" />;
   if (error || !team) return <ErrorState message={getApiErrorMessage(error)} onRetry={() => refetch()} />;
+
+  // Once finalized, this page has nothing left for the CEO to do (no
+  // deliverables/pitch-deck management here — that's /team, same as every
+  // other member) — send them straight there. Matters most on login: every
+  // CEO lands on /ceo first (see roleRouting.ts), so without this a
+  // finalized CEO logging back in had no way to reach their actual team hub
+  // except remembering the /team URL by hand. Mirrors TeamHubPage's own
+  // reverse redirect (finalized check there sends a NOT-yet-finalized CEO
+  // back here instead).
+  if (team.finalizedAt) {
+    return <Navigate to="/team" replace />;
+  }
 
   const me = team.members.find((m) => m.id === team.ceoId);
 
