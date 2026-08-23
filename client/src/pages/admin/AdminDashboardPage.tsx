@@ -38,6 +38,7 @@ import {
   useUpdateStaff,
   useDeleteStaff,
 } from '../../hooks/useAdmin';
+import type { AdminParticipant } from '../../hooks/useAdmin';
 import { ALL_DEPARTMENTS, type Department, type HackathonPhase } from '../../types/api';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
@@ -145,6 +146,119 @@ function ParticipantQrModal({
   );
 }
 
+/**
+ * Everything the old always-visible table row used to show (role, team
+ * status) plus its actions (get code, view QR, edit department, delete) —
+ * moved here so the list itself can stay to just Name + Dept.
+ */
+function ParticipantDetailModal({
+  participant,
+  onClose,
+  onOpenQr,
+  onGetCode,
+  gettingCode,
+  onDelete,
+}: {
+  participant: AdminParticipant;
+  onClose: () => void;
+  onOpenQr: () => void;
+  onGetCode: () => void;
+  gettingCode: boolean;
+  onDelete: () => void;
+}) {
+  const updateParticipant = useUpdateParticipant();
+  const [dept, setDept] = useState(participant.homeDepartment);
+  const deptChanged = dept !== participant.homeDepartment;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 py-6"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="comic-panel relative w-full max-w-sm p-6 flex flex-col gap-3"
+        style={{ boxShadow: '6px 6px 0px #111111' }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="admin-participant-detail-modal"
+      >
+        <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-black uppercase text-forest">Participant</p>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="w-8 h-8 shrink-0 rounded-lg border-[3px] border-ink bg-white hover:bg-cream font-black text-ink"
+          >
+            ✕
+          </button>
+        </div>
+
+        <h3 className="text-lg font-black text-ink">{participant.fullName}</h3>
+
+        <dl className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt className="text-forest text-xs uppercase font-black">Role</dt>
+            <dd className="text-ink font-bold mt-0.5">{participant.role}</dd>
+          </div>
+          <div>
+            <dt className="text-forest text-xs uppercase font-black">Status</dt>
+            <dd className="text-ink font-bold mt-0.5">
+              {participant.drafted ? `On team (${participant.slotDepartment})` : 'Undrafted'}
+            </dd>
+          </div>
+        </dl>
+
+        <div>
+          <label className="text-forest text-xs uppercase font-black">Department</label>
+          <div className="flex items-center gap-2 mt-1">
+            <select
+              disabled={participant.drafted}
+              value={dept}
+              onChange={(e) => setDept(e.target.value as Department)}
+              className={tableInput}
+            >
+              {ALL_DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            {deptChanged && !participant.drafted && (
+              <button
+                disabled={updateParticipant.isPending}
+                onClick={() => updateParticipant.mutate({ id: participant.id, homeDepartment: dept })}
+                className={`${comicLink} disabled:opacity-40 text-xs`}
+              >
+                Save
+              </button>
+            )}
+          </div>
+          {participant.drafted && <p className="text-xs text-navy/40 mt-1">Locked — already on a team.</p>}
+          {updateParticipant.isError && <p className="text-xs font-bold text-crimson mt-1">{getApiErrorMessage(updateParticipant.error)}</p>}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t-2 border-ink/10">
+          <button disabled={gettingCode} onClick={onGetCode} className={`${comicButton('white', 'sm')} disabled:opacity-40`}>
+            Get code
+          </button>
+          <button onClick={onOpenQr} className={comicButton('white', 'sm')}>
+            View QR
+          </button>
+          {participant.drafted ? (
+            <span className="text-navy/40 text-xs font-bold">Locked — can&apos;t be removed once on a team.</span>
+          ) : (
+            <button onClick={onDelete} className="text-crimson hover:text-ink font-black uppercase text-xs ml-auto">
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminDashboardPage() {
   const { data: state } = useAdminHackathonState();
   const overview = useAdminOverview();
@@ -201,9 +315,8 @@ export function AdminDashboardPage() {
   const [staffPassword, setStaffPassword] = useState('');
   const [staffRole, setStaffRole] = useState<'JUDGE' | 'ADMIN'>('JUDGE');
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDept, setEditDept] = useState<Department>('COE');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; fullName: string } | null>(null);
+  const [detailTarget, setDetailTarget] = useState<AdminParticipant | null>(null);
 
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [editStaffName, setEditStaffName] = useState('');
@@ -775,95 +888,27 @@ export function AdminDashboardPage() {
                   <tr>
                     <th className="py-1 pl-2">Name</th>
                     <th>Dept</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th className="text-right pr-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {participants.data?.map((p) => {
-                    const isEditing = editingId === p.id;
-                    return (
-                      <tr key={p.id} className="border-t-2 border-ink/15 text-ink">
-                        {isEditing ? (
-                          <>
-                            <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
-                            <td className="pr-2">
-                              <select autoFocus value={editDept} onChange={(e) => setEditDept(e.target.value as Department)} className={tableInput}>
-                                {ALL_DEPARTMENTS.map((d) => (
-                                  <option key={d} value={d}>
-                                    {d}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td>{p.role}</td>
-                            <td>undrafted</td>
-                            <td className="text-right whitespace-nowrap pr-2">
-                              <button
-                                disabled={updateParticipant.isPending}
-                                onClick={() =>
-                                  updateParticipant.mutate({ id: p.id, homeDepartment: editDept }, { onSuccess: () => setEditingId(null) })
-                                }
-                                className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
-                              >
-                                Save
-                              </button>
-                              <button onClick={() => setEditingId(null)} className="text-navy hover:text-crimson font-bold text-xs">
-                                Cancel
-                              </button>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
-                            <td>{p.homeDepartment}</td>
-                            <td>{p.role}</td>
-                            <td>{p.drafted ? `on team (${p.slotDepartment})` : 'undrafted'}</td>
-                            <td className="text-right whitespace-nowrap pr-2">
-                              <button
-                                disabled={regenerateCode.isPending}
-                                onClick={() => regenerateCode.mutate(p.id, { onSuccess: (data) => setRevealedCode(data) })}
-                                className={`${comicLink} disabled:opacity-40 text-xs mr-3`}
-                              >
-                                Get code
-                              </button>
-                              <button
-                                onClick={() => setQrTarget({ id: p.id, fullName: p.fullName, homeDepartment: p.homeDepartment })}
-                                className={`${comicLink} text-xs mr-3`}
-                              >
-                                QR
-                              </button>
-                              {p.drafted ? (
-                                <span className="text-navy/40 text-xs font-bold">locked</span>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setEditingId(p.id);
-                                      setEditDept(p.homeDepartment);
-                                    }}
-                                    className={`${comicLink} text-xs mr-3`}
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => setDeleteTarget({ id: p.id, fullName: p.fullName })}
-                                    className="text-crimson hover:text-ink font-black uppercase text-xs"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              )}
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    );
-                  })}
+                  {/* Name + Dept only — tap a row for everything else (role,
+                      team status, access code, QR, edit, delete), see
+                      ParticipantDetailModal. Keeps this list scannable at a
+                      glance for a roster that can run into the hundreds. */}
+                  {participants.data?.map((p) => (
+                    <tr
+                      key={p.id}
+                      onClick={() => setDetailTarget(p)}
+                      className="border-t-2 border-ink/15 text-ink cursor-pointer hover:bg-cream/50"
+                      data-testid={`participant-row-${p.id}`}
+                    >
+                      <td className="py-1.5 pl-2 font-bold">{p.fullName}</td>
+                      <td>{p.homeDepartment}</td>
+                    </tr>
+                  ))}
                   {participants.data?.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-3 text-navy/40 text-center">
+                      <td colSpan={2} className="py-3 text-navy/40 text-center">
                         No participants registered yet.
                       </td>
                     </tr>
@@ -883,6 +928,20 @@ export function AdminDashboardPage() {
             )}
 
             {qrTarget && <ParticipantQrModal participant={qrTarget} onClose={() => setQrTarget(null)} />}
+
+            {detailTarget && (
+              <ParticipantDetailModal
+                participant={detailTarget}
+                onClose={() => setDetailTarget(null)}
+                onOpenQr={() => setQrTarget({ id: detailTarget.id, fullName: detailTarget.fullName, homeDepartment: detailTarget.homeDepartment })}
+                onGetCode={() => regenerateCode.mutate(detailTarget.id, { onSuccess: (data) => setRevealedCode(data) })}
+                gettingCode={regenerateCode.isPending}
+                onDelete={() => {
+                  setDeleteTarget({ id: detailTarget.id, fullName: detailTarget.fullName });
+                  setDetailTarget(null);
+                }}
+              />
+            )}
           </div>
         </div>
       )}

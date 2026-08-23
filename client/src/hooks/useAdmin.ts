@@ -17,7 +17,7 @@ import type {
   TeamDeliverableStatus,
 } from '../types/api';
 
-type AdminParticipant = {
+export type AdminParticipant = {
   id: string;
   fullName: string;
   homeDepartment: Department;
