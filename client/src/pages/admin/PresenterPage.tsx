@@ -307,7 +307,7 @@ function ScanningMembersScreen({ participants }: { participants: ScanningMember[
   const available = roster.filter((p) => !p.drafted).length;
 
   return (
-    <div className="w-full max-w-5xl flex flex-col items-center gap-6">
+    <div className="w-full max-w-7xl flex flex-col items-center gap-6">
       <div className="text-center flex flex-col items-center gap-2">
         <div className="w-4 h-4 rounded-full bg-crimson border-2 border-ink animate-ping" />
         <h1 className="text-4xl font-black tracking-tight text-ink">TEAM FORMATION</h1>
@@ -318,7 +318,7 @@ function ScanningMembersScreen({ participants }: { participants: ScanningMember[
         {available} / {roster.length} still available
       </p>
 
-      <div className="w-full grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3 max-h-[55vh] overflow-y-auto pr-1">
+      <div className="w-full grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[65vh] overflow-y-auto pr-1">
         {roster.map((p) => (
           <div
             key={p.id}

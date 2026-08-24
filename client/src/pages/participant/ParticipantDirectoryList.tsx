@@ -132,7 +132,7 @@ export function ParticipantDirectoryList() {
       {error && <ErrorState message={getApiErrorMessage(error)} onRetry={() => refetch()} />}
 
       {people && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto min-h-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto min-h-0">
           {filtered.map((person) => (
             <button
               type="button"

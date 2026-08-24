@@ -141,7 +141,7 @@ export function ParticipantDashboardPage() {
           onClick={() => setShowDirectory(false)}
         >
           <div
-            className="comic-panel w-full max-w-3xl max-h-full flex flex-col p-6"
+            className="comic-panel w-full max-w-5xl max-h-full flex flex-col p-6"
             style={{ boxShadow: '8px 8px 0px #111111' }}
             onClick={(e) => e.stopPropagation()}
             data-testid="participant-directory-modal"

@@ -200,6 +200,17 @@ body,
   height: 100%;
 }
 
+/* Belt-and-suspenders against horizontal overflow on narrow (phone) viewports
+   — AmbientBackground's oversized blurred glows and any future wide-but-
+   unintentional child (a modal, a grid, a long unbroken string) should never
+   be able to create a sideways scrollbar on the page itself. Inner elements
+   that need their own horizontal scroll (e.g. PhaseProgress's step strip)
+   opt into `overflow-x-auto` explicitly and are unaffected by this. */
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   @apply bg-canvas text-ink antialiased;
 }
