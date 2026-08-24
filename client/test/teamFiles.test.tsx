@@ -233,22 +233,25 @@ describe('Phase 10 file management (frontend)', () => {
     expect(row).toHaveTextContent('Juan Dela Cruz');
   });
 
-  it('14. the VIEW action opens an inline preview (not a new tab, not a fetch) for a PDF', async () => {
+  it('14. the VIEW action is a plain new-tab link to the file (not a fetch, not window.open)', async () => {
     // Plain <iframe src={fileUrl}> now — no fetch, no blob, no
-    // window.open(). Earlier versions of this tried fetching the file
-    // client-side first (to force a Content-Type / correct filename) and
-    // that turned out to be broken in production: Cloudinary's delivery CDN
-    // doesn't send permissive CORS headers for `raw` resource files, so the
-    // browser blocked the fetch outright — exactly the "view triggers a
-    // download instead" bug this component exists to avoid, just under a
-    // different code path. See lib/fileViewer.ts.
-    const user = userEvent.setup();
+    // Plain <a href={fileUrl} target="_blank">. An inline <iframe> toggle
+    // was tried and found unreliable in production for PDFs — Chrome's
+    // built-in PDF viewer running inside an <iframe> hit its own edge cases
+    // ("Failed to load PDF document") that a direct full-tab navigation to
+    // the exact same URL doesn't. Never a client-side fetch() either (an
+    // even earlier attempt tried fetching the file client-side to force a
+    // Content-Type / correct filename, which turned out to be broken in
+    // production: Cloudinary's delivery CDN doesn't send permissive CORS
+    // headers for `raw` resource type files, so the browser blocked the
+    // fetch outright). See lib/fileViewer.ts.
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     const fetchSpy = vi.spyOn(global, 'fetch');
     renderSection({ files: [mockDocument({ fileUrl: 'https://cloudinary.com/x.pdf' })] });
-    await user.click(screen.getByTestId('file-row-doc_1').querySelector('button')!);
-    const iframe = await screen.findByTitle('requirements.pdf');
-    expect(iframe).toHaveAttribute('src', 'https://cloudinary.com/x.pdf');
+    const links = screen.getByTestId('file-row-doc_1').querySelectorAll('a');
+    const viewLink = Array.from(links).find((a) => a.textContent === 'VIEW')!;
+    expect(viewLink).toHaveAttribute('href', 'https://cloudinary.com/x.pdf');
+    expect(viewLink).toHaveAttribute('target', '_blank');
     expect(openSpy).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -286,21 +289,20 @@ describe('Phase 10 file management (frontend)', () => {
   });
 
   it('18. a non-CEO team member does not see a DELETE action on files', () => {
-    // VIEW is a <button> (toggles the inline preview); DOWNLOAD is a plain
-    // <a> now (a direct Cloudinary fl_attachment link — see test 15), so
-    // only VIEW shows up in a button query.
+    // VIEW and DOWNLOAD are both plain <a> now (tests 14, 15); only DELETE
+    // is a <button>, so a non-CEO member should see zero buttons.
     renderSection({ files: [mockDocument()], asCeo: false });
-    expect(screen.getByTestId('file-row-doc_1').querySelectorAll('button')).toHaveLength(1);
+    expect(screen.getByTestId('file-row-doc_1').querySelectorAll('button')).toHaveLength(0);
   });
 
   it('19. the CEO sees a DELETE action and can remove a file', async () => {
     const user = userEvent.setup();
     const deleteSpy = vi.spyOn(apiClient, 'delete').mockResolvedValueOnce({ data: { id: 'doc_1' } } as never);
     renderSection({ files: [mockDocument()], asCeo: true });
-    // VIEW and DELETE are <button>s; DOWNLOAD is a plain <a> (test 15).
+    // VIEW and DOWNLOAD are plain <a>s (tests 14, 15); only DELETE is a <button>.
     const buttons = screen.getByTestId('file-row-doc_1').querySelectorAll('button');
-    expect(buttons).toHaveLength(2);
-    await user.click(buttons[1]!);
+    expect(buttons).toHaveLength(1);
+    await user.click(buttons[0]!);
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('/team/files/doc_1'));
   });
 

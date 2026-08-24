@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from '../../components/StateViews';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { comicButton, comicHeading } from '../../lib/comic';
 import { useJudgeCriteria, useJudgeTeamDetail, useSaveDraftEvaluation, useSubmitEvaluation } from '../../hooks/useJudge';
-import { isPdf, toDownloadUrl } from '../../lib/fileViewer';
+import { toDownloadUrl } from '../../lib/fileViewer';
 import type { JudgeCriterion } from '../../types/api';
 
 function formatBytes(bytes: number): string {
@@ -15,50 +15,32 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/**
- * Inline PDF viewer + download, toggled per-file rather than always-open so
- * the judging form isn't crowded by default. Plain <iframe src>/<a href> —
- * never a client-side fetch() of the Cloudinary URL (that was tried and
- * found broken in production: Cloudinary's delivery CDN doesn't send
- * permissive CORS headers for `raw` resource type files, so a browser
- * fetch() is blocked outright) and never a scripted window.open() (popup-
- * blocker risk). See lib/fileViewer.ts.
- */
+// VIEW opens the file in a new tab via a plain <a target="_blank"> — the
+// same for every file type, PDF included. An inline <iframe> toggle was
+// tried and found unreliable in production: Chrome's built-in PDF viewer
+// running inside an <iframe> hits its own edge cases ("Failed to load PDF
+// document") that a direct full-tab navigation to the exact same URL
+// doesn't. Neither VIEW nor DOWNLOAD fetches anything client-side, so
+// neither depends on Cloudinary's CORS configuration, and a plain anchor
+// click is never subject to a popup blocker (unlike a scripted
+// window.open()). See lib/fileViewer.ts.
 function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string }) {
-  const [viewing, setViewing] = useState(false);
-
   return (
-    <div className="flex flex-col gap-2 items-end">
-      <div className="flex gap-2 shrink-0">
-        {isPdf(filename) ? (
-          <button
-            onClick={() => setViewing((v) => !v)}
-            className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-          >
-            {viewing ? 'HIDE' : 'VIEW'}
-          </button>
-        ) : (
-          <a
-            href={fileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-          >
-            VIEW
-          </a>
-        )}
-        <a
-          href={toDownloadUrl(fileUrl, filename)}
-          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-crimson font-black uppercase"
-        >
-          DOWNLOAD
-        </a>
-      </div>
-      {viewing && isPdf(filename) && (
-        <div className="w-full h-[70vh] rounded-lg border-[3px] border-ink bg-white">
-          <iframe src={fileUrl} title={filename} className="w-full h-full rounded-lg" />
-        </div>
-      )}
+    <div className="flex gap-2 shrink-0">
+      <a
+        href={fileUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+      >
+        VIEW
+      </a>
+      <a
+        href={toDownloadUrl(fileUrl, filename)}
+        className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-crimson font-black uppercase"
+      >
+        DOWNLOAD
+      </a>
     </div>
   );
 }

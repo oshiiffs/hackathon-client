@@ -11,7 +11,7 @@ import {
   useUploadPitchDeck,
   useUploadTeamFile,
 } from '../../hooks/useTeamFiles';
-import { isPdf, toDownloadUrl } from '../../lib/fileViewer';
+import { toDownloadUrl } from '../../lib/fileViewer';
 import type { FileCategory, FileMetadata } from '../../types/api';
 
 const PITCH_DECK_EXTENSIONS = ['pdf', 'ppt', 'pptx'];
@@ -47,17 +47,38 @@ function validateClientSide(file: File, extensions: string[], maxBytes: number):
 type UploadState = { status: 'idle' | 'uploading' | 'error'; progress: number; error: string | null };
 const IDLE: UploadState = { status: 'idle', progress: 0, error: null };
 
-// VIEW and DOWNLOAD below are both plain <iframe src>/<a href> — never a
-// client-side fetch() of the Cloudinary URL, and never a scripted
-// window.open(). Both of those were tried earlier and both turned out
-// broken in production: Cloudinary's delivery CDN doesn't send permissive
-// CORS headers for `raw` resource type files (pitch decks/documents), so a
-// browser fetch() is blocked outright — "couldn't load preview," and
-// DOWNLOAD silently doing nothing, for every file, not just older ones. A
-// plain navigation/iframe is not a fetch/XHR, so CORS doesn't apply to it
-// regardless of what headers Cloudinary sends — and it sidesteps the
-// popup-blocker risk of window.open() too, since there's no async gap
-// between the click and the browser acting on it. See lib/fileViewer.ts.
+// VIEW opens the file in a new browser tab — a plain <a target="_blank">,
+// the same for every file type, PDF included. An inline <iframe> was tried
+// (toggle a preview panel in-page) and turned out unreliable: Chrome's
+// built-in PDF viewer running inside an <iframe> hits its own edge cases
+// ("Failed to load PDF document") that a full-tab navigation to the exact
+// same URL doesn't — every browser's native PDF handling is most reliable
+// for a direct navigation, which is exactly what target="_blank" is. A
+// plain anchor click is also never subject to a popup blocker (unlike a
+// scripted window.open()), so there's no timing/async risk here either.
+// DOWNLOAD is a Cloudinary fl_attachment link, forcing the exact filename
+// server-side — see toDownloadUrl. Neither of these fetches anything
+// client-side, so neither depends on Cloudinary's CORS configuration.
+function FileActions({ file }: { file: Pick<FileMetadata, 'filename' | 'fileUrl'> }) {
+  return (
+    <>
+      <a
+        href={file.fileUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+      >
+        VIEW
+      </a>
+      <a
+        href={toDownloadUrl(file.fileUrl, file.filename)}
+        className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+      >
+        DOWNLOAD
+      </a>
+    </>
+  );
+}
 
 export function DeliverablesSection({ ceoId }: { ceoId: string }) {
   return (
@@ -77,61 +98,12 @@ function ProgressBar({ percent }: { percent: number }) {
   );
 }
 
-/** VIEW toggles an inline PDF; anything else opens in a new tab (browsers
- * have no native inline viewer for office docs regardless). DOWNLOAD is
- * always a Cloudinary fl_attachment link, which forces the exact filename
- * server-side — see toDownloadUrl. */
-function FileActions({
-  file,
-  viewingKey,
-  onToggleView,
-}: {
-  file: Pick<FileMetadata, 'filename' | 'fileUrl'>;
-  viewingKey: boolean;
-  onToggleView: () => void;
-}) {
-  return (
-    <>
-      {isPdf(file.filename) ? (
-        <button
-          onClick={onToggleView}
-          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-        >
-          {viewingKey ? 'HIDE' : 'VIEW'}
-        </button>
-      ) : (
-        <a
-          href={file.fileUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-        >
-          VIEW
-        </a>
-      )}
-      <a
-        href={toDownloadUrl(file.fileUrl, file.filename)}
-        className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-      >
-        DOWNLOAD
-      </a>
-    </>
-  );
-}
-
 function PitchDeckPanel() {
   const { data, isLoading } = usePitchDeck();
   const upload = useUploadPitchDeck();
   const replace = useReplacePitchDeck();
   const [state, setState] = useState<UploadState>(IDLE);
   const inputRef = useRef<HTMLInputElement>(null);
-  // A single shared preview slot (not one per version) — only one pitch
-  // deck version's preview is ever open at a time. Rendered as a full-width
-  // block below the whole `<dl>` grid (see the JSX below), not inline next
-  // to whichever VIEW button opened it, so it never gets squeezed into a
-  // narrow grid cell. `key` identifies WHICH file is open so toggling the
-  // same button again closes it instead of reopening it.
-  const [viewingKey, setViewingKey] = useState<string | null>(null);
 
   const isReplace = Boolean(data?.current);
   const busy = state.status === 'uploading';
@@ -158,9 +130,6 @@ function PitchDeckPanel() {
       upload.mutate({ file, onProgress }, { onSuccess: () => setState(IDLE), onError, onSettled });
     }
   }
-
-  const viewingFile =
-    viewingKey === 'current' ? data?.current : data?.previousVersions.find((v) => v.id === viewingKey);
 
   return (
     <section className="comic-panel p-6" data-testid="pitch-deck-section">
@@ -220,19 +189,9 @@ function PitchDeckPanel() {
               <dd className="text-ink font-bold mt-0.5">{new Date(data.current.createdAt).toLocaleString()}</dd>
             </div>
             <div className="flex items-end gap-2">
-              <FileActions
-                file={data.current}
-                viewingKey={viewingKey === 'current'}
-                onToggleView={() => setViewingKey((k) => (k === 'current' ? null : 'current'))}
-              />
+              <FileActions file={data.current} />
             </div>
           </dl>
-        </div>
-      )}
-
-      {viewingFile && (
-        <div className="mt-3 w-full h-[60vh] rounded-lg border-[3px] border-ink bg-white">
-          <iframe src={viewingFile.fileUrl} title="Pitch deck preview" className="w-full h-full rounded-lg" />
         </div>
       )}
 
@@ -246,7 +205,7 @@ function PitchDeckPanel() {
                   v{v.version} · {v.filename}
                 </span>
                 <span className="flex items-center gap-3">
-                  <FileActions file={v} viewingKey={viewingKey === v.id} onToggleView={() => setViewingKey((k) => (k === v.id ? null : v.id))} />
+                  <FileActions file={v} />
                 </span>
               </li>
             ))}
@@ -361,8 +320,6 @@ function TeamFilesPanel({ type, ceoId }: { type: 'DOCUMENT' | 'PROJECT_ASSET'; c
 }
 
 function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete: boolean; onDelete: () => void }) {
-  const [viewing, setViewing] = useState(false);
-
   return (
     <li className="bg-white border-[3px] border-ink rounded-lg px-3 py-2 shadow-[3px_3px_0px_#111111]" data-testid={`file-row-${file.id}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -373,7 +330,7 @@ function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete:
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <FileActions file={file} viewingKey={viewing} onToggleView={() => setViewing((v) => !v)} />
+          <FileActions file={file} />
           {canDelete && (
             <button onClick={onDelete} className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-crimson/10 hover:bg-crimson/20 text-crimson font-black uppercase">
               DELETE
@@ -381,11 +338,6 @@ function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete:
           )}
         </div>
       </div>
-      {viewing && isPdf(file.filename) && (
-        <div className="mt-2 w-full h-[60vh] rounded-lg border-2 border-ink bg-white">
-          <iframe src={file.fileUrl} title={file.filename} className="w-full h-full rounded-lg" />
-        </div>
-      )}
     </li>
   );
 }
