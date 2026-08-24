@@ -230,13 +230,21 @@ describe('Phase 10 file management (frontend)', () => {
     expect(row).toHaveTextContent('Juan Dela Cruz');
   });
 
-  it('14. the VIEW action fetches the file URL and opens it', async () => {
+  it('14. the VIEW action opens an inline preview (not a new tab) for a PDF', async () => {
+    // Not window.open() — see DeliverablesSection.tsx's doc comment on why
+    // (a scripted window.open() after this async fetch gets silently
+    // popup-blocked). fetch() itself is unmocked in jsdom, so
+    // viewFileAsBlob's own blob fetch fails here and falls back to the raw
+    // fileUrl as the iframe src — still a fully valid assertion that the
+    // preview renders inline with the right source, not a new tab.
     const user = userEvent.setup();
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { ...mockDocument(), fileUrl: 'https://cloudinary.com/x.pdf' } } as never);
     renderSection({ files: [mockDocument()] });
     await user.click(screen.getByTestId('file-row-doc_1').querySelector('button')!);
-    await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://cloudinary.com/x.pdf', '_blank', 'noopener,noreferrer'));
+    const iframe = await screen.findByTitle('requirements.pdf');
+    expect(iframe).toHaveAttribute('src', 'https://cloudinary.com/x.pdf');
+    expect(openSpy).not.toHaveBeenCalled();
   });
 
   it('15. the DOWNLOAD action falls back to opening the file URL if the blob fetch fails', async () => {

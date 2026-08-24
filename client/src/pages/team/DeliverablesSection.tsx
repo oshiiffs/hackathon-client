@@ -51,31 +51,18 @@ const IDLE: UploadState = { status: 'idle', progress: 0, error: null };
 
 type FileRef = { fileUrl: string; filename: string };
 
-/**
- * PDFs get the blob-with-forced-mimeType treatment (see fileViewer.ts) so
- * they render inline even for a file uploaded before raw Cloudinary uploads
- * got a real extension in their URL. Everything else (PPT/PPTX/DOC/DOCX,
- * image assets) just opens the plain URL — browsers have no native inline
- * viewer for office docs regardless, and images are a Cloudinary 'image'
- * resource, which already gets a correct extension/Content-Type at upload
- * time with no equivalent bug to work around.
- */
-async function viewFile(fetchFile: () => Promise<FileRef>) {
-  try {
-    const { fileUrl, filename } = await fetchFile();
-    if (isPdf(filename)) {
-      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
-      if (blobUrl) {
-        window.open(blobUrl, '_blank', 'noopener,noreferrer');
-        return;
-      }
-    }
-    window.open(fileUrl, '_blank', 'noopener,noreferrer');
-  } catch {
-    // best-effort — a failed view doesn't need its own error UI, the user
-    // can just retry the click.
-  }
-}
+// Every PDF "VIEW" below toggles an inline <iframe> rather than calling
+// window.open() — a scripted window.open() call after an `await` (the
+// fetchFile()/blob-fetch round trip every view here needs) gets silently
+// popup-blocked by the browser the moment more than a beat passes since the
+// click, since it's no longer considered "in direct response to a user
+// gesture." That's what "view" not working (or working inconsistently
+// depending on how fast the network happened to respond) turned out to be —
+// not a Cloudinary problem. Rendering the result into an <iframe> already in
+// the page sidesteps that entirely: nothing here ever opens a new browsing
+// context. Non-PDF types (PPT/PPTX/DOC/DOCX, image assets) still open in a
+// new tab — browsers have no native inline viewer for office docs regardless,
+// so there's nothing to embed; that path is unaffected by any of this.
 
 async function downloadFile(fetchFile: () => Promise<FileRef>) {
   let fileUrl = '';
@@ -109,12 +96,36 @@ function ProgressBar({ percent }: { percent: number }) {
   );
 }
 
+type ViewerState = { key: string; url: string | null; loading: boolean; error: boolean };
+
 function PitchDeckPanel() {
   const { data, isLoading } = usePitchDeck();
   const upload = useUploadPitchDeck();
   const replace = useReplacePitchDeck();
   const [state, setState] = useState<UploadState>(IDLE);
   const inputRef = useRef<HTMLInputElement>(null);
+  // A single shared preview slot (not one per version) — only one pitch
+  // deck version's preview is ever open at a time. Rendered as a full-width
+  // block below the whole `<dl>` grid (see the JSX below), not inline next
+  // to whichever VIEW button opened it, so it never gets squeezed into a
+  // narrow grid cell. `key` identifies WHICH file is open so toggling the
+  // same button again closes it instead of just re-fetching.
+  const [viewer, setViewer] = useState<ViewerState | null>(null);
+
+  async function toggleViewer(key: string, fetchFile: () => Promise<FileRef>) {
+    if (viewer?.key === key) {
+      setViewer(null);
+      return;
+    }
+    setViewer({ key, url: null, loading: true, error: false });
+    try {
+      const { fileUrl } = await fetchFile();
+      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
+      setViewer({ key, url: blobUrl ?? fileUrl, loading: false, error: false });
+    } catch {
+      setViewer({ key, url: null, loading: false, error: true });
+    }
+  }
 
   const isReplace = Boolean(data?.current);
   const busy = state.status === 'uploading';
@@ -200,12 +211,28 @@ function PitchDeckPanel() {
               <dd className="text-ink font-bold mt-0.5">{new Date(data.current.createdAt).toLocaleString()}</dd>
             </div>
             <div className="flex items-end gap-2">
-              <button
-                onClick={() => viewFile(() => fetchPitchDeckVersionFile(data.current!.id))}
-                className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-              >
-                VIEW
-              </button>
+              {isPdf(data.current.filename) ? (
+                <button
+                  onClick={() => toggleViewer('current', () => fetchPitchDeckVersionFile(data.current!.id))}
+                  className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+                >
+                  {viewer?.key === 'current' ? 'HIDE' : 'VIEW'}
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      const { fileUrl } = await fetchPitchDeckVersionFile(data.current!.id);
+                      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+                    } catch {
+                      // best-effort
+                    }
+                  }}
+                  className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+                >
+                  VIEW
+                </button>
+              )}
               <button
                 onClick={() => downloadFile(() => fetchPitchDeckVersionFile(data.current!.id))}
                 className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
@@ -214,6 +241,18 @@ function PitchDeckPanel() {
               </button>
             </div>
           </dl>
+        </div>
+      )}
+
+      {viewer && (
+        <div className="mt-3 w-full h-[60vh] rounded-lg border-[3px] border-ink bg-white flex items-center justify-center">
+          {viewer.loading ? (
+            <p className="text-sm font-bold text-navy/60">Loading preview…</p>
+          ) : viewer.error ? (
+            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — try again.</p>
+          ) : (
+            <iframe src={viewer.url ?? undefined} title="Pitch deck preview" className="w-full h-full rounded-lg" />
+          )}
         </div>
       )}
 
@@ -227,9 +266,25 @@ function PitchDeckPanel() {
                   v{v.version} · {v.filename}
                 </span>
                 <span className="flex items-center gap-3">
-                  <button onClick={() => viewFile(() => fetchPitchDeckVersionFile(v.id))} className="text-forest font-black hover:text-crimson">
-                    VIEW
-                  </button>
+                  {isPdf(v.filename) ? (
+                    <button onClick={() => toggleViewer(v.id, () => fetchPitchDeckVersionFile(v.id))} className="text-forest font-black hover:text-crimson">
+                      {viewer?.key === v.id ? 'HIDE' : 'VIEW'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const { fileUrl } = await fetchPitchDeckVersionFile(v.id);
+                          window.open(fileUrl, '_blank', 'noopener,noreferrer');
+                        } catch {
+                          // best-effort
+                        }
+                      }}
+                      className="text-forest font-black hover:text-crimson"
+                    >
+                      VIEW
+                    </button>
+                  )}
                   <button onClick={() => downloadFile(() => fetchPitchDeckVersionFile(v.id))} className="text-forest font-black hover:text-crimson">
                     DOWNLOAD
                   </button>
@@ -347,36 +402,80 @@ function TeamFilesPanel({ type, ceoId }: { type: 'DOCUMENT' | 'PROJECT_ASSET'; c
 }
 
 function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete: boolean; onDelete: () => void }) {
+  const [viewer, setViewer] = useState<Omit<ViewerState, 'key'> | null>(null);
+  const pdf = isPdf(file.filename);
+
+  async function toggleViewer() {
+    if (viewer) {
+      setViewer(null);
+      return;
+    }
+    setViewer({ url: null, loading: true, error: false });
+    try {
+      const { fileUrl } = await fetchTeamFileFile(file.id);
+      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
+      setViewer({ url: blobUrl ?? fileUrl, loading: false, error: false });
+    } catch {
+      setViewer({ url: null, loading: false, error: true });
+    }
+  }
+
   return (
-    <li
-      className="flex flex-wrap items-center justify-between gap-2 bg-white border-[3px] border-ink rounded-lg px-3 py-2 shadow-[3px_3px_0px_#111111]"
-      data-testid={`file-row-${file.id}`}
-    >
-      <div>
-        <p className="text-ink font-bold">{file.filename}</p>
-        <p className="text-xs text-navy/60">
-          {formatBytes(file.size)} · {file.uploadedBy.name} · {new Date(file.createdAt).toLocaleString()}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => viewFile(() => fetchTeamFileFile(file.id))}
-          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-        >
-          VIEW
-        </button>
-        <button
-          onClick={() => downloadFile(() => fetchTeamFileFile(file.id))}
-          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-        >
-          DOWNLOAD
-        </button>
-        {canDelete && (
-          <button onClick={onDelete} className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-crimson/10 hover:bg-crimson/20 text-crimson font-black uppercase">
-            DELETE
+    <li className="bg-white border-[3px] border-ink rounded-lg px-3 py-2 shadow-[3px_3px_0px_#111111]" data-testid={`file-row-${file.id}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-ink font-bold">{file.filename}</p>
+          <p className="text-xs text-navy/60">
+            {formatBytes(file.size)} · {file.uploadedBy.name} · {new Date(file.createdAt).toLocaleString()}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {pdf ? (
+            <button
+              onClick={toggleViewer}
+              className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+            >
+              {viewer ? 'HIDE' : 'VIEW'}
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                try {
+                  const { fileUrl } = await fetchTeamFileFile(file.id);
+                  window.open(fileUrl, '_blank', 'noopener,noreferrer');
+                } catch {
+                  // best-effort
+                }
+              }}
+              className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+            >
+              VIEW
+            </button>
+          )}
+          <button
+            onClick={() => downloadFile(() => fetchTeamFileFile(file.id))}
+            className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+          >
+            DOWNLOAD
           </button>
-        )}
+          {canDelete && (
+            <button onClick={onDelete} className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-crimson/10 hover:bg-crimson/20 text-crimson font-black uppercase">
+              DELETE
+            </button>
+          )}
+        </div>
       </div>
+      {viewer && (
+        <div className="mt-2 w-full h-[60vh] rounded-lg border-2 border-ink bg-white flex items-center justify-center">
+          {viewer.loading ? (
+            <p className="text-sm font-bold text-navy/60">Loading preview…</p>
+          ) : viewer.error ? (
+            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — try again.</p>
+          ) : (
+            <iframe src={viewer.url ?? undefined} title={file.filename} className="w-full h-full rounded-lg" />
+          )}
+        </div>
+      )}
     </li>
   );
 }
