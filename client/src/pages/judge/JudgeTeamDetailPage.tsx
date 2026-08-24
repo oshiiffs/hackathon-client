@@ -28,6 +28,7 @@ function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string 
   const [viewing, setViewing] = useState(false);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
+  const [viewError, setViewError] = useState(false);
 
   async function toggleView() {
     if (viewing) {
@@ -35,10 +36,15 @@ function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string 
       return;
     }
     setViewing(true);
-    if (!viewUrl) {
+    if (!viewUrl && !viewError) {
       setViewLoading(true);
       const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
-      setViewUrl(blobUrl ?? fileUrl); // fall back to the raw URL if the blob fetch itself failed
+      // No raw-fileUrl fallback on null — see viewFileAsBlob's doc comment:
+      // that URL is exactly what silently downloads instead of displaying
+      // for a file uploaded before raw Cloudinary uploads got a real
+      // extension, which is the bug this whole preview exists to avoid.
+      if (blobUrl) setViewUrl(blobUrl);
+      else setViewError(true);
       setViewLoading(false);
     }
   }
@@ -80,8 +86,10 @@ function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string 
         <div className="w-full h-[70vh] rounded-lg border-[3px] border-ink bg-white flex items-center justify-center">
           {viewLoading ? (
             <p className="text-sm font-bold text-navy/60">Loading preview…</p>
+          ) : viewError ? (
+            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — use DOWNLOAD instead.</p>
           ) : (
-            <iframe src={viewUrl ?? fileUrl} title={filename} className="w-full h-full rounded-lg" />
+            <iframe src={viewUrl ?? undefined} title={filename} className="w-full h-full rounded-lg" />
           )}
         </div>
       )}

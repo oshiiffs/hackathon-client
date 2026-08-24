@@ -233,17 +233,47 @@ describe('Phase 10 file management (frontend)', () => {
   it('14. the VIEW action opens an inline preview (not a new tab) for a PDF', async () => {
     // Not window.open() — see DeliverablesSection.tsx's doc comment on why
     // (a scripted window.open() after this async fetch gets silently
-    // popup-blocked). fetch() itself is unmocked in jsdom, so
-    // viewFileAsBlob's own blob fetch fails here and falls back to the raw
-    // fileUrl as the iframe src — still a fully valid assertion that the
-    // preview renders inline with the right source, not a new tab.
+    // popup-blocked). Mocks global.fetch with real "%PDF" magic bytes so
+    // viewFileAsBlob's own content check passes and a blob: URL is actually
+    // produced — asserting an iframe exists with SOME blob: src is as
+    // precise as this can get, since URL.createObjectURL's exact return
+    // value isn't something a test should hardcode.
     const user = userEvent.setup();
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { ...mockDocument(), fileUrl: 'https://cloudinary.com/x.pdf' } } as never);
+    const pdfBytes = new TextEncoder().encode('%PDF-1.4 fake pdf bytes');
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({ ok: true, arrayBuffer: () => Promise.resolve(pdfBytes.buffer) } as never);
+    // jsdom doesn't implement URL.createObjectURL — stub it directly
+    // (there's no existing method to vi.spyOn) and restore afterward.
+    const originalCreateObjectURL = URL.createObjectURL;
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-preview-url');
+    try {
+      renderSection({ files: [mockDocument()] });
+      await user.click(screen.getByTestId('file-row-doc_1').querySelector('button')!);
+      const iframe = await screen.findByTitle('requirements.pdf');
+      expect(iframe.getAttribute('src')).toMatch(/^blob:/);
+      expect(openSpy).not.toHaveBeenCalled();
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL;
+    }
+  });
+
+  it("14b. a failed preview fetch shows an error instead of silently downloading or opening a tab", async () => {
+    // This is the regression this whole preview-fetch path exists to
+    // prevent: falling back to the raw fileUrl as the iframe/window target
+    // on failure just reproduces "view downloads instead of showing" under
+    // a different code path (that URL has no extension for an
+    // older-than-the-fix upload, so Cloudinary serves it as a generic
+    // download). A clear in-page error, pointing at DOWNLOAD, is the
+    // correct failure mode instead.
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { ...mockDocument(), fileUrl: 'https://cloudinary.com/x.pdf' } } as never);
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({ ok: false } as never);
     renderSection({ files: [mockDocument()] });
     await user.click(screen.getByTestId('file-row-doc_1').querySelector('button')!);
-    const iframe = await screen.findByTitle('requirements.pdf');
-    expect(iframe).toHaveAttribute('src', 'https://cloudinary.com/x.pdf');
+    expect(await screen.findByText(/couldn.t load the preview/i)).toBeInTheDocument();
+    expect(screen.queryByTitle('requirements.pdf')).not.toBeInTheDocument();
     expect(openSpy).not.toHaveBeenCalled();
   });
 

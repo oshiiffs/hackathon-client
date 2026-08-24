@@ -121,7 +121,12 @@ function PitchDeckPanel() {
     try {
       const { fileUrl } = await fetchFile();
       const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
-      setViewer({ key, url: blobUrl ?? fileUrl, loading: false, error: false });
+      // No raw-fileUrl fallback on null — see viewFileAsBlob's doc comment:
+      // that URL is exactly what silently downloads instead of displaying
+      // for a file uploaded before raw Cloudinary uploads got a real
+      // extension, which is the bug this whole preview exists to avoid.
+      if (!blobUrl) throw new Error('preview unavailable');
+      setViewer({ key, url: blobUrl, loading: false, error: false });
     } catch {
       setViewer({ key, url: null, loading: false, error: true });
     }
@@ -249,7 +254,7 @@ function PitchDeckPanel() {
           {viewer.loading ? (
             <p className="text-sm font-bold text-navy/60">Loading preview…</p>
           ) : viewer.error ? (
-            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — try again.</p>
+            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — use DOWNLOAD instead.</p>
           ) : (
             <iframe src={viewer.url ?? undefined} title="Pitch deck preview" className="w-full h-full rounded-lg" />
           )}
@@ -414,7 +419,9 @@ function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete:
     try {
       const { fileUrl } = await fetchTeamFileFile(file.id);
       const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
-      setViewer({ url: blobUrl ?? fileUrl, loading: false, error: false });
+      // No raw-fileUrl fallback on null — see viewFileAsBlob's doc comment.
+      if (!blobUrl) throw new Error('preview unavailable');
+      setViewer({ url: blobUrl, loading: false, error: false });
     } catch {
       setViewer({ url: null, loading: false, error: true });
     }
@@ -470,7 +477,7 @@ function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete:
           {viewer.loading ? (
             <p className="text-sm font-bold text-navy/60">Loading preview…</p>
           ) : viewer.error ? (
-            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — try again.</p>
+            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — use DOWNLOAD instead.</p>
           ) : (
             <iframe src={viewer.url ?? undefined} title={file.filename} className="w-full h-full rounded-lg" />
           )}

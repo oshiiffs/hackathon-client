@@ -22,19 +22,43 @@ export function isPdf(filename: string): boolean {
   return filename.toLowerCase().endsWith('.pdf');
 }
 
+/** True if the buffer starts with the PDF magic bytes ("%PDF"). Guards
+ * against silently treating an error page (e.g. Cloudinary returning HTML
+ * for an auth/permission failure, or a genuinely non-PDF response) as a
+ * valid PDF — forcing `type: 'application/pdf'` on the Blob regardless
+ * would otherwise hand the browser's PDF viewer bytes it can't actually
+ * parse, and Chrome's response to that is often to just download the
+ * "file" instead of showing an error, which looks identical to the exact
+ * bug this whole module exists to fix. */
+function looksLikePdf(buffer: ArrayBuffer): boolean {
+  const header = new Uint8Array(buffer.slice(0, 4));
+  const magic = '%PDF';
+  return header.length === 4 && String.fromCharCode(...header) === magic;
+}
+
 /**
  * Returns a blob: URL suitable for viewing inline (iframe src or a new tab)
- * with `mimeType` forced explicitly, or null if the fetch failed (caller
- * should fall back to opening the original fileUrl directly). Not revoked
- * here — the caller is actively displaying it; revoking immediately would
- * break that. Left to be cleaned up when the page/tab that created it
- * closes, which is fine for an occasional manual "view" click.
+ * with `mimeType` forced explicitly, or null if the fetch failed OR the
+ * fetched bytes don't actually look like a PDF (see looksLikePdf) — callers
+ * should show a clear "couldn't load" message on null, NOT fall back to the
+ * original fileUrl as an iframe/new-tab target: for a file uploaded before
+ * raw Cloudinary uploads got a real extension, that URL has no extension at
+ * all and Cloudinary serves it back as generic application/octet-stream,
+ * which silently downloads instead of displaying — the exact symptom this
+ * function exists to avoid, so falling back to it on failure just
+ * reproduces the bug under a different code path. Not revoked here — the
+ * caller is actively displaying it; revoking immediately would break that.
+ * Left to be cleaned up when the page/tab that created it closes, which is
+ * fine for an occasional manual "view" click.
  */
 export async function viewFileAsBlob(fileUrl: string, mimeType: string): Promise<string | null> {
   try {
     const response = await fetch(fileUrl);
     if (!response.ok) throw new Error('view fetch failed');
     const arrayBuffer = await response.arrayBuffer();
+    if (mimeType === 'application/pdf' && !looksLikePdf(arrayBuffer)) {
+      throw new Error('response does not look like a PDF');
+    }
     const blob = new Blob([arrayBuffer], { type: mimeType });
     return URL.createObjectURL(blob);
   } catch {
