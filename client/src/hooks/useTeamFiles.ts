@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
-import type { FileCategory, FileDetail, FileMetadata, PitchDeckResponse } from '../types/api';
+import type { FileCategory, FileMetadata, PitchDeckResponse } from '../types/api';
 
 export function useTeamFiles() {
   return useQuery({
@@ -20,19 +20,6 @@ export function usePitchDeck() {
       return data;
     },
   });
-}
-
-// Both callers need the real filename (not just the URL) so a download can
-// be saved with the correct name + extension regardless of what Cloudinary's
-// own URL looks like — see DeliverablesSection.tsx's downloadFile.
-export async function fetchPitchDeckVersionFile(id: string): Promise<Pick<FileDetail, 'fileUrl' | 'filename'>> {
-  const { data } = await apiClient.get<FileDetail>(`/team/pitch-deck/${id}`);
-  return { fileUrl: data.fileUrl, filename: data.filename };
-}
-
-export async function fetchTeamFileFile(id: string): Promise<Pick<FileDetail, 'fileUrl' | 'filename'>> {
-  const { data } = await apiClient.get<FileDetail>(`/team/files/${id}`);
-  return { fileUrl: data.fileUrl, filename: data.filename };
 }
 
 type UploadArgs = { file: File; onProgress?: (percent: number) => void };

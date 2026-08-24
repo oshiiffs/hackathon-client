@@ -214,9 +214,18 @@ export type FileMetadata = {
   uploadedBy: { id: string; name: string };
   createdAt: string;
   isCurrent: boolean;
+  // Not a secret — the same URL is already reachable for the same
+  // authorized user via other endpoints. Included directly on every list
+  // item (not just single-file detail responses) so VIEW/DOWNLOAD never
+  // need a click-time fetch before rendering an <iframe src> or a
+  // Cloudinary download link — see lib/fileViewer.ts for why that fetch
+  // was the actual cause of "view triggers a download instead" (CORS
+  // blocks browser fetch() of a raw Cloudinary resource; a plain
+  // navigation/iframe isn't subject to CORS at all).
+  fileUrl: string;
 };
 
-export type FileDetail = FileMetadata & { fileUrl: string };
+export type FileDetail = FileMetadata;
 
 export type PitchDeckResponse = {
   current: FileMetadata | null;

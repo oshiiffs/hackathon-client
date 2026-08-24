@@ -4,8 +4,6 @@ import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { comicButton, comicHeading } from '../../lib/comic';
 import {
-  fetchPitchDeckVersionFile,
-  fetchTeamFileFile,
   useDeleteTeamFile,
   usePitchDeck,
   useReplacePitchDeck,
@@ -13,7 +11,7 @@ import {
   useUploadPitchDeck,
   useUploadTeamFile,
 } from '../../hooks/useTeamFiles';
-import { downloadFileAsBlob, isPdf, viewFileAsBlob } from '../../lib/fileViewer';
+import { isPdf, toDownloadUrl } from '../../lib/fileViewer';
 import type { FileCategory, FileMetadata } from '../../types/api';
 
 const PITCH_DECK_EXTENSIONS = ['pdf', 'ppt', 'pptx'];
@@ -49,34 +47,17 @@ function validateClientSide(file: File, extensions: string[], maxBytes: number):
 type UploadState = { status: 'idle' | 'uploading' | 'error'; progress: number; error: string | null };
 const IDLE: UploadState = { status: 'idle', progress: 0, error: null };
 
-type FileRef = { fileUrl: string; filename: string };
-
-// Every PDF "VIEW" below toggles an inline <iframe> rather than calling
-// window.open() — a scripted window.open() call after an `await` (the
-// fetchFile()/blob-fetch round trip every view here needs) gets silently
-// popup-blocked by the browser the moment more than a beat passes since the
-// click, since it's no longer considered "in direct response to a user
-// gesture." That's what "view" not working (or working inconsistently
-// depending on how fast the network happened to respond) turned out to be —
-// not a Cloudinary problem. Rendering the result into an <iframe> already in
-// the page sidesteps that entirely: nothing here ever opens a new browsing
-// context. Non-PDF types (PPT/PPTX/DOC/DOCX, image assets) still open in a
-// new tab — browsers have no native inline viewer for office docs regardless,
-// so there's nothing to embed; that path is unaffected by any of this.
-
-async function downloadFile(fetchFile: () => Promise<FileRef>) {
-  let fileUrl = '';
-  try {
-    const file = await fetchFile();
-    fileUrl = file.fileUrl;
-    const ok = await downloadFileAsBlob(fileUrl, file.filename);
-    if (!ok) window.open(fileUrl, '_blank', 'noopener,noreferrer');
-  } catch {
-    // Fallback: still get the user to the file, even if the saved
-    // filename/extension can't be guaranteed this way (e.g. a CORS hiccup).
-    if (fileUrl) window.open(fileUrl, '_blank', 'noopener,noreferrer');
-  }
-}
+// VIEW and DOWNLOAD below are both plain <iframe src>/<a href> — never a
+// client-side fetch() of the Cloudinary URL, and never a scripted
+// window.open(). Both of those were tried earlier and both turned out
+// broken in production: Cloudinary's delivery CDN doesn't send permissive
+// CORS headers for `raw` resource type files (pitch decks/documents), so a
+// browser fetch() is blocked outright — "couldn't load preview," and
+// DOWNLOAD silently doing nothing, for every file, not just older ones. A
+// plain navigation/iframe is not a fetch/XHR, so CORS doesn't apply to it
+// regardless of what headers Cloudinary sends — and it sidesteps the
+// popup-blocker risk of window.open() too, since there's no async gap
+// between the click and the browser acting on it. See lib/fileViewer.ts.
 
 export function DeliverablesSection({ ceoId }: { ceoId: string }) {
   return (
@@ -96,7 +77,47 @@ function ProgressBar({ percent }: { percent: number }) {
   );
 }
 
-type ViewerState = { key: string; url: string | null; loading: boolean; error: boolean };
+/** VIEW toggles an inline PDF; anything else opens in a new tab (browsers
+ * have no native inline viewer for office docs regardless). DOWNLOAD is
+ * always a Cloudinary fl_attachment link, which forces the exact filename
+ * server-side — see toDownloadUrl. */
+function FileActions({
+  file,
+  viewingKey,
+  onToggleView,
+}: {
+  file: Pick<FileMetadata, 'filename' | 'fileUrl'>;
+  viewingKey: boolean;
+  onToggleView: () => void;
+}) {
+  return (
+    <>
+      {isPdf(file.filename) ? (
+        <button
+          onClick={onToggleView}
+          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+        >
+          {viewingKey ? 'HIDE' : 'VIEW'}
+        </button>
+      ) : (
+        <a
+          href={file.fileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+        >
+          VIEW
+        </a>
+      )}
+      <a
+        href={toDownloadUrl(file.fileUrl, file.filename)}
+        className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
+      >
+        DOWNLOAD
+      </a>
+    </>
+  );
+}
 
 function PitchDeckPanel() {
   const { data, isLoading } = usePitchDeck();
@@ -109,28 +130,8 @@ function PitchDeckPanel() {
   // block below the whole `<dl>` grid (see the JSX below), not inline next
   // to whichever VIEW button opened it, so it never gets squeezed into a
   // narrow grid cell. `key` identifies WHICH file is open so toggling the
-  // same button again closes it instead of just re-fetching.
-  const [viewer, setViewer] = useState<ViewerState | null>(null);
-
-  async function toggleViewer(key: string, fetchFile: () => Promise<FileRef>) {
-    if (viewer?.key === key) {
-      setViewer(null);
-      return;
-    }
-    setViewer({ key, url: null, loading: true, error: false });
-    try {
-      const { fileUrl } = await fetchFile();
-      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
-      // No raw-fileUrl fallback on null — see viewFileAsBlob's doc comment:
-      // that URL is exactly what silently downloads instead of displaying
-      // for a file uploaded before raw Cloudinary uploads got a real
-      // extension, which is the bug this whole preview exists to avoid.
-      if (!blobUrl) throw new Error('preview unavailable');
-      setViewer({ key, url: blobUrl, loading: false, error: false });
-    } catch {
-      setViewer({ key, url: null, loading: false, error: true });
-    }
-  }
+  // same button again closes it instead of reopening it.
+  const [viewingKey, setViewingKey] = useState<string | null>(null);
 
   const isReplace = Boolean(data?.current);
   const busy = state.status === 'uploading';
@@ -157,6 +158,9 @@ function PitchDeckPanel() {
       upload.mutate({ file, onProgress }, { onSuccess: () => setState(IDLE), onError, onSettled });
     }
   }
+
+  const viewingFile =
+    viewingKey === 'current' ? data?.current : data?.previousVersions.find((v) => v.id === viewingKey);
 
   return (
     <section className="comic-panel p-6" data-testid="pitch-deck-section">
@@ -216,48 +220,19 @@ function PitchDeckPanel() {
               <dd className="text-ink font-bold mt-0.5">{new Date(data.current.createdAt).toLocaleString()}</dd>
             </div>
             <div className="flex items-end gap-2">
-              {isPdf(data.current.filename) ? (
-                <button
-                  onClick={() => toggleViewer('current', () => fetchPitchDeckVersionFile(data.current!.id))}
-                  className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-                >
-                  {viewer?.key === 'current' ? 'HIDE' : 'VIEW'}
-                </button>
-              ) : (
-                <button
-                  onClick={async () => {
-                    try {
-                      const { fileUrl } = await fetchPitchDeckVersionFile(data.current!.id);
-                      window.open(fileUrl, '_blank', 'noopener,noreferrer');
-                    } catch {
-                      // best-effort
-                    }
-                  }}
-                  className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-                >
-                  VIEW
-                </button>
-              )}
-              <button
-                onClick={() => downloadFile(() => fetchPitchDeckVersionFile(data.current!.id))}
-                className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-              >
-                DOWNLOAD
-              </button>
+              <FileActions
+                file={data.current}
+                viewingKey={viewingKey === 'current'}
+                onToggleView={() => setViewingKey((k) => (k === 'current' ? null : 'current'))}
+              />
             </div>
           </dl>
         </div>
       )}
 
-      {viewer && (
-        <div className="mt-3 w-full h-[60vh] rounded-lg border-[3px] border-ink bg-white flex items-center justify-center">
-          {viewer.loading ? (
-            <p className="text-sm font-bold text-navy/60">Loading preview…</p>
-          ) : viewer.error ? (
-            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — use DOWNLOAD instead.</p>
-          ) : (
-            <iframe src={viewer.url ?? undefined} title="Pitch deck preview" className="w-full h-full rounded-lg" />
-          )}
+      {viewingFile && (
+        <div className="mt-3 w-full h-[60vh] rounded-lg border-[3px] border-ink bg-white">
+          <iframe src={viewingFile.fileUrl} title="Pitch deck preview" className="w-full h-full rounded-lg" />
         </div>
       )}
 
@@ -271,28 +246,7 @@ function PitchDeckPanel() {
                   v{v.version} · {v.filename}
                 </span>
                 <span className="flex items-center gap-3">
-                  {isPdf(v.filename) ? (
-                    <button onClick={() => toggleViewer(v.id, () => fetchPitchDeckVersionFile(v.id))} className="text-forest font-black hover:text-crimson">
-                      {viewer?.key === v.id ? 'HIDE' : 'VIEW'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={async () => {
-                        try {
-                          const { fileUrl } = await fetchPitchDeckVersionFile(v.id);
-                          window.open(fileUrl, '_blank', 'noopener,noreferrer');
-                        } catch {
-                          // best-effort
-                        }
-                      }}
-                      className="text-forest font-black hover:text-crimson"
-                    >
-                      VIEW
-                    </button>
-                  )}
-                  <button onClick={() => downloadFile(() => fetchPitchDeckVersionFile(v.id))} className="text-forest font-black hover:text-crimson">
-                    DOWNLOAD
-                  </button>
+                  <FileActions file={v} viewingKey={viewingKey === v.id} onToggleView={() => setViewingKey((k) => (k === v.id ? null : v.id))} />
                 </span>
               </li>
             ))}
@@ -407,25 +361,7 @@ function TeamFilesPanel({ type, ceoId }: { type: 'DOCUMENT' | 'PROJECT_ASSET'; c
 }
 
 function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete: boolean; onDelete: () => void }) {
-  const [viewer, setViewer] = useState<Omit<ViewerState, 'key'> | null>(null);
-  const pdf = isPdf(file.filename);
-
-  async function toggleViewer() {
-    if (viewer) {
-      setViewer(null);
-      return;
-    }
-    setViewer({ url: null, loading: true, error: false });
-    try {
-      const { fileUrl } = await fetchTeamFileFile(file.id);
-      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
-      // No raw-fileUrl fallback on null — see viewFileAsBlob's doc comment.
-      if (!blobUrl) throw new Error('preview unavailable');
-      setViewer({ url: blobUrl, loading: false, error: false });
-    } catch {
-      setViewer({ url: null, loading: false, error: true });
-    }
-  }
+  const [viewing, setViewing] = useState(false);
 
   return (
     <li className="bg-white border-[3px] border-ink rounded-lg px-3 py-2 shadow-[3px_3px_0px_#111111]" data-testid={`file-row-${file.id}`}>
@@ -437,34 +373,7 @@ function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete:
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {pdf ? (
-            <button
-              onClick={toggleViewer}
-              className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-            >
-              {viewer ? 'HIDE' : 'VIEW'}
-            </button>
-          ) : (
-            <button
-              onClick={async () => {
-                try {
-                  const { fileUrl } = await fetchTeamFileFile(file.id);
-                  window.open(fileUrl, '_blank', 'noopener,noreferrer');
-                } catch {
-                  // best-effort
-                }
-              }}
-              className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-            >
-              VIEW
-            </button>
-          )}
-          <button
-            onClick={() => downloadFile(() => fetchTeamFileFile(file.id))}
-            className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
-          >
-            DOWNLOAD
-          </button>
+          <FileActions file={file} viewingKey={viewing} onToggleView={() => setViewing((v) => !v)} />
           {canDelete && (
             <button onClick={onDelete} className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-crimson/10 hover:bg-crimson/20 text-crimson font-black uppercase">
               DELETE
@@ -472,15 +381,9 @@ function FileRow({ file, canDelete, onDelete }: { file: FileMetadata; canDelete:
           )}
         </div>
       </div>
-      {viewer && (
-        <div className="mt-2 w-full h-[60vh] rounded-lg border-2 border-ink bg-white flex items-center justify-center">
-          {viewer.loading ? (
-            <p className="text-sm font-bold text-navy/60">Loading preview…</p>
-          ) : viewer.error ? (
-            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — use DOWNLOAD instead.</p>
-          ) : (
-            <iframe src={viewer.url ?? undefined} title={file.filename} className="w-full h-full rounded-lg" />
-          )}
+      {viewing && isPdf(file.filename) && (
+        <div className="mt-2 w-full h-[60vh] rounded-lg border-2 border-ink bg-white">
+          <iframe src={file.fileUrl} title={file.filename} className="w-full h-full rounded-lg" />
         </div>
       )}
     </li>

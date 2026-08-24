@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from '../../components/StateViews';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { comicButton, comicHeading } from '../../lib/comic';
 import { useJudgeCriteria, useJudgeTeamDetail, useSaveDraftEvaluation, useSubmitEvaluation } from '../../hooks/useJudge';
-import { downloadFileAsBlob, isPdf, viewFileAsBlob } from '../../lib/fileViewer';
+import { isPdf, toDownloadUrl } from '../../lib/fileViewer';
 import type { JudgeCriterion } from '../../types/api';
 
 function formatBytes(bytes: number): string {
@@ -17,55 +17,27 @@ function formatBytes(bytes: number): string {
 
 /**
  * Inline PDF viewer + download, toggled per-file rather than always-open so
- * the judging form isn't crowded by default. Both go through fileViewer.ts's
- * blob helpers (fetch bytes, reconstruct with an explicit type/filename)
- * rather than linking straight to the Cloudinary URL — see that module's doc
- * comment for why a plain link doesn't reliably view or download correctly
- * for files uploaded before raw Cloudinary uploads got a real extension in
- * their URL (hackathon-server's files.service.ts, rawPublicId).
+ * the judging form isn't crowded by default. Plain <iframe src>/<a href> —
+ * never a client-side fetch() of the Cloudinary URL (that was tried and
+ * found broken in production: Cloudinary's delivery CDN doesn't send
+ * permissive CORS headers for `raw` resource type files, so a browser
+ * fetch() is blocked outright) and never a scripted window.open() (popup-
+ * blocker risk). See lib/fileViewer.ts.
  */
 function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string }) {
   const [viewing, setViewing] = useState(false);
-  const [viewUrl, setViewUrl] = useState<string | null>(null);
-  const [viewLoading, setViewLoading] = useState(false);
-  const [viewError, setViewError] = useState(false);
-
-  async function toggleView() {
-    if (viewing) {
-      setViewing(false);
-      return;
-    }
-    setViewing(true);
-    if (!viewUrl && !viewError) {
-      setViewLoading(true);
-      const blobUrl = await viewFileAsBlob(fileUrl, 'application/pdf');
-      // No raw-fileUrl fallback on null — see viewFileAsBlob's doc comment:
-      // that URL is exactly what silently downloads instead of displaying
-      // for a file uploaded before raw Cloudinary uploads got a real
-      // extension, which is the bug this whole preview exists to avoid.
-      if (blobUrl) setViewUrl(blobUrl);
-      else setViewError(true);
-      setViewLoading(false);
-    }
-  }
-
-  async function handleDownload() {
-    const ok = await downloadFileAsBlob(fileUrl, filename);
-    if (!ok) window.open(fileUrl, '_blank', 'noopener,noreferrer');
-  }
 
   return (
     <div className="flex flex-col gap-2 items-end">
       <div className="flex gap-2 shrink-0">
-        {isPdf(filename) && (
+        {isPdf(filename) ? (
           <button
-            onClick={toggleView}
+            onClick={() => setViewing((v) => !v)}
             className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
           >
             {viewing ? 'HIDE' : 'VIEW'}
           </button>
-        )}
-        {!isPdf(filename) && (
+        ) : (
           <a
             href={fileUrl}
             target="_blank"
@@ -75,22 +47,16 @@ function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string 
             VIEW
           </a>
         )}
-        <button
-          onClick={handleDownload}
+        <a
+          href={toDownloadUrl(fileUrl, filename)}
           className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-crimson font-black uppercase"
         >
           DOWNLOAD
-        </button>
+        </a>
       </div>
       {viewing && isPdf(filename) && (
-        <div className="w-full h-[70vh] rounded-lg border-[3px] border-ink bg-white flex items-center justify-center">
-          {viewLoading ? (
-            <p className="text-sm font-bold text-navy/60">Loading preview…</p>
-          ) : viewError ? (
-            <p className="text-sm font-bold text-crimson">Couldn&apos;t load the preview — use DOWNLOAD instead.</p>
-          ) : (
-            <iframe src={viewUrl ?? undefined} title={filename} className="w-full h-full rounded-lg" />
-          )}
+        <div className="w-full h-[70vh] rounded-lg border-[3px] border-ink bg-white">
+          <iframe src={fileUrl} title={filename} className="w-full h-full rounded-lg" />
         </div>
       )}
     </div>

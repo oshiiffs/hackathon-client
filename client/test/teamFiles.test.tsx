@@ -45,6 +45,7 @@ function currentPitchDeck(overrides: Partial<FileMetadata> = {}): PitchDeckRespo
       uploadedBy: { id: CEO_ID, name: 'Grace Hopper' },
       createdAt: new Date().toISOString(),
       isCurrent: true,
+      fileUrl: 'https://cloudinary.com/deck-v2.pdf',
       ...overrides,
     },
     previousVersions: [
@@ -58,6 +59,7 @@ function currentPitchDeck(overrides: Partial<FileMetadata> = {}): PitchDeckRespo
         uploadedBy: { id: CEO_ID, name: 'Grace Hopper' },
         createdAt: new Date(Date.now() - 86400000).toISOString(),
         isCurrent: false,
+        fileUrl: 'https://cloudinary.com/deck-v1.pdf',
       },
     ],
   };
@@ -74,6 +76,7 @@ function mockDocument(overrides: Partial<FileMetadata> = {}): FileMetadata {
     uploadedBy: { id: MEMBER_ID, name: 'Juan Dela Cruz' },
     createdAt: new Date().toISOString(),
     isCurrent: true,
+    fileUrl: 'https://cloudinary.com/requirements.pdf',
     ...overrides,
   };
 }
@@ -230,102 +233,39 @@ describe('Phase 10 file management (frontend)', () => {
     expect(row).toHaveTextContent('Juan Dela Cruz');
   });
 
-  it('14. the VIEW action opens an inline preview (not a new tab) for a PDF', async () => {
-    // Not window.open() — see DeliverablesSection.tsx's doc comment on why
-    // (a scripted window.open() after this async fetch gets silently
-    // popup-blocked). Mocks global.fetch with real "%PDF" magic bytes so
-    // viewFileAsBlob's own content check passes and a blob: URL is actually
-    // produced — asserting an iframe exists with SOME blob: src is as
-    // precise as this can get, since URL.createObjectURL's exact return
-    // value isn't something a test should hardcode.
+  it('14. the VIEW action opens an inline preview (not a new tab, not a fetch) for a PDF', async () => {
+    // Plain <iframe src={fileUrl}> now — no fetch, no blob, no
+    // window.open(). Earlier versions of this tried fetching the file
+    // client-side first (to force a Content-Type / correct filename) and
+    // that turned out to be broken in production: Cloudinary's delivery CDN
+    // doesn't send permissive CORS headers for `raw` resource files, so the
+    // browser blocked the fetch outright — exactly the "view triggers a
+    // download instead" bug this component exists to avoid, just under a
+    // different code path. See lib/fileViewer.ts.
     const user = userEvent.setup();
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { ...mockDocument(), fileUrl: 'https://cloudinary.com/x.pdf' } } as never);
-    const pdfBytes = new TextEncoder().encode('%PDF-1.4 fake pdf bytes');
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({ ok: true, arrayBuffer: () => Promise.resolve(pdfBytes.buffer) } as never);
-    // jsdom doesn't implement URL.createObjectURL — stub it directly
-    // (there's no existing method to vi.spyOn) and restore afterward.
-    const originalCreateObjectURL = URL.createObjectURL;
-    URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-preview-url');
-    try {
-      renderSection({ files: [mockDocument()] });
-      await user.click(screen.getByTestId('file-row-doc_1').querySelector('button')!);
-      const iframe = await screen.findByTitle('requirements.pdf');
-      expect(iframe.getAttribute('src')).toMatch(/^blob:/);
-      expect(openSpy).not.toHaveBeenCalled();
-    } finally {
-      URL.createObjectURL = originalCreateObjectURL;
-    }
-  });
-
-  it("14b. a failed preview fetch shows an error instead of silently downloading or opening a tab", async () => {
-    // This is the regression this whole preview-fetch path exists to
-    // prevent: falling back to the raw fileUrl as the iframe/window target
-    // on failure just reproduces "view downloads instead of showing" under
-    // a different code path (that URL has no extension for an
-    // older-than-the-fix upload, so Cloudinary serves it as a generic
-    // download). A clear in-page error, pointing at DOWNLOAD, is the
-    // correct failure mode instead.
-    const user = userEvent.setup();
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { ...mockDocument(), fileUrl: 'https://cloudinary.com/x.pdf' } } as never);
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({ ok: false } as never);
-    renderSection({ files: [mockDocument()] });
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    renderSection({ files: [mockDocument({ fileUrl: 'https://cloudinary.com/x.pdf' })] });
     await user.click(screen.getByTestId('file-row-doc_1').querySelector('button')!);
-    expect(await screen.findByText(/couldn.t load the preview/i)).toBeInTheDocument();
-    expect(screen.queryByTitle('requirements.pdf')).not.toBeInTheDocument();
+    const iframe = await screen.findByTitle('requirements.pdf');
+    expect(iframe).toHaveAttribute('src', 'https://cloudinary.com/x.pdf');
     expect(openSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('15. the DOWNLOAD action falls back to opening the file URL if the blob fetch fails', async () => {
-    // jsdom has no real network, so downloadFile's own `fetch(fileUrl)` call
-    // fails here regardless — this test is exercising that exact fallback
-    // path (see downloadFile's catch block), not a mocked failure.
-    const user = userEvent.setup();
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { ...mockDocument(), fileUrl: 'https://cloudinary.com/y.pdf' } } as never);
-    renderSection({ files: [mockDocument()] });
-    const buttons = screen.getByTestId('file-row-doc_1').querySelectorAll('button');
-    await user.click(buttons[1]!);
-    await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://cloudinary.com/y.pdf', '_blank', 'noopener,noreferrer'));
-  });
-
-  it('15b. the DOWNLOAD action saves the file under its real filename, not whatever the URL looks like', async () => {
-    // The whole point of downloadFile's blob approach: even a fileUrl with
-    // no recognizable extension (the old bug — see files.service.ts's
-    // rawPublicId doc comment) must still download as "requirements.pdf",
-    // because the saved name comes from the DB's filename column, not the URL.
-    const user = userEvent.setup();
-    vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
-      data: { ...mockDocument(), fileUrl: 'https://res.cloudinary.com/demo/raw/upload/v1/some-uuid-no-extension' },
-    } as never);
-    const fakeBlob = new Blob(['file bytes'], { type: 'application/pdf' });
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(fakeBlob) } as never);
-
-    const originalCreateObjectURL = URL.createObjectURL;
-    const originalRevokeObjectURL = URL.revokeObjectURL;
-    const createObjectURLSpy = vi.fn().mockReturnValue('blob:mock-url');
-    const revokeObjectURLSpy = vi.fn();
-    URL.createObjectURL = createObjectURLSpy;
-    URL.revokeObjectURL = revokeObjectURLSpy;
-    let capturedDownloadName = '';
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-      capturedDownloadName = this.download;
-    });
-
-    try {
-      renderSection({ files: [mockDocument()] });
-      const buttons = screen.getByTestId('file-row-doc_1').querySelectorAll('button');
-      await user.click(buttons[1]!); // VIEW, DOWNLOAD, (DELETE if CEO) — index 1 is DOWNLOAD
-
-      await waitFor(() => expect(clickSpy).toHaveBeenCalled());
-      expect(fetchSpy).toHaveBeenCalledWith('https://res.cloudinary.com/demo/raw/upload/v1/some-uuid-no-extension');
-      expect(capturedDownloadName).toBe('requirements.pdf');
-      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock-url');
-    } finally {
-      URL.createObjectURL = originalCreateObjectURL;
-      URL.revokeObjectURL = originalRevokeObjectURL;
-    }
+  it('15. the DOWNLOAD action is a direct Cloudinary fl_attachment link with the real filename', () => {
+    // fl_attachment:<filename> forces Content-Disposition: attachment with
+    // the given filename entirely server-side (Cloudinary's own delivery
+    // flag) — no client-side fetch/blob involved, so this can't be blocked
+    // by CORS and isn't a scripted window.open() (no popup-blocker risk
+    // either, since it's a plain anchor the browser handles natively).
+    renderSection({ files: [mockDocument({ fileUrl: 'https://res.cloudinary.com/demo/raw/upload/v1/some-uuid-no-extension', filename: 'requirements.pdf' })] });
+    const links = screen.getByTestId('file-row-doc_1').querySelectorAll('a');
+    const downloadLink = Array.from(links).find((a) => a.textContent === 'DOWNLOAD')!;
+    expect(downloadLink).toHaveAttribute(
+      'href',
+      'https://res.cloudinary.com/demo/raw/upload/fl_attachment:requirements.pdf/v1/some-uuid-no-extension',
+    );
   });
 
   it('16. a realtime file list update (the same mechanism the socket handler uses) refreshes the documents list', async () => {
@@ -346,17 +286,21 @@ describe('Phase 10 file management (frontend)', () => {
   });
 
   it('18. a non-CEO team member does not see a DELETE action on files', () => {
+    // VIEW is a <button> (toggles the inline preview); DOWNLOAD is a plain
+    // <a> now (a direct Cloudinary fl_attachment link — see test 15), so
+    // only VIEW shows up in a button query.
     renderSection({ files: [mockDocument()], asCeo: false });
-    expect(screen.getByTestId('file-row-doc_1').querySelectorAll('button')).toHaveLength(2);
+    expect(screen.getByTestId('file-row-doc_1').querySelectorAll('button')).toHaveLength(1);
   });
 
   it('19. the CEO sees a DELETE action and can remove a file', async () => {
     const user = userEvent.setup();
     const deleteSpy = vi.spyOn(apiClient, 'delete').mockResolvedValueOnce({ data: { id: 'doc_1' } } as never);
     renderSection({ files: [mockDocument()], asCeo: true });
+    // VIEW and DELETE are <button>s; DOWNLOAD is a plain <a> (test 15).
     const buttons = screen.getByTestId('file-row-doc_1').querySelectorAll('button');
-    expect(buttons).toHaveLength(3);
-    await user.click(buttons[2]!);
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[1]!);
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('/team/files/doc_1'));
   });
 
