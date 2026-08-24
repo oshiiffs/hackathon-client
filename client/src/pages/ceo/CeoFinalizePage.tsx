@@ -488,7 +488,21 @@ export function CeoFinalizePage() {
         <section className="comic-panel w-full p-6" data-testid="video-step">
           <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
           <h2 className={`text-2xl mt-1 mb-4 ${comicHeading}`}>Get Ready</h2>
-          <HeatCategoryVideoGate onDone={handleVideoDone} teamName={status.team.name ?? ''} />
+          {/* Prefers the LOCAL `name` state (what the CEO actually typed,
+              already in hand instantly — no network round trip) over the
+              server's status.team.name. The video starts playing barely a
+              second after this step even renders, and its first name-overlay
+              window opens at ~1.1s — comfortably faster than the 2s poll
+              interval (useFinalizationStatus) or even a single autosave
+              round trip can reliably land, so relying on the server's own
+              echo here was a real race that could show the "(YOUR STARTUP)"
+              fallback despite a name having been typed. Falls back to the
+              server value for the one case local state can't cover: a fresh
+              page load/refresh that lands directly on this step (skipping
+              'team-ready', where local state gets seeded) — by then a real
+              refetch has had time to complete, so the server value is
+              already correct. */}
+          <HeatCategoryVideoGate onDone={handleVideoDone} teamName={name || status.team.name || ''} />
         </section>
       )}
 
@@ -514,8 +528,18 @@ export function CeoFinalizePage() {
                 disabled={c.full || finalizeTeam.isPending}
                 onClick={() => {
                   setPendingCategory(c.category);
+                  // Same local-state-first preference as the video overlay
+                  // above, and for the same reason: `name` is what the CEO
+                  // actually typed, already in hand with no network round
+                  // trip, while status.team.name is only as fresh as the
+                  // last autosave that's actually landed. Sending the
+                  // server's possibly-stale value here doesn't just
+                  // misdisplay something cosmetic — a lagging empty
+                  // status.team.name gets rejected outright
+                  // (TEAM_NAME_REQUIRED), which is exactly what surfaced as
+                  // "I put the name but it said required."
                   finalizeTeam.mutate(
-                    { name: status.team.name ?? '', category: c.category },
+                    { name: name || status.team.name || '', category: c.category },
                     { onSettled: () => setPendingCategory((prev) => (prev === c.category ? null : prev)) },
                   );
                 }}
