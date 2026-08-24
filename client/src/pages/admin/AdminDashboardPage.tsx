@@ -625,7 +625,7 @@ export function AdminDashboardPage() {
         <h2 className={`text-lg mb-4 ${comicHeading}`}>People</h2>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          <div className="lg:border-r-[3px] lg:border-ink lg:pr-6">
+          <div className="min-w-0 lg:border-r-[3px] lg:border-ink lg:pr-6">
             <h3 className={`text-sm mb-3 ${comicHeadingSm}`}>Register a participant</h3>
             <form
               className="flex flex-wrap items-end gap-3"
@@ -679,7 +679,7 @@ export function AdminDashboardPage() {
             {createParticipant.isError && <p className="text-sm font-bold text-crimson mt-2">{getApiErrorMessage(createParticipant.error)}</p>}
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h3 className={`text-sm mb-3 ${comicHeadingSm}`}>Create staff account</h3>
             <form
               className="flex flex-col gap-3"
