@@ -592,3 +592,48 @@ export function useDeleteCeoQuestion() {
     onError: (err) => showErrorToast(getApiErrorMessage(err)),
   });
 }
+
+// ---------- Cloudinary maintenance (one-off, HTTP-triggerable versions of
+// the server's scripts/*.ts — see cloudinaryMaintenance.service.ts on the
+// backend for why: Render's Shell tab needs a paid plan this deployment
+// doesn't have, so these run the same logic over a normal admin-gated
+// HTTP call instead). ----------
+
+export type MigrateRawAuthResult = {
+  migrated: number;
+  alreadyDone: number;
+  failed: number;
+  total: number;
+  failures: { label: string; error?: string }[];
+};
+
+export function useMigrateRawAuth() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<MigrateRawAuthResult>('/admin/cloudinary/migrate-raw-auth');
+      return data;
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}
+
+export type DiagnoseRawDeliveryResult = {
+  cloudName?: string;
+  apiKeyPrefix?: string;
+  upload: { publicId: string };
+  adminApi: { type: string | null; accessMode: string | null; error: string | null };
+  signedUrl: string;
+  delivery: { httpStatus: number; cldError: string | null; bodyPreview: string };
+  cleanedUp: boolean;
+  verdict: string;
+};
+
+export function useDiagnoseRawDelivery() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<DiagnoseRawDeliveryResult>('/admin/cloudinary/diagnose-raw-delivery');
+      return data;
+    },
+    onError: (err) => showErrorToast(getApiErrorMessage(err)),
+  });
+}

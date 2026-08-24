@@ -38,8 +38,10 @@ import {
   useUpdateStaff,
   useDeleteStaff,
   useFetchParticipantBadges,
+  useDiagnoseRawDelivery,
+  useMigrateRawAuth,
 } from '../../hooks/useAdmin';
-import type { AdminParticipant } from '../../hooks/useAdmin';
+import type { AdminParticipant, DiagnoseRawDeliveryResult, MigrateRawAuthResult } from '../../hooks/useAdmin';
 import { downloadParticipantBadgesPdf } from '../../lib/participantBadges';
 import { ALL_DEPARTMENTS, type Department, type HackathonPhase } from '../../types/api';
 import { getApiErrorMessage } from '../../lib/apiClient';
@@ -574,8 +576,9 @@ export function AdminDashboardPage() {
           <div className="mt-5 pt-5 border-t-[3px] border-ink">
             <p className="text-sm font-bold text-navy mb-1">New competition</p>
             <p className="text-xs text-navy/60 mb-3 max-w-md">
-              Archives the current event (downloaded as JSON) then permanently deletes its participants, teams,
-              submissions, and judge scores, and resets the event back to the lobby.
+              Archives the current event (downloaded as JSON), then permanently deletes its teams, submissions, and
+              judge scores, and resets the event back to the lobby. Participant and CEO accounts (badge codes, QR
+              codes, profiles) are kept — everyone logs back in with the same badge for the next event.
             </p>
             <button
               disabled={exportEventData.isPending || resetCompetition.isPending}
@@ -587,6 +590,8 @@ export function AdminDashboardPage() {
           </div>
         )}
       </section>
+
+      <CloudinaryMaintenancePanel />
 
       <section className="comic-panel p-6">
         <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-lime" aria-hidden="true" />
@@ -1190,6 +1195,76 @@ export function AdminDashboardPage() {
           setDeleteStaffTarget(null);
         }}
       />
+    </div>
+  );
+}
+
+// One-off Cloudinary maintenance operations, run via a click since this
+// deployment's Render plan has no Shell tab (see the server's
+// cloudinaryMaintenance.service.ts for what each button actually does).
+// Meant to be used once each after the authenticated-delivery fix ships,
+// not a routine control — kept low-key and out of the way of the main
+// event controls above.
+function CloudinaryMaintenancePanel() {
+  const diagnose = useDiagnoseRawDelivery();
+  const migrate = useMigrateRawAuth();
+
+  return (
+    <section className="comic-panel p-6">
+      <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
+      <h2 className={`text-lg mb-1 ${comicHeading}`}>Cloudinary Maintenance</h2>
+      <p className="text-xs text-navy/60 mb-4 max-w-lg">
+        One-time fixes for the pitch deck/document view &amp; download bug. Run Diagnose first — it uploads and
+        deletes a throwaway test file and tells you exactly what's happening. If it says "WORKS", run Migrate once to
+        fix already-uploaded files (new uploads already work on their own).
+      </p>
+      <div className="flex flex-wrap gap-3 mb-4">
+        <button disabled={diagnose.isPending} onClick={() => diagnose.mutate()} className={comicButton('white')}>
+          {diagnose.isPending ? 'Running…' : 'Diagnose'}
+        </button>
+        <button disabled={migrate.isPending} onClick={() => migrate.mutate()} className={comicButton('forest')}>
+          {migrate.isPending ? 'Migrating…' : 'Migrate existing files'}
+        </button>
+      </div>
+
+      {diagnose.data && <DiagnoseResultView result={diagnose.data} />}
+      {migrate.data && <MigrateResultView result={migrate.data} />}
+    </section>
+  );
+}
+
+function DiagnoseResultView({ result }: { result: DiagnoseRawDeliveryResult }) {
+  const ok = result.delivery.httpStatus === 200;
+  return (
+    <div
+      className={`rounded-lg border-[3px] border-ink p-4 text-xs font-mono ${ok ? 'bg-lime/30' : 'bg-crimson/10'}`}
+      data-testid="diagnose-result"
+    >
+      <p className={`font-black uppercase mb-2 ${ok ? 'text-forest' : 'text-crimson'}`}>{result.verdict}</p>
+      <p>HTTP status: {result.delivery.httpStatus}</p>
+      {result.delivery.cldError && <p>Cloudinary error: {result.delivery.cldError}</p>}
+      <p>Cloud: {result.cloudName}</p>
+      <p>Admin API says type: {result.adminApi.type ?? '(lookup failed)'}</p>
+      {result.adminApi.error && <p>Admin API error: {result.adminApi.error}</p>}
+    </div>
+  );
+}
+
+function MigrateResultView({ result }: { result: MigrateRawAuthResult }) {
+  return (
+    <div className="rounded-lg border-[3px] border-ink bg-white p-4 text-xs font-mono" data-testid="migrate-result">
+      <p className="font-black uppercase text-forest mb-1">
+        Migrated {result.migrated}, already done {result.alreadyDone}, failed {result.failed} (of {result.total} total)
+      </p>
+      {result.failures.length > 0 && (
+        <ul className="mt-2 text-crimson">
+          {result.failures.map((f, i) => (
+            <li key={i}>
+              ✗ {f.label}: {f.error}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
