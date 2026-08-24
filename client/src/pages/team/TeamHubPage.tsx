@@ -70,7 +70,7 @@ function TeamFeedbackSection({ enabled }: { enabled: boolean }) {
                 {evaluation.total} / {evaluation.maxTotal}
               </Badge>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs mb-2">
               {evaluation.scores.map((s) => (
                 <div key={s.id}>
                   <p className="text-forest uppercase font-black">{s.label}</p>

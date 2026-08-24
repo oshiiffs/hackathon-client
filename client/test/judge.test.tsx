@@ -38,13 +38,12 @@ function mockTeamListItem(overrides: Partial<JudgeTeamListItem> = {}): JudgeTeam
 
 const CRITERIA_RESPONSE: JudgeCriteriaResponse = {
   criteria: [
-    { id: 'innovation', label: 'Innovation', min: 1, max: 10 },
-    { id: 'feasibility', label: 'Feasibility', min: 1, max: 10 },
-    { id: 'impact', label: 'Impact', min: 1, max: 10 },
-    { id: 'presentation', label: 'Presentation', min: 1, max: 10 },
+    { id: 'innovationTechnicalFeasibility', label: 'Innovation and Technical Feasibility', min: 0, max: 40 },
+    { id: 'marketRelevanceCommercialViability', label: 'Market Relevance and Commercial Viability', min: 0, max: 30 },
+    { id: 'teamCapabilityExecutionPlan', label: 'Team Capability and Execution Plan', min: 0, max: 30 },
   ],
-  minTotal: 4,
-  maxTotal: 40,
+  minTotal: 0,
+  maxTotal: 100,
 };
 
 function mockTeamDetail(overrides: Partial<JudgeTeamDetail> = {}): JudgeTeamDetail {
@@ -225,9 +224,9 @@ describe('Judge dashboard + evaluation (frontend)', () => {
 
   it('10. score inputs are constrained to the authoritative min/max', () => {
     renderDetail();
-    const input = screen.getByTestId('judge-score-innovation') as HTMLInputElement;
-    expect(input.min).toBe('1');
-    expect(input.max).toBe('10');
+    const input = screen.getByTestId('judge-score-innovationTechnicalFeasibility') as HTMLInputElement;
+    expect(input.min).toBe('0');
+    expect(input.max).toBe('40');
   });
 
   it('11. an invalid score (out of range in restored data) displays an error and disables save/submit', () => {
@@ -239,15 +238,15 @@ describe('Judge dashboard + evaluation (frontend)', () => {
       myEvaluation: {
         id: 'e1',
         status: 'DRAFT',
-        scores: { innovation: 15, feasibility: 7, impact: 9, presentation: 6 },
-        total: 37,
+        scores: { innovationTechnicalFeasibility: 45, marketRelevanceCommercialViability: 20, teamCapabilityExecutionPlan: 15 },
+        total: 80,
         comments: null,
         submittedAt: null,
         updatedAt: new Date().toISOString(),
       },
     });
     renderDetail(detail);
-    expect(screen.getByTestId('judge-score-error-innovation')).toBeInTheDocument();
+    expect(screen.getByTestId('judge-score-error-innovationTechnicalFeasibility')).toBeInTheDocument();
     expect(screen.getByTestId('judge-save-draft-button')).toBeDisabled();
     expect(screen.getByTestId('judge-submit-button')).toBeDisabled();
   });
@@ -255,7 +254,15 @@ describe('Judge dashboard + evaluation (frontend)', () => {
   it('12. save draft calls the API with scores and updates the UI', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue({ data: mockTeamDetail() } as never);
     const putSpy = vi.spyOn(apiClient, 'put').mockResolvedValueOnce({
-      data: { id: 'e1', status: 'DRAFT', scores: { innovation: 5, feasibility: 5, impact: 5, presentation: 5 }, total: 20, comments: null, submittedAt: null, updatedAt: new Date().toISOString() },
+      data: {
+        id: 'e1',
+        status: 'DRAFT',
+        scores: { innovationTechnicalFeasibility: 20, marketRelevanceCommercialViability: 15, teamCapabilityExecutionPlan: 10 },
+        total: 45,
+        comments: null,
+        submittedAt: null,
+        updatedAt: new Date().toISOString(),
+      },
     } as never);
     renderDetail();
     await userEvent.setup().click(screen.getByTestId('judge-save-draft-button'));
@@ -265,17 +272,25 @@ describe('Judge dashboard + evaluation (frontend)', () => {
 
   it('13. a saved draft restores after a refresh (fresh GET)', () => {
     const detail = mockTeamDetail({
-      myEvaluation: { id: 'e1', status: 'DRAFT', scores: { innovation: 9, feasibility: 4, impact: 6, presentation: 3 }, total: 22, comments: 'looks good', submittedAt: null, updatedAt: new Date().toISOString() },
+      myEvaluation: {
+        id: 'e1',
+        status: 'DRAFT',
+        scores: { innovationTechnicalFeasibility: 20, marketRelevanceCommercialViability: 15, teamCapabilityExecutionPlan: 10 },
+        total: 45,
+        comments: 'looks good',
+        submittedAt: null,
+        updatedAt: new Date().toISOString(),
+      },
     });
     renderDetail(detail);
-    expect(screen.getByTestId('judge-score-innovation')).toHaveValue(9);
-    expect(screen.getByText(/TOTAL SCORE: 22/)).toBeInTheDocument();
+    expect(screen.getByTestId('judge-score-innovationTechnicalFeasibility')).toHaveValue(20);
+    expect(screen.getByText(/TOTAL SCORE: 45/)).toBeInTheDocument();
   });
 
   it('14. the total updates as scores change', () => {
     renderDetail();
     const before = screen.getByTestId('judge-total-score').textContent;
-    fireEvent.change(screen.getByTestId('judge-score-innovation'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('judge-score-innovationTechnicalFeasibility'), { target: { value: '10' } });
     expect(screen.getByTestId('judge-total-score').textContent).not.toBe(before);
   });
 
@@ -290,8 +305,8 @@ describe('Judge dashboard + evaluation (frontend)', () => {
       data: {
         id: 'e1',
         status: 'SUBMITTED',
-        scores: { innovation: 5, feasibility: 5, impact: 5, presentation: 5 },
-        total: 20,
+        scores: { innovationTechnicalFeasibility: 20, marketRelevanceCommercialViability: 15, teamCapabilityExecutionPlan: 10 },
+        total: 45,
         comments: null,
         submittedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -312,17 +327,33 @@ describe('Judge dashboard + evaluation (frontend)', () => {
 
   it('17. the submitted state disables all score inputs', () => {
     const detail = mockTeamDetail({
-      myEvaluation: { id: 'e1', status: 'SUBMITTED', scores: { innovation: 8, feasibility: 7, impact: 9, presentation: 6 }, total: 30, comments: null, submittedAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      myEvaluation: {
+        id: 'e1',
+        status: 'SUBMITTED',
+        scores: { innovationTechnicalFeasibility: 20, marketRelevanceCommercialViability: 15, teamCapabilityExecutionPlan: 10 },
+        total: 45,
+        comments: null,
+        submittedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     });
     renderDetail(detail);
-    expect(screen.getByTestId('judge-score-innovation')).toBeDisabled();
+    expect(screen.getByTestId('judge-score-innovationTechnicalFeasibility')).toBeDisabled();
     expect(screen.queryByTestId('judge-save-draft-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('judge-submit-button')).not.toBeInTheDocument();
   });
 
   it('18. the submitted state (and its immutability) survives a refresh', () => {
     const detail = mockTeamDetail({
-      myEvaluation: { id: 'e1', status: 'SUBMITTED', scores: { innovation: 8, feasibility: 7, impact: 9, presentation: 6 }, total: 30, comments: null, submittedAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      myEvaluation: {
+        id: 'e1',
+        status: 'SUBMITTED',
+        scores: { innovationTechnicalFeasibility: 20, marketRelevanceCommercialViability: 15, teamCapabilityExecutionPlan: 10 },
+        total: 45,
+        comments: null,
+        submittedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     });
     renderDetail(detail);
     expect(screen.getByTestId('judge-submitted-banner')).toBeInTheDocument();

@@ -154,7 +154,7 @@ export function AiMentorPanel() {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Ask about your problem statement…"
-                className="flex-1 rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm text-ink font-medium focus:outline-none focus:ring-2 focus:ring-crimson"
+                className="flex-1 min-w-0 rounded-lg bg-white border-[3px] border-ink px-3 py-2 text-sm text-ink font-medium focus:outline-none focus:ring-2 focus:ring-crimson"
               />
               <button type="submit" data-testid="ai-send-button" disabled={sendMessage.isPending || !draft.trim() || overLength} className={comicButton('crimson')}>
                 Send

@@ -119,7 +119,7 @@ export function ParticipantDirectoryList() {
   });
 
   return (
-    <div className="relative flex flex-col gap-4 min-h-0 h-full">
+    <div className="relative flex flex-col gap-4 min-h-0 flex-1">
       <input
         autoFocus
         value={search}

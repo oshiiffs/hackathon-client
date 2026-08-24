@@ -747,8 +747,8 @@ export function AdminDashboardPage() {
 
             <div className="mt-5">
               <h3 className={`text-sm mb-2 ${comicHeadingSm}`}>Judges &amp; admins</h3>
-              <div className="max-h-56 overflow-y-auto border-[3px] border-ink rounded-lg">
-                <table className="w-full text-sm text-left">
+              <div className="max-h-56 overflow-y-auto overflow-x-auto border-[3px] border-ink rounded-lg">
+                <table className="w-full min-w-[36rem] text-sm text-left">
                   <thead className="text-forest text-xs uppercase font-black bg-cream/60">
                     <tr>
                       <th className="py-1 pl-2">Name</th>

@@ -185,7 +185,7 @@ export function JudgeTeamDetailPage() {
           </div>
         )}
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           {criteria.data.criteria.map((c) => (
             <div key={c.id}>
               <label className="text-sm text-ink flex flex-col gap-1">
