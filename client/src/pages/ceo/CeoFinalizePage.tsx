@@ -184,10 +184,16 @@ function HeatCategoryVideoGate({ onDone, teamName }: { onDone: () => void; teamN
         </video>
 
         {namePhase === 'greeting' && (
-          // "GREETINGS!" ends at 48.3% of frame height; the blank space
-          // below it runs on for a while, so this is just anchored a little
-          // clear of that with room to grow downward for a longer name.
-          <NamePlaceholderOverlay teamName={teamName} anchor="top" edge="50%" underline testId="heat-video-greeting-name" />
+          // Re-measured against the actual current file (grid-overlay frame
+          // capture, not eyeballed): this window spans TWO sequential baked
+          // lines, "GREETINGS!" then "WELCOME TO" (a mid-window word swap,
+          // not one static line as previously assumed) — both centered at
+          // essentially the same spot, roughly 45-52% of frame height. The
+          // previous edge="50%" sat right on top of both of them instead of
+          // below either — that's the overlap this fixes. Pinned well clear
+          // of both now, with room to grow downward into the large blank
+          // space that runs on well past this for a longer name.
+          <NamePlaceholderOverlay teamName={teamName} anchor="top" edge="60%" underline testId="heat-video-greeting-name" />
         )}
         {namePhase === 'sector' && (
           // "THE PHILIPPINES NEEDS YOU." now starts at 27.9% (v2 shifted
