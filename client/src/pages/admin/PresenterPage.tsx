@@ -461,12 +461,14 @@ function CeoChallengeLeaderboardScreen({ entries }: { entries: CeoChallengeLeade
     <div className="w-full max-w-3xl flex flex-col items-center gap-6">
       <div className="text-center flex flex-col items-center gap-2">
         <h1 className="text-4xl font-black tracking-tight text-ink">CEO CHALLENGE LEADERBOARD</h1>
-        <p className="text-lg font-bold text-navy">Top scorers so far — highest score wins a CEO seat.</p>
+        <p className="text-lg font-bold text-navy">
+          Every participant, ranked by score — highest score wins a CEO seat.
+        </p>
       </div>
 
-      {entries.length === 0 && <p className="text-navy/50 font-bold">No submissions yet.</p>}
+      {entries.length === 0 && <p className="text-navy/50 font-bold">No participants yet.</p>}
       {entries.length > 0 && (
-        <div className="w-full flex flex-col gap-2" data-testid="ceo-challenge-leaderboard">
+        <div className="w-full flex flex-col gap-2 max-h-[65vh] overflow-y-auto pr-1" data-testid="ceo-challenge-leaderboard">
           {entries.map((row) => (
             <div
               key={row.userId}
