@@ -620,7 +620,7 @@ export function AdminDashboardPage() {
 
       <CeoQuestionsPanel />
 
-      <section className="comic-panel p-6">
+      <section className="comic-panel p-6 min-w-0">
         <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-forest" aria-hidden="true" />
         <h2 className={`text-lg mb-4 ${comicHeading}`}>People</h2>
 

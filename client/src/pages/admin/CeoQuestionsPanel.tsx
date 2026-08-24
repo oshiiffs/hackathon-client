@@ -83,7 +83,7 @@ export function CeoQuestionsPanel() {
   }
 
   return (
-    <section className="comic-panel p-6" data-testid="ceo-questions-panel">
+    <section className="comic-panel p-6 min-w-0" data-testid="ceo-questions-panel">
       <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h2 className={`text-lg ${comicHeading}`}>CEO Topics</h2>
