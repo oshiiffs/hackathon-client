@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, getApiErrorMessage } from '../lib/apiClient';
+import type { ParticipantBadge } from '../lib/participantBadges';
 import { showErrorToast, showSuccessToast } from '../store/toastStore';
 import type {
   AdminEvaluationOverview,
@@ -367,6 +368,18 @@ export function useAdminParticipantQr(participantId: string | null) {
     enabled: Boolean(participantId),
     retry: false,
     staleTime: 1000 * 60 * 10,
+  });
+}
+
+/** One-shot fetch (not a live-polled query) for bulk badge-printing — see
+ * getParticipantBadges on the server and lib/participantBadges.ts's
+ * downloadParticipantBadgesPdf, which the caller feeds this with. */
+export function useFetchParticipantBadges() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.get<ParticipantBadge[]>('/admin/participants/badges');
+      return data;
+    },
   });
 }
 

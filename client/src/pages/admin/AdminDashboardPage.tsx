@@ -37,8 +37,10 @@ import {
   useUpdateParticipant,
   useUpdateStaff,
   useDeleteStaff,
+  useFetchParticipantBadges,
 } from '../../hooks/useAdmin';
 import type { AdminParticipant } from '../../hooks/useAdmin';
+import { downloadParticipantBadgesPdf } from '../../lib/participantBadges';
 import { ALL_DEPARTMENTS, type Department, type HackathonPhase } from '../../types/api';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
@@ -325,6 +327,8 @@ export function AdminDashboardPage() {
   const [deleteStaffTarget, setDeleteStaffTarget] = useState<{ id: string; fullName: string } | null>(null);
 
   const [showParticipantList, setShowParticipantList] = useState(false);
+  const fetchBadges = useFetchParticipantBadges();
+  const [badgesError, setBadgesError] = useState<string | null>(null);
 
   const phase: HackathonPhase | undefined = state?.phase;
   // Mirrors the backend's transition table for UX only — the server is the
@@ -847,13 +851,32 @@ export function AdminDashboardPage() {
             <h3 className={`text-sm ${comicHeadingSm}`}>All participants</h3>
             <p className="text-xs font-bold text-navy/60 mt-0.5">{participants.data?.length ?? 0} registered</p>
           </div>
-          <button
-            data-testid="open-participant-list-button"
-            onClick={() => setShowParticipantList(true)}
-            className={comicButton('forest', 'sm')}
-          >
-            View all participants
-          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            {badgesError && <p className="text-xs font-bold text-crimson">{badgesError}</p>}
+            <button
+              data-testid="download-badges-button"
+              disabled={fetchBadges.isPending}
+              onClick={() => {
+                setBadgesError(null);
+                fetchBadges.mutate(undefined, {
+                  onSuccess: (badges) => {
+                    downloadParticipantBadgesPdf(badges).catch(() => setBadgesError('Could not generate the PDF.'));
+                  },
+                  onError: (err) => setBadgesError(getApiErrorMessage(err)),
+                });
+              }}
+              className={`${comicButton('white', 'sm')} disabled:opacity-40`}
+            >
+              {fetchBadges.isPending ? 'Preparing PDF…' : 'Download all QR badges'}
+            </button>
+            <button
+              data-testid="open-participant-list-button"
+              onClick={() => setShowParticipantList(true)}
+              className={comicButton('forest', 'sm')}
+            >
+              View all participants
+            </button>
+          </div>
         </div>
       </section>
 
