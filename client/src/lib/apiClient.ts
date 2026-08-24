@@ -2,6 +2,15 @@ import axios, { type AxiosError } from 'axios';
 import type { ApiErrorBody } from '../types/api';
 import { useAuthStore } from '../store/authStore';
 
+// Lets a call site opt a request out of the interceptor's blanket
+// "401 -> clear the session" below — see the comment above that block for
+// why some requests need this.
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    suppressAuthClear?: boolean;
+  }
+}
+
 // API base URL comes from a build-time env var, never a hardcoded secret. No API
 // keys (Cloudinary, xAI, JWT signing secret) ever live in this client — every
 // privileged operation is proxied through the server. Strip a trailing slash —
@@ -96,7 +105,19 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorBody>) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().clear();
+      // Best-effort background calls (a post-challenge /auth/me poll, a
+      // socket handler's own /auth/me refresh) are explicitly written to
+      // fail silently — their own .catch() intentionally does nothing,
+      // trusting the next natural refetch/socket event to reconcile state.
+      // Force-clearing the session on every 401 defeats that: a single
+      // dropped background request would yank a still-logged-in participant
+      // to /login (see RoleGuard's RequireAuth) out from under them. Call
+      // sites that are genuinely best-effort pass `suppressAuthClear` to opt
+      // out of this; a 401 from a real user-initiated request (loading a
+      // page's primary data, submitting a form) still logs the user out.
+      if (!error.config?.suppressAuthClear) {
+        useAuthStore.getState().clear();
+      }
       return Promise.reject(error);
     }
 

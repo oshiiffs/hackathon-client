@@ -117,7 +117,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['team-overview'] });
       if (payload.participantId === useAuthStore.getState().user?.id) {
         apiClient
-          .get('/auth/me')
+          .get('/auth/me', { suppressAuthClear: true })
           .then(({ data }) => useAuthStore.getState().setUser(data))
           .catch(() => {
             /* best-effort — the next natural refetch/socket event reconciles this */
@@ -151,7 +151,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['admin-participants'] });
       if (payload.winners.some((w) => w.userId === useAuthStore.getState().user?.id)) {
         apiClient
-          .get('/auth/me')
+          .get('/auth/me', { suppressAuthClear: true })
           .then(({ data }) => useAuthStore.getState().setUser(data))
           .catch(() => {
             /* best-effort — the next natural refetch/socket event reconciles this */

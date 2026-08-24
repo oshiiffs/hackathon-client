@@ -25,7 +25,7 @@ export function ParticipantDashboardPage() {
     if (state?.phase !== 'DRAFTING') return;
     let cancelled = false;
     apiClient
-      .get('/auth/me')
+      .get('/auth/me', { suppressAuthClear: true })
       .then(({ data }) => {
         if (!cancelled) setUser(data);
       })
