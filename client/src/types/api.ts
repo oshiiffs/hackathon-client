@@ -217,12 +217,19 @@ export type FileMetadata = {
   // Not a secret — the same URL is already reachable for the same
   // authorized user via other endpoints. Included directly on every list
   // item (not just single-file detail responses) so VIEW/DOWNLOAD never
-  // need a click-time fetch before rendering an <iframe src> or a
-  // Cloudinary download link — see lib/fileViewer.ts for why that fetch
-  // was the actual cause of "view triggers a download instead" (CORS
-  // blocks browser fetch() of a raw Cloudinary resource; a plain
-  // navigation/iframe isn't subject to CORS at all).
+  // need a click-time fetch before rendering a plain <a href> — a click-time
+  // fetch was the actual cause of an earlier "view triggers a download
+  // instead" bug (CORS blocks browser fetch() of a raw Cloudinary resource;
+  // a plain navigation isn't subject to CORS at all).
+  //
+  // downloadUrl is a SEPARATE pre-signed URL, not fileUrl with a download
+  // flag spliced in client-side — for pitch decks/documents (Cloudinary
+  // "authenticated" delivery) inserting a transformation flag into an
+  // already-signed URL after the fact invalidates its signature, so the
+  // server computes and signs both independently. See lib/cloudinary.ts's
+  // signedRawUrl on the backend.
   fileUrl: string;
+  downloadUrl: string;
 };
 
 export type FileDetail = FileMetadata;
@@ -407,10 +414,18 @@ export type JudgeTeamDetail = {
   submission: { status: SubmissionStatus };
   deliverables: {
     pitchDeck:
-      | { status: 'UPLOADED'; version: number; filename: string; fileUrl: string; uploadedBy: string; createdAt: string }
+      | {
+          status: 'UPLOADED';
+          version: number;
+          filename: string;
+          fileUrl: string;
+          downloadUrl: string;
+          uploadedBy: string;
+          createdAt: string;
+        }
       | { status: 'NOT_UPLOADED' };
-    documents: { id: string; filename: string; fileUrl: string; size: number; uploadedBy: string; createdAt: string }[];
-    assets: { id: string; filename: string; fileUrl: string; size: number; uploadedBy: string; createdAt: string }[];
+    documents: { id: string; filename: string; fileUrl: string; downloadUrl: string; size: number; uploadedBy: string; createdAt: string }[];
+    assets: { id: string; filename: string; fileUrl: string; downloadUrl: string; size: number; uploadedBy: string; createdAt: string }[];
   };
   myEvaluation: EvaluationPayload;
 };

@@ -72,8 +72,26 @@ function mockTeamDetail(overrides: Partial<JudgeTeamDetail> = {}): JudgeTeamDeta
     },
     submission: { status: 'SUBMITTED' },
     deliverables: {
-      pitchDeck: { status: 'UPLOADED', version: 2, filename: 'deck.pdf', fileUrl: 'https://cloudinary.com/deck.pdf', uploadedBy: 'Grace', createdAt: new Date().toISOString() },
-      documents: [{ id: 'doc1', filename: 'spec.docx', fileUrl: 'https://cloudinary.com/spec.docx', size: 2048, uploadedBy: 'Juan', createdAt: new Date().toISOString() }],
+      pitchDeck: {
+        status: 'UPLOADED',
+        version: 2,
+        filename: 'deck.pdf',
+        fileUrl: 'https://cloudinary.com/deck.pdf',
+        downloadUrl: 'https://cloudinary.com/deck.pdf?download',
+        uploadedBy: 'Grace',
+        createdAt: new Date().toISOString(),
+      },
+      documents: [
+        {
+          id: 'doc1',
+          filename: 'spec.docx',
+          fileUrl: 'https://cloudinary.com/spec.docx',
+          downloadUrl: 'https://cloudinary.com/spec.docx?download',
+          size: 2048,
+          uploadedBy: 'Juan',
+          createdAt: new Date().toISOString(),
+        },
+      ],
       assets: [],
     },
     myEvaluation: { id: null, status: 'NOT_STARTED', scores: null, total: null, comments: null, submittedAt: null, updatedAt: null },

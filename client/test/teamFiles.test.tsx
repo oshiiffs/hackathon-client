@@ -46,6 +46,7 @@ function currentPitchDeck(overrides: Partial<FileMetadata> = {}): PitchDeckRespo
       createdAt: new Date().toISOString(),
       isCurrent: true,
       fileUrl: 'https://cloudinary.com/deck-v2.pdf',
+      downloadUrl: 'https://cloudinary.com/deck-v2.pdf?download',
       ...overrides,
     },
     previousVersions: [
@@ -60,6 +61,7 @@ function currentPitchDeck(overrides: Partial<FileMetadata> = {}): PitchDeckRespo
         createdAt: new Date(Date.now() - 86400000).toISOString(),
         isCurrent: false,
         fileUrl: 'https://cloudinary.com/deck-v1.pdf',
+        downloadUrl: 'https://cloudinary.com/deck-v1.pdf?download',
       },
     ],
   };
@@ -77,6 +79,7 @@ function mockDocument(overrides: Partial<FileMetadata> = {}): FileMetadata {
     createdAt: new Date().toISOString(),
     isCurrent: true,
     fileUrl: 'https://cloudinary.com/requirements.pdf',
+    downloadUrl: 'https://cloudinary.com/requirements.pdf?download',
     ...overrides,
   };
 }
@@ -256,18 +259,28 @@ describe('Phase 10 file management (frontend)', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('15. the DOWNLOAD action is a direct Cloudinary fl_attachment link with the real filename', () => {
-    // fl_attachment:<filename> forces Content-Disposition: attachment with
-    // the given filename entirely server-side (Cloudinary's own delivery
-    // flag) — no client-side fetch/blob involved, so this can't be blocked
-    // by CORS and isn't a scripted window.open() (no popup-blocker risk
-    // either, since it's a plain anchor the browser handles natively).
-    renderSection({ files: [mockDocument({ fileUrl: 'https://res.cloudinary.com/demo/raw/upload/v1/some-uuid-no-extension', filename: 'requirements.pdf' })] });
+  it('15. the DOWNLOAD action uses the server-provided, pre-signed downloadUrl as-is', () => {
+    // downloadUrl comes straight from the API response — the component
+    // never derives it from fileUrl client-side. For pitch decks/documents
+    // this is a separately signed Cloudinary "authenticated" delivery URL
+    // (fl_attachment:<filename> baked in server-side); splicing that flag
+    // into an already-signed fileUrl client-side would invalidate its
+    // signature, which is exactly why the server computes and signs both
+    // independently — see hackathon-server's lib/cloudinary.ts.
+    renderSection({
+      files: [
+        mockDocument({
+          fileUrl: 'https://res.cloudinary.com/demo/raw/authenticated/s--abc123--/v1/some-id.pdf',
+          downloadUrl: 'https://res.cloudinary.com/demo/raw/authenticated/s--xyz789--/fl_attachment:requirements.pdf/v1/some-id.pdf',
+          filename: 'requirements.pdf',
+        }),
+      ],
+    });
     const links = screen.getByTestId('file-row-doc_1').querySelectorAll('a');
     const downloadLink = Array.from(links).find((a) => a.textContent === 'DOWNLOAD')!;
     expect(downloadLink).toHaveAttribute(
       'href',
-      'https://res.cloudinary.com/demo/raw/upload/fl_attachment:requirements.pdf/v1/some-uuid-no-extension',
+      'https://res.cloudinary.com/demo/raw/authenticated/s--xyz789--/fl_attachment:requirements.pdf/v1/some-id.pdf',
     );
   });
 

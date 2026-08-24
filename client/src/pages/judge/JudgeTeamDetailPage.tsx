@@ -6,7 +6,6 @@ import { ErrorState, LoadingState } from '../../components/StateViews';
 import { getApiErrorMessage } from '../../lib/apiClient';
 import { comicButton, comicHeading } from '../../lib/comic';
 import { useJudgeCriteria, useJudgeTeamDetail, useSaveDraftEvaluation, useSubmitEvaluation } from '../../hooks/useJudge';
-import { toDownloadUrl } from '../../lib/fileViewer';
 import type { JudgeCriterion } from '../../types/api';
 
 function formatBytes(bytes: number): string {
@@ -20,11 +19,14 @@ function formatBytes(bytes: number): string {
 // tried and found unreliable in production: Chrome's built-in PDF viewer
 // running inside an <iframe> hits its own edge cases ("Failed to load PDF
 // document") that a direct full-tab navigation to the exact same URL
-// doesn't. Neither VIEW nor DOWNLOAD fetches anything client-side, so
-// neither depends on Cloudinary's CORS configuration, and a plain anchor
-// click is never subject to a popup blocker (unlike a scripted
-// window.open()). See lib/fileViewer.ts.
-function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string }) {
+// doesn't. DOWNLOAD uses its own separately pre-signed downloadUrl straight
+// from the API response — never fileUrl with a download flag spliced in
+// client-side, since for pitch decks/documents (Cloudinary "authenticated"
+// delivery) that would invalidate the server's signature. Neither VIEW nor
+// DOWNLOAD fetches anything client-side, so neither depends on Cloudinary's
+// CORS configuration, and a plain anchor click is never subject to a popup
+// blocker (unlike a scripted window.open()).
+function FileActions({ fileUrl, downloadUrl }: { fileUrl: string; downloadUrl: string }) {
   return (
     <div className="flex gap-2 shrink-0">
       <a
@@ -36,7 +38,7 @@ function FileActions({ filename, fileUrl }: { filename: string; fileUrl: string 
         VIEW
       </a>
       <a
-        href={toDownloadUrl(fileUrl, filename)}
+        href={downloadUrl}
         className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-crimson font-black uppercase"
       >
         DOWNLOAD
@@ -141,7 +143,7 @@ export function JudgeTeamDetailPage() {
               Pitch Deck{team.deliverables.pitchDeck.status === 'UPLOADED' ? ` (v${team.deliverables.pitchDeck.version})` : ''}
             </span>
             {team.deliverables.pitchDeck.status === 'UPLOADED' ? (
-              <FileActions filename={team.deliverables.pitchDeck.filename} fileUrl={team.deliverables.pitchDeck.fileUrl} />
+              <FileActions fileUrl={team.deliverables.pitchDeck.fileUrl} downloadUrl={team.deliverables.pitchDeck.downloadUrl} />
             ) : (
               <span className="text-navy/40 text-xs font-bold">Not uploaded</span>
             )}
@@ -151,7 +153,7 @@ export function JudgeTeamDetailPage() {
               <span className="text-ink font-bold">
                 {d.filename} ({formatBytes(d.size)})
               </span>
-              <FileActions filename={d.filename} fileUrl={d.fileUrl} />
+              <FileActions fileUrl={d.fileUrl} downloadUrl={d.downloadUrl} />
             </div>
           ))}
           {team.deliverables.assets.map((a) => (
@@ -159,7 +161,7 @@ export function JudgeTeamDetailPage() {
               <span className="text-ink font-bold">
                 {a.filename} ({formatBytes(a.size)})
               </span>
-              <FileActions filename={a.filename} fileUrl={a.fileUrl} />
+              <FileActions fileUrl={a.fileUrl} downloadUrl={a.downloadUrl} />
             </div>
           ))}
           {team.deliverables.documents.length === 0 && team.deliverables.assets.length === 0 && (

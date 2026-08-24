@@ -11,7 +11,6 @@ import {
   useUploadPitchDeck,
   useUploadTeamFile,
 } from '../../hooks/useTeamFiles';
-import { toDownloadUrl } from '../../lib/fileViewer';
 import type { FileCategory, FileMetadata } from '../../types/api';
 
 const PITCH_DECK_EXTENSIONS = ['pdf', 'ppt', 'pptx'];
@@ -56,10 +55,12 @@ const IDLE: UploadState = { status: 'idle', progress: 0, error: null };
 // for a direct navigation, which is exactly what target="_blank" is. A
 // plain anchor click is also never subject to a popup blocker (unlike a
 // scripted window.open()), so there's no timing/async risk here either.
-// DOWNLOAD is a Cloudinary fl_attachment link, forcing the exact filename
-// server-side — see toDownloadUrl. Neither of these fetches anything
-// client-side, so neither depends on Cloudinary's CORS configuration.
-function FileActions({ file }: { file: Pick<FileMetadata, 'filename' | 'fileUrl'> }) {
+// DOWNLOAD uses its own separately pre-signed downloadUrl straight from the
+// API response — never fileUrl with a download flag spliced in client-side,
+// since for pitch decks/documents (Cloudinary "authenticated" delivery)
+// that would invalidate the server's signature. See hackathon-server's
+// lib/cloudinary.ts (signedRawUrl) for how both URLs are computed.
+function FileActions({ file }: { file: Pick<FileMetadata, 'fileUrl' | 'downloadUrl'> }) {
   return (
     <>
       <a
@@ -71,7 +72,7 @@ function FileActions({ file }: { file: Pick<FileMetadata, 'filename' | 'fileUrl'
         VIEW
       </a>
       <a
-        href={toDownloadUrl(file.fileUrl, file.filename)}
+        href={file.downloadUrl}
         className="text-xs px-2 py-1 rounded-lg border-2 border-ink bg-white hover:bg-cream text-forest font-black uppercase"
       >
         DOWNLOAD
