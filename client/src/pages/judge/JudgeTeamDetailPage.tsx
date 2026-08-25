@@ -138,8 +138,8 @@ export function JudgeTeamDetailPage() {
         <span className="absolute -top-3 -left-3 w-6 h-6 border-[3px] border-ink bg-gold" aria-hidden="true" />
         <h2 className={`text-lg mb-4 ${comicHeading}`}>DELIVERABLES</h2>
         <div className="flex flex-col gap-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-ink font-bold">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <span className="text-ink font-bold min-w-0 break-all">
               Pitch Deck{team.deliverables.pitchDeck.status === 'UPLOADED' ? ` (v${team.deliverables.pitchDeck.version})` : ''}
             </span>
             {team.deliverables.pitchDeck.status === 'UPLOADED' ? (
@@ -149,16 +149,16 @@ export function JudgeTeamDetailPage() {
             )}
           </div>
           {team.deliverables.documents.map((d) => (
-            <div key={d.id} className="flex items-center justify-between gap-2">
-              <span className="text-ink font-bold">
+            <div key={d.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span className="text-ink font-bold min-w-0 break-all">
                 {d.filename} ({formatBytes(d.size)})
               </span>
               <FileActions fileUrl={d.fileUrl} downloadUrl={d.downloadUrl} />
             </div>
           ))}
           {team.deliverables.assets.map((a) => (
-            <div key={a.id} className="flex items-center justify-between gap-2">
-              <span className="text-ink font-bold">
+            <div key={a.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span className="text-ink font-bold min-w-0 break-all">
                 {a.filename} ({formatBytes(a.size)})
               </span>
               <FileActions fileUrl={a.fileUrl} downloadUrl={a.downloadUrl} />
